@@ -1,0 +1,6 @@
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/transparent_bull_logo.png"
+  adaptive_icon_background: "assets/icon/transparent_bull_logo.png"
+  adaptive_icon_foreground: "assets/icon/transparent_bull_logo.png"

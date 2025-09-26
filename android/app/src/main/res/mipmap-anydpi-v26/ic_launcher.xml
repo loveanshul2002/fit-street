@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Use your PNG as both background and foreground so Android won't layer a white background -->
+    <background android:drawable="@drawable/transparent_bull_logo" />
+    <foreground android:drawable="@drawable/transparent_bull_logo" />
+</adaptive-icon>

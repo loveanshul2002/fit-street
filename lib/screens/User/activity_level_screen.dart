@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/glass_card.dart';
 import '../../config/app_colors.dart';
 import 'profile_fill_screen.dart';
+import '../../utils/profile_storage.dart' show savePhysicalLevel;
 
 class ActivityLevelScreen extends StatefulWidget {
   const ActivityLevelScreen({super.key});
@@ -69,11 +70,12 @@ class _ActivityLevelScreenState extends State<ActivityLevelScreen> {
                 Row(children: [
                   Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(context), style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: BorderSide(color: Colors.white.withOpacity(0.25)), padding: const EdgeInsets.symmetric(vertical: 14)), child: const Text("Back"))),
                   const SizedBox(width: 12),
-                  Expanded(child: ElevatedButton(onPressed: () {
+                  Expanded(child: ElevatedButton(onPressed: () async {
                     if (selected == null) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select a level")));
                       return;
                     }
+                    await savePhysicalLevel(selected!);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileFillScreen()));
                   }, style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, padding: const EdgeInsets.symmetric(vertical: 14)), child: const Text("Continue", style: TextStyle(color: Colors.white)))),]),
                 const SizedBox(height: 8),

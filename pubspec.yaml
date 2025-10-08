@@ -14,10 +14,13 @@ dependencies:
   google_fonts: ^4.0.4
   liquid_swipe: ^3.1.0
   gradient_borders: ^1.0.0
+  glass: ^2.0.0+2
+  glassmorphism: ^3.0.0
+  liquid_glass_renderer: 0.1.1-dev.11
 
   # Media / files
   image_picker: ^0.8.7+X
-  file_picker: ^6.2.0
+  file_picker: ^8.0.0
   mime: ^1.0.2
   path: ^1.8.0
   dio: ^5.2.1
@@ -37,6 +40,8 @@ dependencies:
   # Misc
   flutter_spinkit: ^5.1.0
   cupertino_icons: ^1.0.8
+  geolocator: ^10.1.0
+  magnifying_glass: ^2.1.1
 
 dev_dependencies:
   flutter_test:

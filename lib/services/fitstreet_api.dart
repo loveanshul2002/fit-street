@@ -67,6 +67,12 @@ class FitstreetApi {
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 
+  /// List all trainers
+  Future<http.Response> getAllTrainers() {
+    final uri = Uri.parse('$baseUrl/api/trainers');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
   /// Slot availability endpoints (alternate endpoint names)
   Future<http.Response> getSlotAvailabilityDetails(String trainerId) {
     final uri = Uri.parse('$baseUrl/api/trainers/slotAvailabilityDetails/$trainerId');
@@ -107,6 +113,29 @@ class FitstreetApi {
     return request.send();
   }
 
+ // Replace the existing updateTrainerPreferences method
+
+/// Update trainer preferences in MongoDB
+Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dynamic> preferences) async {
+  // Use the existing trainer profile endpoint which should update the mode field
+  final uri = Uri.parse('$baseUrl/api/auth/trainer/$trainerId');
+  final request = http.MultipartRequest('PUT', uri);
+  request.headers.addAll(_multipartHeaders());
+  
+  preferences.forEach((k, v) {
+    if (v != null) request.fields[k] = v.toString();
+  });
+  
+  final streamed = await request.send();
+  return http.Response.fromStream(streamed);
+}
+
+  /// Get trainer preferences from MongoDB
+  Future<http.Response> getTrainerPreferences(String trainerId) {
+    final uri = Uri.parse('$baseUrl/api/trainer/preferences/$trainerId');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
   // ----------------------
   // Specialization proofs
   // ----------------------
@@ -131,6 +160,7 @@ class FitstreetApi {
     final streamed = await request.send();
     return http.Response.fromStream(streamed);
   }
+  
 
   /// Create specialization proof WITHOUT image (JSON only)
   Future<http.Response> createSpecializationProofMinimal(

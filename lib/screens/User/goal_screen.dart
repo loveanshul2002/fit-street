@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/glass_card.dart';
 import '../../config/app_colors.dart';
 import 'activity_level_screen.dart';
+import '../../utils/profile_storage.dart' show saveGoal;
 
 class GoalScreen extends StatefulWidget {
   const GoalScreen({super.key});
@@ -126,13 +127,36 @@ class _GoalScreenState extends State<GoalScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        // minimal validation: if Other selected ensure text present
-                        if (selected.contains('Other') && otherCtrl.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please describe your 'Other' goal.")));
+                      onPressed: () async {
+                        // Build a combined list: selected presets + optional Other text
+                        final List<String> items = selected
+                            .where((g) => g != 'Other')
+                            .map((s) => s.trim())
+                            .where((s) => s.isNotEmpty)
+                            .toList();
+                        final otherText = otherCtrl.text.trim();
+                        if (selected.contains('Other')) {
+                          if (otherText.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Please describe your 'Other' goal.")),
+                            );
+                            return;
+                          }
+                          items.add(otherText);
+                        }
+                        if (items.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select at least one goal.')),
+                          );
                           return;
                         }
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityLevelScreen()));
+                        // Save as a comma-separated string so backend gets all goals together
+                        final combined = items.join(', ');
+                        await saveGoal(combined);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ActivityLevelScreen()),
+                        );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, padding: const EdgeInsets.symmetric(vertical: 14)),
                       child: const Text("Continue", style: TextStyle(color: Colors.white)),

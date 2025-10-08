@@ -1,6 +1,7 @@
 // lib/screens/user/weight_picker_screen.dart
 import 'package:flutter/material.dart';
 import '../../widgets/glass_card.dart';
+import '../../utils/profile_storage.dart' show saveWeight;
 import '../../config/app_colors.dart';
 
 class WeightPickerScreen extends StatefulWidget {
@@ -112,7 +113,8 @@ class _WeightPickerScreenState extends State<WeightPickerScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
+                        onPressed: () async {
+                          await saveWeight(_selectedWeight);
                           widget.onDone?.call(_selectedWeight);
                           Navigator.pop(context, _selectedWeight);
                         },

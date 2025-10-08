@@ -2,13 +2,34 @@ import 'package:flutter/material.dart';
 import '../../widgets/glass_card.dart';
 import '../../config/app_colors.dart';
 
-class ProfileScreen extends StatelessWidget {
+import '../../utils/role_storage.dart';
+
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _name = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadName();
+  }
+
+  Future<void> _loadName() async {
+    final saved = await getUserName();
+    if (!mounted) return;
+    setState(() => _name = (saved ?? '').trim());
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = {
-      "name": "Amit Sharma",
+      "name": _name.isNotEmpty ? _name : "",
       "membership": "Premium Plan",
       "validTill": "Feb 2025",
       "wallet": "₹1200",
@@ -45,7 +66,7 @@ class ProfileScreen extends StatelessWidget {
                         backgroundImage: AssetImage("assets/image/user.png"),
                       ),
                       const SizedBox(height: 12),
-                      Text(user["name"]!,
+                      Text(user["name"]!.isNotEmpty ? user["name"]! : "",
                           style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

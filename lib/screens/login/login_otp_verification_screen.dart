@@ -60,18 +60,49 @@ class _LoginOtpVerificationScreenState extends State<LoginOtpVerificationScreen>
         // AuthManager persisted token/role/id already.
         final role = (result['role'] ?? result['body']?['type'] ?? 'user').toString().toLowerCase();
 
-        if (role.contains('train')) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const TrainerDashboard()),
-                (route) => false,
-          );
-        } else {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-                (route) => false,
-          );
+        // Ensure ids/tokens are reloaded in case app state was cold
+        final auth = context.read<AuthManager>();
+        await auth.reloadFromStorage();
+
+        // After login, fetch and persist profile so greeting shows correct name
+        try {
+          if (role.contains('train')) {
+            // prefer DB id; if missing, we can't fetch by unique id using current API client
+            final trainerId = await auth.getApiTrainerId();
+            if (trainerId != null && trainerId.isNotEmpty) {
+              await auth.fetchTrainerProfile(trainerId);
+            }
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const TrainerDashboard()),
+              (route) => false,
+            );
+          } else {
+            await auth.getUserProfile();
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+          }
+        } catch (_) {
+          // Even if profile fetch fails, continue navigation
+          if (!mounted) return;
+          if (role.contains('train')) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const TrainerDashboard()),
+              (route) => false,
+            );
+          } else {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+          }
         }
         return;
       }

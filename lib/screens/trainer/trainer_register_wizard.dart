@@ -5,13 +5,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
 import '../../widgets/scaffold_with_bg.dart';
-import '../../widgets/app_background.dart';
 
 
 import '../../config/app_colors.dart';
@@ -21,8 +19,6 @@ import '../../utils/role_storage.dart';
 import '../../utils/user_role.dart';
 import '../../widgets/glass_card.dart';
 import 'trainer_dashboard.dart';
-import '../../widgets/glass_text_field.dart';
-import '../../widgets/glass_button.dart';
 
 class TrainerRegisterWizard extends StatefulWidget {
   const TrainerRegisterWizard({super.key});
@@ -50,11 +46,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       "FS${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
 
   bool _loading = false;
-  String? _error;
-
-  int? _trainerNumericId;
   String? _rawTrainerId;
-  String _trainerCode = '';
+  // removed unused _trainerCode
 
   bool _submitting = false;
 
@@ -136,7 +129,9 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       try {
         final auth = context.read<AuthManager>();
         final num = await auth.getTrainerNumericId();
-        if (num != null && mounted) setState(() => _trainerNumericId = num);
+        if (num != null && mounted) {
+          // numeric id retrieved; usable for future features
+        }
       } catch (_) {}
     } catch (e) {
       debugPrint('Failed to load saved ids: $e');
@@ -221,7 +216,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
     setState(() {
       _loading = true;
-      _error = null;
     });
 
     final sp = await SharedPreferences.getInstance();
@@ -240,8 +234,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       // fallback to stored prefs
       prefId ??= sp.getString('fitstreet_trainer_id') ?? sp.getString('fitstreet_trainer_db_id') ?? '';
 
-      // If no prefId, just save locally and proceed
-      if (prefId == null || prefId.isEmpty) {
+  // If no prefId, just save locally and proceed
+  if (prefId.isEmpty) {
         await sp.setString('fitstreet_trainer_name', name);
         if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
         _snack("Saved locally — will update on registration completion.");
@@ -252,8 +246,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       try {
         final res = await auth.updateTrainerProfile(prefId, fullName: name.isEmpty ? null : name, email: email.isEmpty ? null : email);
 
-        final statusCode = (res != null && res['statusCode'] is int) ? res['statusCode'] as int : 0;
-        final body = res != null ? res['body'] : null;
+  final statusCode = (res['statusCode'] is int) ? res['statusCode'] as int : 0;
+  final body = res['body'];
 
         if (statusCode == 200 || statusCode == 201) {
           // success: persist locally and fetch latest
@@ -327,7 +321,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
     setState(() {
       _loading = true;
-      _error = null;
     });
 
     final auth = context.read<AuthManager>();
@@ -339,7 +332,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       if (status == 200 || status == 201) {
         setState(() {
           _otpSent = true;
-          _error = null;
         });
         // start 30s cooldown for resending
         _startResendCooldown(30);
@@ -352,12 +344,12 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           if (body is Map && (body['message'] != null || body['error'] != null)) msg = (body['message'] ?? body['error']).toString();
           else if (res['message'] != null) msg = res['message'].toString();
         } catch (_) {}
-        setState(() => _error = msg);
         _snack(msg);
+  setState(() {});
       }
     } catch (e) {
-      setState(() => _error = 'Network error: ${e.toString()}');
       _snack('Network error: ${e.toString()}');
+  setState(() {});
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -374,7 +366,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
     }
     setState(() {
       _loading = true;
-      _error = null;
     });
 
     final auth = context.read<AuthManager>();
@@ -474,7 +465,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
         // Try to use the first candidate that looks reasonable
         String? idToUse;
         for (final c in candidates) {
-          if (c == null) continue;
           final t = c.trim();
           if (t.isEmpty) continue;
           idToUse = t;
@@ -506,12 +496,12 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           if (body is Map && (body['message'] != null || body['error'] != null)) msg = (body['message'] ?? body['error']).toString();
           else if (res['message'] != null) msg = res['message'].toString();
         } catch (_) {}
-        setState(() => _error = msg);
         _snack(msg);
+  if (mounted) setState(() {});
       }
     } catch (e) {
-      setState(() => _error = 'Network error: ${e.toString()}');
       _snack('Network error: ${e.toString()}');
+  if (mounted) setState(() {});
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -522,11 +512,7 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  String _formatTrainerCode(int numericId) {
-    final yearTwo = (DateTime.now().year % 100).toString().padLeft(2, '0');
-    final idStr = numericId.toString().padLeft(2, '0');
-    return 'bull$yearTwo$idStr';
-  }
+  // _formatTrainerCode removed (unused)
 
   String _displayTrainerId() {
     // Prefer backend unique id if available, but keep it short to avoid the blob problem
@@ -570,7 +556,7 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       // Fallback to stored prefs
       prefId ??= sp.getString('fitstreet_trainer_id') ?? sp.getString('fitstreet_trainer_db_id') ?? '';
 
-      final useDemoIfMissing = prefId == null || prefId.isEmpty;
+  final useDemoIfMissing = prefId.isEmpty;
       if (useDemoIfMissing) prefId = _demoTrainerId;
 
       debugPrint('Submitting profile - preferredId: $prefId (demo fallback: $useDemoIfMissing)');
@@ -700,14 +686,14 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           return;
         }
 
-        final bodyLower = (resp.body ?? '').toString().toLowerCase();
+  final bodyLower = resp.body.toString().toLowerCase();
         if (resp.statusCode == 404 || bodyLower.contains('not found') || bodyLower.contains('invalid or missing') || bodyLower.contains('no record')) {
           debugPrint('Server indicates id not found for $idToTry; trying next fallback id if any.');
           continue; // try next id
         } else {
           String msg = 'Failed to update profile';
           if (lastParsed is Map) msg = (lastParsed['message'] ?? lastParsed['error'] ?? lastParsed['msg'] ?? msg).toString();
-          else if (lastResp != null && lastResp.body.isNotEmpty) msg = lastResp.body;
+          else if (lastResp.body.isNotEmpty) msg = lastResp.body;
           _snack(msg);
           if (mounted) setState(() => _submitting = false);
           return;
@@ -946,116 +932,114 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
   }
 
   Widget _stepPayment() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(5),
-      child: Column(
-        children: [
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Step 2: Payment",
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  const Text("₹1499 one-time trainer activation fee",
-                      style: TextStyle(color: Colors.white70)),
-                  const SizedBox(height: 16),
+      child: GlassCard(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Step 2: Payment",
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              const Text("₹1499 one-time trainer activation fee",
+                  style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 16),
 
-                  // Only QR + UPI id + screenshot upload (UI stub)
-                  Center(
-                    child: Column(
-                      children: [
-                        // Placeholder for QR image (replace with your asset or network QR)
-                        Container(
-                          height: 180,
-                          width: 180,
-                          decoration: BoxDecoration(
-                            color: Colors.white10,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              // replace asset path if needed
-                              Image.asset('assets/image/upi-qr.jpeg', width: 150, height: 150, fit: BoxFit.fill),
-                              const SizedBox(height: 8),
-                              const Text("UPI ID: fitstreet@upi", style: TextStyle(color: Colors.white70)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _pickPaymentScreenshot,
-                              icon: const Icon(Icons.photo),
-                              label: const Text("Choose Screenshot"),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                            ),
-                            const SizedBox(width: 12),
-                            // show small thumbnail if selected
-                            if (_paymentScreenshotPath != null && _paymentScreenshotPath!.isNotEmpty)
-                              GestureDetector(
-                                onTap: () {
-                                  // tap to preview (simple dialog)
-                                  showDialog(
-                                    context: context,
-                                    builder: (_) => Dialog(
-                                      child: Image.file(File(_paymentScreenshotPath!)),
-                                    ),
-                                  );
-                                },
-                                child: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: Colors.white24),
-                                  ),
-                                  clipBehavior: Clip.hardEdge,
-                                  child: Image.file(File(_paymentScreenshotPath!), fit: BoxFit.cover),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  const GlassCard(
-                    child: Padding(
-                      padding: EdgeInsets.all(12),
+              // Only QR + UPI id + screenshot upload (UI stub)
+              Center(
+                child: Column(
+                  children: [
+                    // Placeholder for QR image (replace with your asset or network QR)
+                    Container(
+                      height: 180,
+                      width: 180,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("You’ll get instantly:", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                          SizedBox(height: 8),
-                          _Bullet("Premium T-shirt 🎽"),
-                          _Bullet("FitStreet ID card 🪪"),
-                          _Bullet("Access to Dashboard (book clients, earn ₹₹₹)"),
+                          // replace asset path if needed
+                          Image.asset('assets/image/upi-qr.jpeg', width: 150, height: 150, fit: BoxFit.fill),
+                          const SizedBox(height: 8),
+                          const Text("UPI ID: fitstreet@upi", style: TextStyle(color: Colors.white70)),
                         ],
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    value: _acceptTnc,
-                    onChanged: (v) => setState(() => _acceptTnc = v ?? false),
-                    checkColor: Colors.white,
-                    activeColor: Colors.white.withOpacity(0.25),
-                    title: const Text("I agree to Terms & Conditions",
-                        style: TextStyle(color: Colors.white)),
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _pickPaymentScreenshot,
+                          icon: const Icon(Icons.photo),
+                          label: const Text("Choose Screenshot"),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
+                        ),
+                        const SizedBox(width: 12),
+                        // show small thumbnail if selected
+                        if (_paymentScreenshotPath != null && _paymentScreenshotPath!.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              // tap to preview (simple dialog)
+                              showDialog(
+                                context: context,
+                                builder: (_) => Dialog(
+                                  child: Image.file(File(_paymentScreenshotPath!)),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              clipBehavior: Clip.hardEdge,
+                              child: Image.file(File(_paymentScreenshotPath!), fit: BoxFit.cover),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 16),
+              const GlassCard(
+                child: Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("You’ll get instantly:", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                      SizedBox(height: 8),
+                      _Bullet("Premium T-shirt 🎽"),
+                      _Bullet("FitStreet ID card 🪪"),
+                      _Bullet("Access to Dashboard (book clients, earn ₹₹₹)"),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                value: _acceptTnc,
+                onChanged: (v) => setState(() => _acceptTnc = v ?? false),
+                checkColor: Colors.white,
+                activeColor: Colors.white.withOpacity(0.25),
+                title: const Text("I agree to Terms & Conditions",
+                    style: TextStyle(color: Colors.white)),
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+
+              const SizedBox(height: 8), // small bottom gap for safety
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

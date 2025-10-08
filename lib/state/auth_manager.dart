@@ -7,12 +7,13 @@ import 'package:http/http.dart' as http;
 
 import '../services/fitstreet_api.dart';
 import '../utils/role_storage.dart';
+import '../utils/profile_storage.dart' show clearPartialProfile;
 import '../utils/user_role.dart';
 
 class AuthManager extends ChangeNotifier {
   final FitstreetApi api;
 
-  static const _authTokenKey = 'fitstreet_token';
+  // token key is stored directly via SharedPreferences; no separate const needed
 
   String? _token;
   String? _role;
@@ -26,6 +27,8 @@ class AuthManager extends ChangeNotifier {
   AuthManager(this.api) {
     _loadFromStorage();
   }
+  // Public helper to refresh token/ids from SharedPreferences
+  Future<void> reloadFromStorage() => _loadFromStorage();
 
   bool get isLoggedIn => _token != null && _token!.isNotEmpty;
   String? get role => _role;
@@ -127,9 +130,13 @@ class AuthManager extends ChangeNotifier {
 
     api.token = null;
 
-    // Also clear the role stored by role_storage.dart so UI reading getUserRole() sees unknown.
+    // Also clear user-facing cached data so Home doesn’t show stale name/mobile
     try {
       await clearUserRole();
+      await clearUserName();
+      await clearUserEmail();
+      await clearProfileComplete();
+      await clearPartialProfile(); // clears mobile, gender, age, partial flags
     } catch (_) {}
 
     notifyListeners();
@@ -163,15 +170,75 @@ class AuthManager extends ChangeNotifier {
   Future<Map<String, dynamic>> verifyLoginOtp(String mobile, String otp) async {
     try {
       final res = await api.verifyLoginOtp(mobile, otp);
-      final body = _tryDecode(res.body);
+  final body = _tryDecode(res.body);
       final success = _responseIndicatesSuccess(res.statusCode, body);
 
-      if (success) {
+  if (success) {
         final token = _extractTokenFromBody(body);
         final role = _extractRoleFromBody(body) ?? 'member';
         final id = _extractIdFromBody(body);
 
-        await _persistTokenRoleId(token: token ?? '', role: role, id: id);
+        // Persist token, role and the best-effort id (falling back to user._id)
+    String? fallbackId = id;
+        if (fallbackId == null || fallbackId.isEmpty) {
+          if (body is Map) {
+      fallbackId = (body['user']?['_id'] ??
+        body['data']?['user']?['_id'] ??
+        body['data']?['id'] ??
+        body['profile']?['_id'] ??
+        body['profile']?['id'] ??
+        body['profile']?['user']?['_id'] ??
+        body['id'])?.toString();
+          }
+        }
+        await _persistTokenRoleId(token: token ?? '', role: role, id: fallbackId);
+
+        // If trainer, try to persist both readable unique code and DB id from response
+        try {
+          if (role.toLowerCase().contains('train') && body is Map) {
+            final data = body['data'] ?? body['profile'] ?? body['user'] ?? body;
+            if (data is Map) {
+              final sp = await SharedPreferences.getInstance();
+              final possibleTrainerUnique = (data['trainerUniqueId'] ?? data['trainerUniqueID'] ?? data['trainerUniqueid'])?.toString();
+              final possibleDbId = (data['_id'] ?? data['id'] ?? data['user']?['_id'])?.toString();
+
+              if (possibleTrainerUnique != null && possibleTrainerUnique.isNotEmpty) {
+                await sp.setString('fitstreet_trainer_unique_id', possibleTrainerUnique);
+              }
+              if (possibleDbId != null && possibleDbId.isNotEmpty) {
+                await sp.setString('fitstreet_trainer_db_id', possibleDbId);
+                await sp.setString('fitstreet_trainer_id', possibleDbId);
+                _trainerId = possibleDbId;
+              }
+            }
+          }
+        } catch (_) {}
+
+        // Persist name/email if present in response to improve greeting freshness
+        try {
+          if (body is Map) {
+            final data = body['data'] ?? body['profile'] ?? body['user'] ?? body;
+            if (data is Map) {
+              final name = (data['fullName'] ?? data['name'] ?? data['user']?['fullName'] ?? data['user']?['name'])?.toString();
+              final mail = (data['email'] ?? data['user']?['email'])?.toString();
+              if (name != null && name.isNotEmpty) await saveUserName(name);
+              if (mail != null && mail.isNotEmpty) await saveUserEmail(mail);
+
+              // If trainer, also persist KYC flag from response to align UI with server
+              try {
+                final roleLower = (role).toLowerCase();
+                if (roleLower.contains('train')) {
+                  final sp = await SharedPreferences.getInstance();
+                  final rawKyc = (data['isKyc'] ?? data['kyc'] ?? data['isKYc']);
+                  if (rawKyc != null) {
+                    final boolKyc = rawKyc is bool ? rawKyc : rawKyc.toString().toLowerCase() == 'true';
+                    await sp.setBool('trainer_kyc_done', boolKyc);
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        } catch (_) {}
 
         return {
           'statusCode': res.statusCode,
@@ -205,15 +272,27 @@ class AuthManager extends ChangeNotifier {
       if (success) {
         final token = _extractTokenFromBody(body);
         final roleFromBody = _extractRoleFromBody(body) ?? role;
-        final id = _extractIdFromBody(body);
+  final id = _extractIdFromBody(body);
 
         // persist token + role + id (DB id preferred)
-        await _persistTokenRoleId(token: token ?? '', role: roleFromBody, id: id);
+    String? fallbackId = id;
+        if (fallbackId == null || fallbackId.isEmpty) {
+          if (body is Map) {
+      fallbackId = (body['user']?['_id'] ??
+        body['data']?['user']?['_id'] ??
+        body['data']?['id'] ??
+        body['profile']?['_id'] ??
+        body['profile']?['id'] ??
+        body['profile']?['user']?['_id'] ??
+        body['id'])?.toString();
+          }
+        }
+  await _persistTokenRoleId(token: token ?? '', role: roleFromBody, id: fallbackId);
 
         // Extra: persist both readable unique code and DB id if present in response data
         try {
           if (body is Map) {
-            final data = body['data'] ?? body;
+            final data = body['data'] ?? body['profile'] ?? body;
             if (data is Map) {
               final sp = await SharedPreferences.getInstance();
               final possibleTrainerUnique = (data['trainerUniqueId'] ?? data['trainerUniqueID'] ?? data['trainerUniqueid'])?.toString();
@@ -229,6 +308,29 @@ class AuthManager extends ChangeNotifier {
                 await sp.setString('fitstreet_trainer_id', possibleDbId); // ensure API key is DB _id
                 _trainerId = possibleDbId;
               }
+            }
+          }
+        } catch (_) {}
+
+        // Persist name/email immediately if provided
+        try {
+          if (body is Map) {
+            final data = body['data'] ?? body['profile'] ?? body;
+            if (data is Map) {
+              final name = (data['fullName'] ?? data['name'] ?? data['user']?['fullName'] ?? data['user']?['name'])?.toString();
+              final mail = (data['email'] ?? data['user']?['email'])?.toString();
+              if (name != null && name.isNotEmpty) await saveUserName(name);
+              if (mail != null && mail.isNotEmpty) await saveUserEmail(mail);
+
+              // If trainer signup flow returned KYC flag, persist it
+              try {
+                final sp = await SharedPreferences.getInstance();
+                final rawKyc = (data['isKyc'] ?? data['kyc'] ?? data['isKYc']);
+                if (rawKyc != null) {
+                  final boolKyc = rawKyc is bool ? rawKyc : rawKyc.toString().toLowerCase() == 'true';
+                  await sp.setBool('trainer_kyc_done', boolKyc);
+                }
+              } catch (_) {}
             }
           }
         } catch (_) {}
@@ -267,7 +369,6 @@ class AuthManager extends ChangeNotifier {
     try {
       // ---------- Normalize incoming id ----------
       String normalizeId(String raw) {
-        if (raw == null) return '';
         final s = raw.toString().trim();
         if (s.isEmpty) return s;
 
@@ -389,6 +490,141 @@ class AuthManager extends ChangeNotifier {
     }
   }
 
+  // ============================
+  // USER API WRAPPERS (Mongo-backed)
+  // ============================
+
+  Future<Map<String, dynamic>> updateUserProfile(
+      Map<String, dynamic> fields, {
+        File? image,
+      }) async {
+    try {
+      // Ensure token in api from prefs in case process restarted
+      try {
+        final sp = await SharedPreferences.getInstance();
+        final storedToken = sp.getString('fitstreet_token') ?? '';
+        if (storedToken.isNotEmpty) api.token = storedToken;
+      } catch (_) {}
+
+      // Resolve user id
+      String? id = _userId;
+      if (id == null || id.isEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        id = sp.getString('fitstreet_user_id');
+      }
+      if (id == null || id.isEmpty) {
+        return {
+          'statusCode': 0,
+          'success': false,
+          'message': 'User ID not available. Please login again.'
+        };
+      }
+
+  final resp = await api.updateUserMultipart(id, fields, image: image);
+  debugPrint('updateUserProfile -> status: ${resp.statusCode}');
+  debugPrint('updateUserProfile -> raw body: ${resp.body}');
+      dynamic body;
+      try {
+        body = jsonDecode(resp.body);
+      } catch (_) {
+        body = resp.body;
+      }
+
+      // Persist a couple of convenient fields
+      try {
+        if (body is Map) {
+          final data = body['data'] ?? body;
+          if (data is Map) {
+            final name = (data['fullName'] ?? data['name'])?.toString();
+            final mail = data['email']?.toString();
+            if (name != null && name.isNotEmpty) await saveUserName(name);
+            if (mail != null && mail.isNotEmpty) {
+              final sp = await SharedPreferences.getInstance();
+              await sp.setString('fitstreet_user_email', mail);
+            }
+          }
+        }
+      } catch (_) {}
+
+      return {
+        'statusCode': resp.statusCode,
+        'body': body,
+        'success': resp.statusCode >= 200 && resp.statusCode < 300,
+      };
+    } catch (e) {
+      return {'statusCode': 0, 'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserProfile() async {
+    try {
+      String? id = _userId;
+      if (id == null || id.isEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        id = sp.getString('fitstreet_user_id');
+      }
+      if (id == null || id.isEmpty) {
+        return {'statusCode': 0, 'success': false, 'message': 'No user id'};
+      }
+      final res = await api.getUser(id);
+      dynamic body;
+      try {
+        body = jsonDecode(res.body);
+      } catch (_) {
+        body = res.body;
+      }
+      // Persist name/email for greeting
+      try {
+        if (body is Map) {
+          final data = body['data'] ?? body;
+          if (data is Map) {
+            final name = (data['fullName'] ?? data['name'])?.toString();
+            final email = data['email']?.toString();
+            if (name != null && name.isNotEmpty) await saveUserName(name);
+            if (email != null && email.isNotEmpty) await saveUserEmail(email);
+            // Sync profile completion flag from server if present
+            final rawDone = (data['isProfileCompleted'] ?? data['profileCompleted'] ?? data['isProfileComplete']);
+            if (rawDone != null) {
+              final done = rawDone is bool ? rawDone : rawDone.toString().toLowerCase() == 'true';
+              await saveProfileComplete(done);
+            }
+          }
+        }
+      } catch (_) {}
+      return {
+        'statusCode': res.statusCode,
+        'body': body,
+        'success': res.statusCode == 200,
+      };
+    } catch (e) {
+      return {'statusCode': 0, 'success': false, 'message': e.toString()};
+    }
+  }
+
+  Future<Map<String, String>?> getCityState(String pincode) async {
+    try {
+      final res = await api.getCityStateByPincode(pincode);
+      dynamic body;
+      try {
+        body = jsonDecode(res.body);
+      } catch (_) {
+        body = res.body;
+      }
+
+      if (body is Map) {
+        final data = (body['data'] ?? body);
+        if (data is Map) {
+          final city = (data['city'] ?? data['district'] ?? data['City'])?.toString();
+          final state = (data['state'] ?? data['State'])?.toString();
+          if (city != null && state != null) return {'city': city, 'state': state};
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
 
   Future<Map<String, dynamic>> fetchTrainerProfile(String trainerId) async {
     try {
@@ -404,6 +640,18 @@ class AuthManager extends ChangeNotifier {
             final sp = await SharedPreferences.getInstance();
             await sp.setString('fitstreet_user_email', email.toString());
           }
+
+          // Persist KYC flag for dashboard KYC banner logic
+          try {
+            if (data is Map) {
+              final rawKyc = (data['isKyc'] ?? data['kyc'] ?? data['isKYc']);
+              if (rawKyc != null) {
+                final boolKyc = rawKyc is bool ? rawKyc : rawKyc.toString().toLowerCase() == 'true';
+                final sp = await SharedPreferences.getInstance();
+                await sp.setBool('trainer_kyc_done', boolKyc);
+              }
+            }
+          } catch (_) {}
 
           // Save BOTH IDs: readable unique code and DB _id (and make DB id canonical for API)
           final possibleTrainerUnique = (data is Map) ? (data['trainerUniqueId'] ?? data['trainerUniqueID'] ?? data['trainerUniqueid']) : null;
@@ -588,10 +836,18 @@ class AuthManager extends ChangeNotifier {
 
   String? _extractTokenFromBody(dynamic body) {
     if (body is Map) {
-      return (body['token'] ??
-          body['accessToken'] ??
-          body['data']?['token'] ??
-          body['data']?['accessToken'])
+    return (body['token'] ??
+      body['accessToken'] ??
+      body['jwt'] ??
+      body['jwtToken'] ??
+      body['authToken'] ??
+      body['bearerToken'] ??
+      body['data']?['token'] ??
+      body['data']?['accessToken'] ??
+      body['data']?['jwt'] ??
+      body['data']?['jwtToken'] ??
+      body['data']?['authToken'] ??
+      body['data']?['bearerToken'])
           ?.toString();
     }
     return null;
@@ -599,9 +855,10 @@ class AuthManager extends ChangeNotifier {
 
   String? _extractRoleFromBody(dynamic body) {
     if (body is Map) {
-      return (body['role'] ??
+    return (body['role'] ??
           body['user']?['role'] ??
           body['data']?['user']?['role'] ??
+      body['profile']?['role'] ??
           body['userType'] ??
           body['type'])
           ?.toString();
@@ -616,6 +873,8 @@ class AuthManager extends ChangeNotifier {
         body['id'],
         body['_id'],
         body['userId'],
+  body['user']?['_id'],
+  body['user']?['id'],
         body['trainerId'],
         body['trainerUniqueId'],
         body['trainerUniqueID'],
@@ -627,8 +886,17 @@ class AuthManager extends ChangeNotifier {
         body['data']?['trainerId'],
         body['data']?['trainerUniqueId'],
         body['data']?['trainerUniqueID'],
+  body['data']?['user']?['id'],
         body['data']?['user']?['_id'],
         body['data']?['_id'],
+        // Also support payloads where the profile is nested under 'profile'
+        body['profile']?['id'],
+        body['profile']?['_id'],
+        body['profile']?['trainerId'],
+        body['profile']?['trainerUniqueId'],
+        body['profile']?['trainerUniqueID'],
+        body['profile']?['user']?['id'],
+        body['profile']?['user']?['_id'],
       ];
 
       for (final c in candidates) {
@@ -640,6 +908,12 @@ class AuthManager extends ChangeNotifier {
           final dd = body['data'] as Map;
           if (dd['user'] is Map && dd['user']['_id'] != null) return dd['user']['_id'].toString();
           if (dd['trainer'] is Map && dd['trainer']['_id'] != null) return dd['trainer']['_id'].toString();
+        }
+        if (body['profile'] is Map) {
+          final pd = body['profile'] as Map;
+          if (pd['user'] is Map && pd['user']['_id'] != null) return pd['user']['_id'].toString();
+          if (pd['_id'] != null) return pd['_id'].toString();
+          if (pd['id'] != null) return pd['id'].toString();
         }
       } catch (_) {}
     }

@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "com.example.newfitstreet"
         minSdk = 21
-        targetSdk = 35
+    targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
@@ -36,9 +36,9 @@ android {
             // TEMP: use debug signing so flutter run --release works
             signingConfig = signingConfigs.getByName("debug")
 
-            // ✅ Correct Kotlin DSL flags - enabled with ProGuard rules
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // ✅ Correct Kotlin DSL flags
+            isMinifyEnabled = false
+            isShrinkResources = false
 
             // ✅ Kotlin DSL syntax for proguardFiles
             proguardFiles(
@@ -55,7 +55,7 @@ android {
 }
 
 dependencies {
-    // Annotation issues handled by ProGuard rules in proguard-rules.pro
+    implementation("javax.annotation:javax.annotation-api:1.3.2")
 }
 
 flutter {

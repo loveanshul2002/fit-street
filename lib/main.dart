@@ -9,6 +9,8 @@ import 'screens/home/home_screen.dart';
 import 'services/fitstreet_api.dart';
 import 'state/auth_manager.dart';
 
+
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -45,3 +47,4 @@ class FitStreetApp extends StatelessWidget {
     );
   }
 }
+

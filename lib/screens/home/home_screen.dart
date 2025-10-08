@@ -5,6 +5,7 @@ import '../../widgets/glass_card.dart';
 
 // utils
 import '../../utils/role_storage.dart';
+import '../../utils/profile_storage.dart';
 import '../../utils/user_role.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_manager.dart';
@@ -18,7 +19,6 @@ import '../counsellors/counsellor_screen.dart';
 import '../trainers/trainer_profile_screen.dart';
 import '../trainer/trainer_register_wizard.dart';
 import '../user/user_auth_screen.dart';
-import '../user/profile_fill_screen.dart';
 import '../user/profile_completion_wizard.dart';
 
 // NEW: use the styled login screen
@@ -35,23 +35,80 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _profileComplete = false;
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
+  String _greetingName = '';
+  void _onAuthChanged() {
+    // When auth (login/logout) changes, refresh greeting and flags
+    _loadProfileState();
+  }
 
   @override
   void initState() {
     super.initState();
     _loadProfileState();
+    // Listen for auth changes to update greeting live
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthManager?>();
+      auth?.addListener(_onAuthChanged);
+    });
+  }
+
+  @override
+  void dispose() {
+    // Remove listener to avoid leaks
+    try {
+      final auth = context.read<AuthManager?>();
+      auth?.removeListener(_onAuthChanged);
+    } catch (_) {}
+    super.dispose();
   }
 
   Future<void> _loadProfileState() async {
     // load role and profile-complete flag
     final role = await getUserRole();
     final done = await getProfileComplete();
+  final name = await getUserName();
+  final mobile = await getMobile();
     if (!mounted) return;
     setState(() {
       _role = role;
       _profileComplete = done;
       _loadingProfileState = false;
+    _greetingName = (name != null && name.isNotEmpty)
+      ? name
+      : (mobile != null && mobile.isNotEmpty)
+        ? mobile
+        : 'there';
     });
+
+    // If logged in but no name yet, fetch profile to populate fullName
+    try {
+      final auth = context.read<AuthManager?>();
+      if (auth != null && auth.isLoggedIn) {
+        if (name == null || name.isEmpty) {
+          if (role == UserRole.trainer) {
+            final id = await auth.getApiTrainerId();
+            if (id != null && id.isNotEmpty) {
+              await auth.fetchTrainerProfile(id);
+            }
+          } else {
+            await auth.getUserProfile();
+          }
+          // Re-read saved name and update greeting
+          final freshName = await getUserName();
+          if (!mounted) return;
+          if (freshName != null && freshName.isNotEmpty) {
+            setState(() {
+              _greetingName = freshName;
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Public method to trigger greeting refresh from other screens
+  void refreshGreeting() {
+    _loadProfileState();
   }
 
   Future<void> _openProfileFill() async {
@@ -60,6 +117,35 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(builder: (_) => const ProfileCompletionWizard()),
     );
     await _loadProfileState(); // refresh flag after return
+  }
+
+  Future<void> _confirmAndLogout(BuildContext ctx) async {
+    final auth = ctx.read<AuthManager?>();
+    if (auth == null) return;
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, true),
+            child: const Text("Logout", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await auth.logout();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -80,18 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return Row(
                 children: [
                   TextButton(
-                    onPressed: () async {
-                      // logout via AuthManager
-                      await auth!.logout();
-
-                      // After logout, navigate back to a fresh HomeScreen (clears nav stack)
-                      if (!mounted) return;
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const HomeScreen()),
-                            (route) => false,
-                      );
-                    },
+                    onPressed: () => _confirmAndLogout(ctx),
                     child: const Text(
                       "Logout",
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -145,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Greeting
-                Text("Hi Amit 👋", style: Theme.of(context).textTheme.headlineMedium),
+                Text("Hi $_greetingName 👋", style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 4),
                 const Text("Ready for your transformation?", style: TextStyle(color: Colors.white70)),
 
@@ -157,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 //  - profile is NOT complete
                 if (_loadingProfileState)
                   const SizedBox(height: 8)
-                else if (_role == UserRole.member && !_profileComplete) ...[
+                else if ((_role == UserRole.member || _role == UserRole.unknown) && !_profileComplete) ...[
                   GlassCard(
                     onTap: _openProfileFill,
                     child: Container(
@@ -374,14 +449,39 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
         child: Container(
           width: 160,
-          padding: const EdgeInsets.all(16),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.restaurant, color: Colors.white, size: 40),
-            const SizedBox(height: 10),
-            Text(name, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(price, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
-          ]),
+          height: 140, // Fixed height to prevent overflow
+          padding: const EdgeInsets.all(12), // Reduced padding
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, 
+            children: [
+              const Icon(Icons.restaurant, color: Colors.white, size: 32), // Smaller icon
+              const SizedBox(height: 8), // Reduced spacing
+              Flexible(
+                child: Text(
+                  name, 
+                  textAlign: TextAlign.center, 
+                  maxLines: 2, // Limit to 2 lines
+                  overflow: TextOverflow.ellipsis, // Handle overflow
+                  style: const TextStyle(
+                    color: Colors.white, 
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14, // Smaller font
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                price, 
+                maxLines: 1, // Single line for price
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white70, 
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13, // Smaller font
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

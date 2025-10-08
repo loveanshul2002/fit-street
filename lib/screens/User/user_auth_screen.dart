@@ -1,11 +1,13 @@
 import 'package:fit_street/widgets/scaffold_with_bg.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../state/auth_manager.dart';
+import '../../utils/role_storage.dart' show saveUserName, saveProfileComplete;
+import '../../utils/profile_storage.dart' show saveMobile;
 import 'otp_verification_screen.dart';
 import '../trainer/trainer_register_wizard.dart';
+import 'package:flutter/services.dart';
 
 class UserAuthScreen extends StatefulWidget {
   const UserAuthScreen({Key? key}) : super(key: key);
@@ -42,6 +44,12 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
     setState(() => _loading = true);
 
     try {
+  // Save locally right away so Profile Fill screen and Home greeting can use them
+      await saveUserName(name);
+      await saveMobile(mobile);
+  // Ensure profile-complete is false at start so Home shows the CTA until finished
+  try { await saveProfileComplete(false); } catch (_) {}
+
       final auth = context.read<AuthManager>();
       final result = await auth.sendSignupOtp(mobile);
       print('DEBUG: sendSignupOtp result => $result');
@@ -133,6 +141,10 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                         TextField(
                           controller: _mobileController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Mobile number',
                             prefixText: '+91 ',

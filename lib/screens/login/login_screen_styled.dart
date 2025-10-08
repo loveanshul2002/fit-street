@@ -6,6 +6,7 @@ import '../../widgets/glass_card.dart';
 import '../../state/auth_manager.dart';
 import '../user/user_auth_screen.dart';
 import 'login_otp_verification_screen.dart'; // <-- use your dedicated login OTP screen
+import '../../utils/profile_storage.dart';
 
 /// Styled Login screen for users/trainers.
 /// Sends OTP and navigates to LoginOtpVerificationScreen (role-based login).
@@ -35,6 +36,9 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
 
     setState(() => _loading = true);
     try {
+  // Save mobile immediately so greeting can show number instead of 'there'
+  try { await saveMobile(mobile); } catch (_) {}
+
       final auth = context.read<AuthManager>();
       final Map<String, dynamic> result = await auth.sendLoginOtp(mobile);
       debugPrint('DEBUG sendLoginOtp => $result');

@@ -5,6 +5,10 @@ const _kMobile = 'fitstreet_mobile';
 const _kGender = 'fitstreet_gender';
 const _kAge = 'fitstreet_age';
 const _kProfileCompleted = 'fitstreet_profile_completed';
+const _kWeight = 'fitstreet_weight';
+const _kHeight = 'fitstreet_height';
+const _kGoal = 'fitstreet_goal';
+const _kPhysical = 'fitstreet_physical_level';
 
 enum StoredGender { male, female, other, unknown }
 
@@ -81,4 +85,45 @@ Future<void> clearPartialProfile() async {
   await sp.remove(_kGender);
   await sp.remove(_kAge);
   await sp.remove(_kProfileCompleted);
+}
+
+// ----- Extended onboarding fields -----
+Future<void> saveWeight(int kg) async {
+  final sp = await SharedPreferences.getInstance();
+  await sp.setInt(_kWeight, kg);
+}
+
+Future<int?> getWeight() async {
+  final sp = await SharedPreferences.getInstance();
+  return sp.containsKey(_kWeight) ? sp.getInt(_kWeight) : null;
+}
+
+Future<void> saveHeight(String height) async {
+  final sp = await SharedPreferences.getInstance();
+  await sp.setString(_kHeight, height);
+}
+
+Future<String?> getHeight() async {
+  final sp = await SharedPreferences.getInstance();
+  return sp.getString(_kHeight);
+}
+
+Future<void> saveGoal(String goal) async {
+  final sp = await SharedPreferences.getInstance();
+  await sp.setString(_kGoal, goal);
+}
+
+Future<String?> getGoal() async {
+  final sp = await SharedPreferences.getInstance();
+  return sp.getString(_kGoal);
+}
+
+Future<void> savePhysicalLevel(String level) async {
+  final sp = await SharedPreferences.getInstance();
+  await sp.setString(_kPhysical, level);
+}
+
+Future<String?> getPhysicalLevel() async {
+  final sp = await SharedPreferences.getInstance();
+  return sp.getString(_kPhysical);
 }

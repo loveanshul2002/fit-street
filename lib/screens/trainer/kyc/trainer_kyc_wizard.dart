@@ -185,6 +185,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   void _toast(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 
+  // ignore: unused_element
   Future<String?> _captureSelfie() async {
     try {
       final XFile? picked = await _picker.pickImage(
@@ -361,8 +362,21 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                     currentState: currentState,
 
                     sameAsPermanent: sameAsPermanent,
-                    onSameAsPermanentChanged: (v) =>
-                        setState(() => sameAsPermanent = v),
+                    onSameAsPermanentChanged: (v) => setState(() {
+                      sameAsPermanent = v;
+                      // Mirror/clear current address fields similar to profile_fill_screen.dart
+                      if (v) {
+                        addrCurrent.text = addrPermanent.text;
+                        currentPincode.text = pincode.text;
+                        currentCity.text = city.text;
+                        currentState.text = stateCtrl.text;
+                      } else {
+                        addrCurrent.clear();
+                        currentPincode.clear();
+                        currentCity.clear();
+                        currentState.clear();
+                      }
+                    }),
                     addrPermanent: addrPermanent,
                     addrCurrent: addrCurrent,
                     emgName: emgName,
@@ -510,39 +524,76 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   void _onPincodeChanged(String v) {
     if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) {
-      final data = _mockPincodeLookup(v);
-      city.text = data['city']!;
-      stateCtrl.text = data['state']!;
+      () async {
+        try {
+          final auth = context.read<AuthManager>();
+          final d = await auth.getCityState(v);
+          if (!mounted) return;
+          setState(() {
+            city.text = (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
+            stateCtrl.text = (d != null && (d['state'] ?? '').isNotEmpty) ? d['state']! : '—';
+            if (sameAsPermanent) {
+              addrCurrent.text = addrPermanent.text;
+              currentPincode.text = pincode.text;
+              currentCity.text = city.text;
+              currentState.text = stateCtrl.text;
+            }
+          });
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            city.text = '—';
+            stateCtrl.text = '—';
+            if (sameAsPermanent) {
+              currentCity.text = '—';
+              currentState.text = '—';
+              currentPincode.text = pincode.text;
+            }
+          });
+        }
+      }();
     } else {
-      city.clear();
-      stateCtrl.clear();
+      setState(() {
+        city.clear();
+        stateCtrl.clear();
+        if (sameAsPermanent) {
+          currentCity.clear();
+          currentState.clear();
+          currentPincode.text = pincode.text;
+        }
+      });
     }
   }
 
   void _onCurrentPincodeChanged(String v) {
     if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) {
-      final data = _mockPincodeLookup(v);
-      currentCity.text = data['city']!;
-      currentState.text = data['state']!;
+      () async {
+        try {
+          final auth = context.read<AuthManager>();
+          final d = await auth.getCityState(v);
+          if (!mounted) return;
+          setState(() {
+            currentCity.text = (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
+            currentState.text = (d != null && (d['state'] ?? '').isNotEmpty) ? d['state']! : '—';
+          });
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            currentCity.text = '—';
+            currentState.text = '—';
+          });
+        }
+      }();
     } else {
-      currentCity.clear();
-      currentState.clear();
+      setState(() {
+        currentCity.clear();
+        currentState.clear();
+      });
     }
   }
 
 
-  Map<String, String> _mockPincodeLookup(String pin) {
-    switch (pin) {
-      case "110001":
-        return {"city": "New Delhi", "state": "Delhi"};
-      case "400001":
-        return {"city": "Mumbai", "state": "Maharashtra"};
-      case "201009":
-        return {"city": "Bengaluru", "state": "Karnataka"};
-      default:
-        return {"city": "—", "state": "—"};
-    }
-  }
+  // removed mock pincode lookup; now using AuthManager.getCityState
 
   /// _uploadKyc
   /// - collects fields and files
@@ -617,30 +668,32 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (pincode.text
             .trim()
             .isNotEmpty) 'pincode': pincode.text.trim(),
-        if (city.text
-            .trim()
-            .isNotEmpty) 'city': city.text.trim(),
-        if (stateCtrl.text
-            .trim()
-            .isNotEmpty) 'state': stateCtrl.text.trim(),
+        if (city.text.trim().isNotEmpty && city.text.trim() != '—') 'city': city.text.trim(),
+        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'state': stateCtrl.text.trim(),
+
+    // indicate whether current = permanent (parity with user profile form)
+    'isAddressSame': sameAsPermanent ? 'true' : 'false',
 
         // current address pincode/city/state when different from permanent
-        if (!sameAsPermanent && currentPincode.text
-            .trim()
-            .isNotEmpty) 'currentPincode': currentPincode.text.trim(),
-        if (!sameAsPermanent && currentCity.text
-            .trim()
-            .isNotEmpty) 'currentCity': currentCity.text.trim(),
-        if (!sameAsPermanent && currentState.text
-            .trim()
-            .isNotEmpty) 'currentState': currentState.text.trim(),
+  if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty) 'currentPincode': currentPincode.text.trim(),
+  if (!sameAsPermanent && currentCity.text.trim().isNotEmpty && currentCity.text.trim() != '—') 'currentCity': currentCity.text.trim(),
+  if (!sameAsPermanent && currentState.text.trim().isNotEmpty && currentState.text.trim() != '—') 'currentState': currentState.text.trim(),
+    // when same, mirror permanent into current*
+    if (sameAsPermanent && pincode.text
+      .trim()
+      .isNotEmpty) 'currentPincode': pincode.text.trim(),
+  if (sameAsPermanent && city.text.trim().isNotEmpty && city.text.trim() != '—') 'currentCity': city.text.trim(),
+  if (sameAsPermanent && stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'currentState': stateCtrl.text.trim(),
 
         if (addrPermanent.text
             .trim()
             .isNotEmpty) 'address': addrPermanent.text.trim(),
-        if (!sameAsPermanent && addrCurrent.text
-            .trim()
-            .isNotEmpty) 'currentAddress': addrCurrent.text.trim(),
+    if (!sameAsPermanent && addrCurrent.text
+      .trim()
+      .isNotEmpty) 'currentAddress': addrCurrent.text.trim(),
+    if (sameAsPermanent && addrPermanent.text
+      .trim()
+      .isNotEmpty) 'currentAddress': addrPermanent.text.trim(),
         if (emgName.text
             .trim()
             .isNotEmpty) 'emergencyPersonName': emgName.text.trim(),
@@ -730,8 +783,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           'https://api.fitstreet.in', token: savedToken);
 
       // Call multipart update
-      final streamed = await fitApi.updateTrainerProfileMultipart(
-          trainerId!, fields: fields, files: files.isEmpty ? null : files);
+    final streamed = await fitApi.updateTrainerProfileMultipart(
+      trainerId, fields: fields, files: files.isEmpty ? null : files);
       final resp = await http.Response.fromStream(streamed);
 
       debugPrint(

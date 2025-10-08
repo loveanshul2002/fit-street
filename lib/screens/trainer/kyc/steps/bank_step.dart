@@ -37,9 +37,11 @@ class BankStep extends StatelessWidget {
                 field("Bank Name", bankName, validator: req),
 
                 field("UPI ID (optional)", upi, validator: (v){
-                  if (v==null || v.isEmpty) return null;
-                  return RegExp(r'^[\w.\-]{2,}@[A-Za-z]{2,}$').hasMatch(v) ? null : "Invalid UPI ID";
-                }),
+                  if(v!=null && v.isNotEmpty && !v.contains('@')) {
+                    return 'Invalid UPI ID';
+                  }
+                  return null;
+                }, inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))]),
               ]),
             ),
           ),

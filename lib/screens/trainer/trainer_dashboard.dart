@@ -14,9 +14,12 @@ import '../trainer/kyc/widgets/bookings_list.dart';
 import '../trainer/kyc/trainer_kyc_wizard.dart';
 import '../../state/auth_manager.dart';
 import '../../utils/role_storage.dart';
-import '../../utils/user_role.dart';
 import '../home/home_screen.dart';
 import '../../services/fitstreet_api.dart';
+import '../../utils/profile_storage.dart';
+// import '../profile/profile_screen.dart';
+import 'profile_edit_restricted_screen.dart';
+import '../trainer/bank_details_edit_screen.dart';
 
 enum KycStatus { pending, done }
 
@@ -28,13 +31,14 @@ class TrainerDashboard extends StatefulWidget {
 }
 
 class _TrainerDashboardState extends State<TrainerDashboard> with TickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   // Trainer id fields (used by the UI)
-  int? _trainerNumericId;
+  // int? _trainerNumericId; // not currently used
   String? _dbTrainerId; // canonical DB _id (for API)
   String? _uniqueTrainerCode; // readable code like Bull2512
   String _trainerCode = '';
 
-  String trainerName = "Amit Sharma";
+  String trainerName = "";
   String cityCountry = "Mumbai, India";
   String addressLine = "Andheri West, Mumbai";
   String motivation = "Small daily wins add up — keep going!";
@@ -51,30 +55,14 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   String workingMode = "Offline";
 
   final List<String> slotLabels = [
-    "12AM-1AM",
-    "1AM-2AM",
-    "2AM-3AM",
-    "3AM-4AM",
-    "4AM-5AM",
-    "5AM-6AM",
-    "6AM-7AM",
-    "7AM-8AM",
-    "8AM-9AM",
-    "9AM-10AM",
-    "10AM-11AM",
-    "11AM-12PM",
-    "12PM-1PM",
-    "1PM-2PM",
-    "2PM-3PM",
-    "3PM-4PM",
-    "4PM-5PM",
-    "5PM-6PM",
-    "6PM-7PM",
-    "7PM-8PM",
-    "8PM-9PM",
-    "9PM-10PM",
-    "10PM-11PM",
-    "11PM-12AM",
+    "12AM-3AM",
+        "3AM-6AM",
+        "6AM-9AM",
+        "9AM-12PM",
+        "12PM-3PM",
+        "3PM-6PM",
+        "6PM-9PM",
+        "9PM-12PM",
   ];
 
   final Map<String, Set<String>> availability = {
@@ -165,7 +153,19 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       final name = await getUserName();
       if (mounted && name != null && name.isNotEmpty) {
         setState(() => trainerName = name);
+        return;
       }
+
+      // Fallbacks: mobile number, then trainerUniqueId, else generic label
+      final mobile = await getMobile();
+      final sp = await SharedPreferences.getInstance();
+      final unique = sp.getString('fitstreet_trainer_unique_id');
+      final fallback = (mobile != null && mobile.isNotEmpty)
+          ? mobile
+          : (unique != null && unique.isNotEmpty)
+              ? unique
+              : 'Trainer';
+      if (mounted) setState(() => trainerName = fallback);
     } catch (_) {}
   }
 
@@ -331,16 +331,41 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
 
       if (!mounted) return;
       setState(() {
-        _trainerNumericId = numId;
+  // _trainerNumericId = numId;
         _dbTrainerId = dbId;
         _uniqueTrainerCode = unique;
         _trainerCode = formatted;
         if (storedName != null && storedName.isNotEmpty)
           trainerName = storedName;
       });
+
+      // Fallback: if no name persisted yet but we have DB id, fetch from server once
+      if ((storedName == null || storedName.isEmpty) && dbId != null && dbId.isNotEmpty) {
+        await _refreshNameFromServer(dbId);
+      }
     } catch (e) {
       // ignore
     }
+  }
+
+  Future<void> _refreshNameFromServer(String trainerDbId) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      final resp = await api.getTrainer(trainerDbId);
+      if (resp.statusCode == 200) {
+        final parsed = jsonDecode(resp.body);
+        final data = (parsed is Map) ? (parsed['data'] ?? parsed) : null;
+        if (data is Map) {
+          final name = (data['fullName'] ?? data['name'])?.toString();
+          if (name != null && name.isNotEmpty) {
+            await saveUserName(name);
+            if (mounted) setState(() => trainerName = name);
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _saveKycStatusLocally(bool done) async {
@@ -474,13 +499,65 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   }
 
 
-  Future<void> _saveAudienceAndMode() async {
+// Replace your existing _saveAudienceAndMode function
+
+Future<void> _saveAudienceAndMode() async {
+  try {
+    // Save to local SharedPreferences (existing functionality)
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('fitstreet_trainer_audience', targetAudience);
     await prefs.setString('fitstreet_trainer_mode', workingMode);
+
+    // Get trainer ID and token
+    final sp = await SharedPreferences.getInstance();
+    final savedToken = sp.getString('fitstreet_token') ?? '';
+    String? trainerId;
+    try {
+      trainerId = await context.read<AuthManager>().getApiTrainerId();
+    } catch (_) {
+      trainerId = null;
+    }
+    trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+        sp.getString('fitstreet_trainer_id');
+
+    if (trainerId != null && trainerId.isNotEmpty) {
+      final fitApi = FitstreetApi('https://api.fitstreet.in', token: savedToken);
+      
+      // Save preferences to MongoDB - using the exact field name 'mode'
+      final preferencesData = {
+        'mode': workingMode.toLowerCase(), // "offline", "online", "both"
+        'targetAudience': targetAudience, // "both", "female", "male" (kept for compatibility)
+        'availableFor': targetAudience.toLowerCase(), // backend expects 'availableFor'
+      };
+
+      print('Saving to database: $preferencesData'); // Debug print
+      print('Trainer ID: $trainerId'); // Debug print
+      
+      final response = await fitApi.updateTrainerPreferences(trainerId, preferencesData);
+      
+      print('API Response: ${response.statusCode} - ${response.body}'); // Debug print
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Preferences saved to database successfully!")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Database save failed: ${response.statusCode}")),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Preferences saved locally only - no trainer ID")),
+      );
+    }
+  } catch (e) {
+    print('Save preferences error: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Preferences saved.")));
+      SnackBar(content: Text("Error saving preferences: $e")),
+    );
   }
+}
 
   // ------------------------
   // Slots: load & save
@@ -660,6 +737,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     }
 
     return Scaffold(
+  key: _scaffoldKey,
       appBar: AppBar(
         title: const Text("Trainer Dashboard"),
         backgroundColor: Colors.transparent,
@@ -674,12 +752,13 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: "Logout",
-            onPressed: _logout,
+            icon: const Icon(Icons.more_vert),
+            tooltip: "Menu",
+            onPressed: _openOverflowPanel,
           ),
         ],
       ),
+  endDrawer: _buildEndDrawer(context),
       body: Container(
         decoration: BoxDecoration(gradient: AppColors.primaryGradient),
         child: SafeArea(
@@ -791,14 +870,14 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                                             targetAudience == "Both", () =>
                                                 setState(() =>
                                                 targetAudience = "Both")),
-                                        _smallChoice("Women",
-                                            targetAudience == "Women", () =>
+                                        _smallChoice("female",
+                                            targetAudience == "female", () =>
                                                 setState(() =>
-                                                targetAudience = "Women")),
-                                        _smallChoice("Men",
-                                            targetAudience == "Men", () =>
+                                                targetAudience = "female")),
+                                        _smallChoice("male",
+                                            targetAudience == "male", () =>
                                                 setState(() =>
-                                                targetAudience = "Men")),
+                                                targetAudience = "male")),
                                       ],
                                     ),
                                   ]),
@@ -927,6 +1006,130 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     );
   }
 
+  void _openOverflowPanel() {
+  _scaffoldKey.currentState?.openEndDrawer();
+  }
+
+  // Removed old _menuTile helper after moving to a Drawer-based menu.
+
+  Widget _buildEndDrawer(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final drawerWidth = width * 0.8; // like screenshot, not full width
+    return Drawer(
+      backgroundColor: Colors.white,
+      width: drawerWidth,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header like screenshot
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+              child: Row(
+                children: [
+                  const CircleAvatar(radius: 26, backgroundColor: Colors.black12,
+                      child: Icon(Icons.person, color: Colors.black54)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(trainerName.isNotEmpty ? trainerName : 'Trainer',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        Text('View and edit profile',
+                            style: TextStyle(color: Colors.blue.shade600, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+          IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: () {
+                      Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+          ListTile(
+                    leading: const Icon(Icons.person_outline),
+                    title: const Text('Profile'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.account_balance),
+                    title: const Text('Bank Details'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const BankDetailsEditScreen()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.settings_outlined),
+                    title: const Text('Settings'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.info_outline),
+                    title: const Text('About Us'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.support_agent),
+                    title: const Text('Support'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openSupport();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.more_horiz),
+                    title: const Text('Other'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('More options coming soon')));
+                    },
+                  ),
+                  const Divider(height: 16),
+                  ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red),
+                    title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await _logout();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _smallChoice(String label, bool selected, VoidCallback onTap) {
     return ChoiceChip(
       label: Text(label, style: const TextStyle(color: Colors.white)),
@@ -950,7 +1153,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               radius: width < 360 ? 28 : 36,
               backgroundColor: Colors.white12,
               child: Text(
-                trainerName.isNotEmpty ? trainerName[0].toUpperCase() : "T",
+                  trainerName.isNotEmpty ? trainerName[0].toUpperCase() : "T",
                 style: const TextStyle(color: Colors.white, fontSize: 20),
               ),
             ),

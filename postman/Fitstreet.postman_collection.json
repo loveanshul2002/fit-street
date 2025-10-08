@@ -1,0 +1,874 @@
+{
+	"info": {
+		"_postman_id": "d8384b74-4f80-4c7f-ac3f-ccf4c433706f",
+		"name": "Fitstreet",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49066827",
+		"_collection_link": "https://kanikakumari0410-5240925.postman.co/workspace/Kanika-Kumari's-Workspace~150120ed-532a-41d8-8c4b-fd6a2a601aa8/collection/47532794-d8384b74-4f80-4c7f-ac3f-ccf4c433706f?action=share&source=collection_link&creator=49066827"
+	},
+	"item": [
+		{
+			"name": "Send OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobileNumber\": \"8860222227\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/send-otp",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"send-otp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Verify OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobileNumber\": \"8860222222\",\r\n    \"otp\": \"553867\",\r\n    \"type\": \"trainer\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/verify-otp",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"verify-otp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login Send OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobileNumber\": \"8860246275\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/login/send-otp",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login",
+						"send-otp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login Verify OTP",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"mobileNumber\": \"8860246275\",\r\n    \"otp\": \"954065\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/login/verify-otp",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login",
+						"verify-otp"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Trainer Profile",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "fullName",
+							"value": "Kanika Kumari e",
+							"type": "text"
+						},
+						{
+							"key": "bioData",
+							"value": "Dfsdfsdfsd",
+							"type": "text"
+						},
+						{
+							"key": "gender",
+							"value": "Female",
+							"type": "text"
+						},
+						{
+							"key": "dob",
+							"value": "2025-09-12T00:00:00.000Z",
+							"type": "text"
+						},
+						{
+							"key": "email",
+							"value": "kanikakumari113@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "trainerImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/Bull,wicket,pitch 4.png"
+						},
+						{
+							"key": "isPaid",
+							"value": "true",
+							"type": "text"
+						},
+						{
+							"key": "status",
+							"value": "Pending",
+							"description": "Pending, Approved, Rejected",
+							"type": "text"
+						},
+						{
+							"key": "address",
+							"value": "sdfghjkfgh",
+							"type": "text"
+						},
+						{
+							"key": "city",
+							"value": "dsfghj",
+							"type": "text"
+						},
+						{
+							"key": "state",
+							"value": "sdfghjk",
+							"type": "text"
+						},
+						{
+							"key": "pincode",
+							"value": "678909",
+							"type": "text"
+						},
+						{
+							"key": "isAddressSameAsAadhaar",
+							"value": "true",
+							"type": "text"
+						},
+						{
+							"key": "currentAddress",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentCity",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentState",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentPincode",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonName",
+							"value": "sdfghjk",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonMobile",
+							"value": "987654345",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonRelation",
+							"value": "hjgh",
+							"type": "text"
+						},
+						{
+							"key": "panCard",
+							"value": "45678656",
+							"type": "text"
+						},
+						{
+							"key": "panFrontImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/trainer.png"
+						},
+						{
+							"key": "aadhaarCard",
+							"value": "8765432345678",
+							"type": "text"
+						},
+						{
+							"key": "aadhaarFrontImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/ball street logo.png"
+						},
+						{
+							"key": "aadhaarBackImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/scanner.jpeg"
+						},
+						{
+							"key": "accountNumber",
+							"value": "87654567899",
+							"type": "text"
+						},
+						{
+							"key": "ifscCode",
+							"value": "2345678",
+							"type": "text"
+						},
+						{
+							"key": "bankName",
+							"value": "ghvfgj",
+							"type": "text"
+						},
+						{
+							"key": "upiId",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "languages",
+							"value": "hindi,english",
+							"description": "Send this \"hindi,english\"",
+							"type": "text"
+						},
+						{
+							"key": "experience",
+							"value": "0-6",
+							"type": "text"
+						},
+						{
+							"key": "esignImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/t-shirt-front.png"
+						},
+						{
+							"key": "isAvailable",
+							"value": "true",
+							"type": "text"
+						},
+						{
+							"key": "commission",
+							"value": "10",
+							"description": "by Default 10%(Always send '10')",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "paymentSSImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/fitstreet-bull-logo.png"
+						},
+						{
+							"key": "mode",
+							"value": "offline",
+							"description": "'offline' or 'online' or 'both'",
+							"type": "text"
+						},
+						{
+							"key": "isKyc",
+							"value": "false",
+							"type": "text"
+						},
+						{
+							"key": "oneSessionPrice",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "monthlySessionPrice",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "latitude",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "longitude",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "availableFor",
+							"value": "male",
+							"description": "'male' or 'female' or 'both'",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/trainer/68c3ce691783fd47a2cda1d8",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"trainer",
+						"68c3ce691783fd47a2cda1d8"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Trainer Profile",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/68c90ed5d8890998243c552b",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"68c90ed5d8890998243c552b"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User Profile",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "fullName",
+							"value": "Kanika Kumari",
+							"type": "text"
+						},
+						{
+							"key": "gender",
+							"value": "Female",
+							"type": "text"
+						},
+						{
+							"key": "email",
+							"value": "kanika123@gmail.com",
+							"type": "text"
+						},
+						{
+							"key": "age",
+							"value": "27",
+							"type": "text"
+						},
+						{
+							"key": "weight",
+							"value": "67",
+							"type": "text"
+						},
+						{
+							"key": "height",
+							"value": "5.2",
+							"type": "text"
+						},
+						{
+							"key": "goal",
+							"value": "Build muscle,Lose weight,Improve endurance",
+							"type": "text"
+						},
+						{
+							"key": "dob",
+							"value": "1995-09-12T00:00:00.000Z",
+							"type": "text"
+						},
+						{
+							"key": "physicalLevel",
+							"value": "sadsadsa",
+							"type": "text"
+						},
+						{
+							"key": "userImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/Bull,wicket,pitch 4.png"
+						},
+						{
+							"key": "isActive",
+							"value": "true",
+							"type": "text"
+						},
+						{
+							"key": "address",
+							"value": "123/56, b-block",
+							"type": "text"
+						},
+						{
+							"key": "city",
+							"value": "Ghaziabad",
+							"type": "text"
+						},
+						{
+							"key": "state",
+							"value": "Uttar Pradesh",
+							"type": "text"
+						},
+						{
+							"key": "pincode",
+							"value": "988778",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonName",
+							"value": "Ajay",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonMobile",
+							"value": "9876788978",
+							"type": "text"
+						},
+						{
+							"key": "emergencyPersonRelation",
+							"value": "Brother",
+							"type": "text"
+						},
+						{
+							"key": "healthIssue",
+							"value": "dasdasdas",
+							"type": "text"
+						},
+						{
+							"key": "isProfileCompleted",
+							"value": "true",
+							"description": "Send true when user update profile after Registration",
+							"type": "text"
+						},
+						{
+							"key": "isAddressSame",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentAddress",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentCity",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentState",
+							"value": "",
+							"type": "text"
+						},
+						{
+							"key": "currentPincode",
+							"value": "",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/auth/user/68c569378b29e9ece824ac15",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"user",
+						"68c569378b29e9ece824ac15"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Trainer",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Trainer Specialization Profile",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "specialization",
+							"value": "Yoga",
+							"type": "text"
+						},
+						{
+							"key": "certificateName",
+							"value": "Yoga cert",
+							"type": "text"
+						},
+						{
+							"key": "certificateImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/bull 1.png"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/trainers/trainerSpecializationProof/68c3ce691783fd47a2cda1d8",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"trainerSpecializationProof",
+						"68c3ce691783fd47a2cda1d8"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Trainer Specialization Proofs",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/trainerSpecializationProof/68c3ce691783fd47a2cda1d8",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"trainerSpecializationProof",
+						"68c3ce691783fd47a2cda1d8"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Trainer Specialization Proof",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/trainerSpecializationProof/68c3ce691783fd47a2cda1d8/68c40d2d03952ef6240cc562",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"trainerSpecializationProof",
+						"68c3ce691783fd47a2cda1d8",
+						"68c40d2d03952ef6240cc562"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get city & state",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"phone\": \"8860246275\"\r\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/common/city-state-by-pincode/110022",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"common",
+						"city-state-by-pincode",
+						"110022"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Trainer Slots",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"slots\": [\r\n    { \"day\":\"Mon\",\"slots\":[\"1PM-2PM\",\"3PM-4PM\"]},\r\n    { \"day\":\"Tue\",\"slots\":[\"1PM-2PM\",\"3PM-4PM\",\"5PM-6PM\"]},\r\n    { \"day\":\"Wed\",\"slots\":[\"1PM-2PM\",\"3PM-4PM\",\"5PM-6PM\"]},\r\n    { \"day\":\"Thu\",\"slots\":[]},\r\n    { \"day\":\"Fri\",\"slots\":[]},\r\n    { \"day\":\"Sat\",\"slots\":[]},\r\n    { \"day\":\"Sun\",\"slots\":[]}\r\n]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/trainers/slots/68c3ce691783fd47a2cda1d8",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"slots",
+						"68c3ce691783fd47a2cda1d8"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Trainer Slots",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/slots/68c3ce691783fd47a2cda1d8",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"slots",
+						"68c3ce691783fd47a2cda1d8"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Profile",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/users/68c569378b29e9ece824ac15",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"68c569378b29e9ece824ac15"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Near By Trainers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/nearby?city=Ghaziabad&lat=&lng=&specialization=&page=1&limit=5&gender=&experience=&mode=&fee=&name=",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"nearby"
+					],
+					"query": [
+						{
+							"key": "city",
+							"value": "Ghaziabad"
+						},
+						{
+							"key": "lat",
+							"value": ""
+						},
+						{
+							"key": "lng",
+							"value": ""
+						},
+						{
+							"key": "specialization",
+							"value": ""
+						},
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "limit",
+							"value": "5"
+						},
+						{
+							"key": "gender",
+							"value": "",
+							"description": "All, Female, Male, Other"
+						},
+						{
+							"key": "experience",
+							"value": "",
+							"description": "All,0-6 months,6 months - 1 year,1-3 years,3-5 years,5+ years"
+						},
+						{
+							"key": "mode",
+							"value": "",
+							"description": "All,Online,Offline,Both"
+						},
+						{
+							"key": "fee",
+							"value": "",
+							"description": "All, (Any Fee in digit)"
+						},
+						{
+							"key": "name",
+							"value": "",
+							"description": "Search for Name or Trainer Unique Id"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Session Booking",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "selectedSession",
+							"value": "single",
+							"description": "single or monthly",
+							"type": "text"
+						},
+						{
+							"key": "selectedDay",
+							"value": "Mon",
+							"description": "if selectedSession = 'single' => Mon ",
+							"type": "text"
+						},
+						{
+							"key": "selectedTime",
+							"value": "12AM-3AM",
+							"description": "if selectedSession = 'single' => 12AM-3AM ",
+							"type": "text"
+						},
+						{
+							"key": "selectedDate",
+							"value": "",
+							"description": "if selectedSession = 'monthly' => date",
+							"type": "text"
+						},
+						{
+							"key": "price",
+							"value": "999",
+							"type": "text"
+						},
+						{
+							"key": "paymentSSImageURL",
+							"type": "file",
+							"src": "/C:/Users/dell/Downloads/fitstreet-bull-logo.png"
+						},
+						{
+							"key": "trainerId",
+							"value": "68df624932f9f094164194d1",
+							"type": "text"
+						},
+						{
+							"key": "userId",
+							"value": "68dfc81ec85f0cb43eb23950",
+							"type": "text"
+						},
+						{
+							"key": "status",
+							"value": "upcoming",
+							"description": "default('upcoming') // 'completed' or 'rejected'",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

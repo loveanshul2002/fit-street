@@ -6,7 +6,7 @@ class FavoritesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(child: Text("Save trainer coming soon")),
+      body: Center(child: Text("Save traine coming soon")),
     );
   }
 }

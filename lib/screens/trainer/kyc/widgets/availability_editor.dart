@@ -11,7 +11,9 @@ Future<void> showAvailabilityEditor({
 }) {
   // create local copy so we don't mutate original until save
   final tempAvail = <String, Set<String>>{};
-  for (final k in availability.keys) tempAvail[k] = Set<String>.from(availability[k]!);
+  for (final k in availability.keys) {
+    tempAvail[k] = Set<String>.from(availability[k]!);
+  }
   final tempSelected = Set<String>.from(selectedDays);
 
   return showModalBottomSheet(
@@ -60,7 +62,11 @@ Future<void> showAvailabilityEditor({
                       if (tempSelected.isEmpty) tempSelected.add("Mon");
                       for (final d in tempSelected) {
                         final set = tempAvail[d]!;
-                        if (set.contains(slot)) set.remove(slot); else set.add(slot);
+                        if (set.contains(slot)) {
+                          set.remove(slot);
+                        } else {
+                          set.add(slot);
+                        }
                       }
                     });
                   },
@@ -72,7 +78,9 @@ Future<void> showAvailabilityEditor({
                   child: OutlinedButton(onPressed: () {
                     setState(() {
                       tempSelected.clear();
-                      for (final k in tempAvail.keys) tempAvail[k]!.clear();
+                      for (final k in tempAvail.keys) {
+                        tempAvail[k]!.clear();
+                      }
                     });
                     Navigator.pop(ctx2);
                   }, child: const Text("Clear"), style: OutlinedButton.styleFrom(foregroundColor: Colors.white)),

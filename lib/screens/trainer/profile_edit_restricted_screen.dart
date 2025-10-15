@@ -12,8 +12,10 @@ import 'package:image_picker/image_picker.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../trainer/kyc/utils/ui_helpers.dart';
+import '../trainer/kyc/trainer_kyc_wizard.dart';
 import '../../state/auth_manager.dart';
 import '../../services/fitstreet_api.dart';
+import '../../utils/kyc_utils.dart';
 
 class TrainerProfileEditRestrictedScreen extends StatefulWidget {
   const TrainerProfileEditRestrictedScreen({super.key});
@@ -32,17 +34,25 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   String _city = '';
   String _state = '';
   String _address = '';
-  String _pan = '';
-  String _aadhaar = '';
-  String? _panFrontUrl;
-  String? _aadhaarFrontUrl;
-  String? _aadhaarBackUrl;
+ // String _pan = '';
+ // String _aadhaar = '';
+ // String? _panFrontUrl;
+ // String? _aadhaarFrontUrl;
+ // String? _aadhaarBackUrl;
+
+  // KYC status
+  bool _isKycCompleted = false;
 
   // Editable
   final _emailCtrl = TextEditingController();
+  final _pincodectrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _cityCtrl = TextEditingController();
+  final _stateCtrl = TextEditingController();
   final _emgNameCtrl = TextEditingController();
   final _emgRelCtrl = TextEditingController();
   final _emgMobileCtrl = TextEditingController();
+
 
   String? _experience; // dropdown
   final Set<String> _languages = {};
@@ -103,16 +113,66 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check if we returned from another screen and refresh KYC status
+    _refreshKycStatus();
+  }
+
+  @override
   void dispose() {
     _emailCtrl.dispose();
+    _pincodectrl.dispose();
+    _addressCtrl.dispose();
+    _cityCtrl.dispose();
+    _stateCtrl.dispose();
     _emgNameCtrl.dispose();
     _emgRelCtrl.dispose();
     _emgMobileCtrl.dispose();
     _otherLangCtrl.dispose();
     _oneSessionPriceCtrl.dispose();
     _monthlyPriceCtrl.dispose();
-  for (final r in _specRows) { r.dispose(); }
     super.dispose();
+  }
+
+
+  Future<void> _refreshKycStatus() async {
+    // Quick KYC status check without full reload
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      String? trainerId;
+      try { trainerId = await context.read<AuthManager>().getApiTrainerId(); } catch (_) {}
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      if (trainerId == null || trainerId.isEmpty) return;
+
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      final res = await api.getTrainer(trainerId);
+      if (res.statusCode == 200) {
+        dynamic body; try { body = jsonDecode(res.body); } catch (_) { body = res.body; }
+        final data = (body is Map) ? (body['data'] ?? body) : null;
+        if (data is Map) {
+          final wasKycCompleted = _isKycCompleted;
+          // Convert to Map<String, dynamic> for type safety
+          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
+          
+          // Check KYC status using utility function
+          _isKycCompleted = KycUtils.isKycCompleted(trainerData);
+
+          // Only update UI if KYC status changed
+          if (mounted && wasKycCompleted != _isKycCompleted) {
+            setState(() {});
+            if (_isKycCompleted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('KYC completed! You can now edit your profile.')),
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Ignore errors in KYC status refresh
+    }
   }
 
   Future<void> _load() async {
@@ -141,15 +201,28 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           _mobile = (data['mobileNumber'] ?? data['mobile'] ?? '').toString();
           _dob = (data['dob'] ?? '').toString();
           _gender = (data['gender'] ?? '').toString();
-          _pincode = (data['pincode'] ?? '').toString();
-          _city = (data['city'] ?? '').toString();
-          _state = (data['state'] ?? '').toString();
+          _pincode = (data['pincode'] ?? data['currentPincode'] ?? '').toString();
+          _city = (data['city'] ?? data['currentCity'] ?? '').toString();
+          _state = (data['state'] ?? data['currentState'] ?? '').toString();
           _address = (data['address'] ?? data['currentAddress'] ?? '').toString();
-          _pan = (data['panCard'] ?? '').toString();
-          _aadhaar = (data['aadhaarCard'] ?? '').toString();
-          _panFrontUrl = data['panFrontImageURL']?.toString();
-          _aadhaarFrontUrl = data['aadhaarFrontImageURL']?.toString();
-          _aadhaarBackUrl = data['aadhaarBackImageURL']?.toString();
+
+          // populate controllers for editable fields
+          _pincodectrl.text = _pincode;
+          _cityCtrl.text = _city;
+          _stateCtrl.text = _state;
+          _addressCtrl.text = _address;
+
+          //  _pan = (data['panCard'] ?? '').toString();
+        //  _aadhaar = (data['aadhaarCard'] ?? '').toString();
+        //  _panFrontUrl = data['panFrontImageURL']?.toString();
+       //   _aadhaarFrontUrl = data['aadhaarFrontImageURL']?.toString();
+       //   _aadhaarBackUrl = data['aadhaarBackImageURL']?.toString();
+
+          // Convert to Map<String, dynamic> for type safety
+          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
+          
+          // Check KYC status using utility function
+          _isKycCompleted = KycUtils.isKycCompleted(trainerData);
 
           // editable
           _emailCtrl.text = (data['email'] ?? '').toString();
@@ -221,6 +294,12 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   }
 
   Future<void> _save() async {
+    // Check KYC status before allowing save
+    if (!_isKycCompleted) {
+      _showKycRequiredDialog();
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       final sp = await SharedPreferences.getInstance();
@@ -235,8 +314,27 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       }
 
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      // ensure pincode looks valid (optional)
+      final pinText = _pincodectrl.text.trim();
+      String? pinToSend;
+      if (pinText.isNotEmpty) {
+        // allow only digits and max 6
+        final cleansed = pinText.replaceAll(RegExp(r'\D'), '');
+        pinToSend = cleansed.length > 6 ? cleansed.substring(0, 6) : cleansed;
+      }
+
       final fields = <String, dynamic>{
         'email': _emailCtrl.text.trim(),
+        // include both variants to be safe; backend may expect either
+        if (pinToSend != null && pinToSend.isNotEmpty) 'pincode': pinToSend,
+        if (pinToSend != null && pinToSend.isNotEmpty) 'currentPincode': pinToSend,
+        if (_addressCtrl.text.trim().isNotEmpty) 'currentAddress': _addressCtrl.text.trim(),
+        if (_addressCtrl.text.trim().isNotEmpty) 'address': _addressCtrl.text.trim(),
+        if (_cityCtrl.text.trim().isNotEmpty) 'currentCity': _cityCtrl.text.trim(),
+        if (_cityCtrl.text.trim().isNotEmpty) 'city': _cityCtrl.text.trim(),
+        if (_stateCtrl.text.trim().isNotEmpty) 'currentState': _stateCtrl.text.trim(),
+        if (_stateCtrl.text.trim().isNotEmpty) 'state': _stateCtrl.text.trim(),
+
         if (_emgNameCtrl.text.trim().isNotEmpty) 'emergencyPersonName': _emgNameCtrl.text.trim(),
         if (_emgRelCtrl.text.trim().isNotEmpty) 'emergencyPersonRelation': _emgRelCtrl.text.trim(),
         if (_emgMobileCtrl.text.trim().isNotEmpty) 'emergencyPersonMobile': _emgMobileCtrl.text.trim(),
@@ -245,6 +343,11 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
         if (_oneSessionPriceCtrl.text.trim().isNotEmpty) 'oneSessionPrice': _oneSessionPriceCtrl.text.trim(),
         if (_monthlyPriceCtrl.text.trim().isNotEmpty) 'monthlySessionPrice': _monthlyPriceCtrl.text.trim(),
       };
+
+      // debug: print payload so you can inspect before sending
+      debugPrint('Saving profile fields: ${jsonEncode(fields)}');
+
+
 
       final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields);
       final resp = await http.Response.fromStream(streamed);
@@ -315,6 +418,63 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     }
   }
 
+  void _showKycRequiredDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.primary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Text('KYC Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            'You need to complete your KYC verification before you can edit your profile. Please complete your KYC process first.',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK', style: TextStyle(color: Colors.white)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to KYC screen
+                _navigateToKyc();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppColors.primary,
+              ),
+              child: const Text('Complete KYC'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToKyc() {
+    // Navigate to KYC wizard
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TrainerKycWizard(),
+      ),
+    ).then((result) {
+      // If KYC was completed successfully, reload the profile to check KYC status
+      if (result == true) {
+        _load(); // Reload the profile to update KYC status
+      }
+    });
+  }
+
   // Removed old on-click add/remove; specializations now saved on bottom Save only.
 
   @override
@@ -344,39 +504,78 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Personal (read-only)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          const Text('Personal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
                           _ro('Name', _name),
                           _ro('Mobile', _mobile),
-                          _ro('DOB', _dob),
-                          _ro('Gender', _gender),
-                          _ro('Pincode', _pincode),
-                          _ro('City', _city),
-                          _ro('State', _state),
-                          _ro('Address', _address),
-                          _ro('PAN', _pan),
-                          _ro('Aadhaar', _aadhaar),
-                          const SizedBox(height: 6),
-                          if (_panFrontUrl != null || _aadhaarFrontUrl != null || _aadhaarBackUrl != null)
-                            Wrap(spacing: 8, runSpacing: 8, children: [
-                              if (_panFrontUrl != null) _imageChip('PAN', _panFrontUrl!),
-                              if (_aadhaarFrontUrl != null) _imageChip('Aadhaar F', _aadhaarFrontUrl!),
-                              if (_aadhaarBackUrl != null) _imageChip('Aadhaar B', _aadhaarBackUrl!),
-                            ]),
+
+                          // Editable current address fields
+                          field('Current Address', _addressCtrl, readOnly: false),
                           const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
-                            child: const Text(
-                              'These details are locked. To change them, please contact Support.',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ),
+                          Row(children: [
+                            Expanded(child: field('Current City', _cityCtrl, readOnly: false)),
+                            const SizedBox(width: 8),
+                            Expanded(child: field('Current State', _stateCtrl, readOnly: false)),
+                          ]),
+                          const SizedBox(height: 8),
+                          field('Current Pincode', _pincodectrl, readOnly: false, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)]),
+
+                          const SizedBox(height: 8),
+
+
                         ]),
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // KYC Status Banner
+                    if (!_isKycCompleted)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Complete KYC to Edit Profile',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Your profile is read-only until KYC verification is completed. Complete your KYC to edit your profile.',
+                                    style: TextStyle(color: Colors.white, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: _navigateToKyc,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.orange,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              ),
+                              child: const Text('Complete KYC', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ),
 
                     GlassCard(
                       child: Padding(
@@ -384,14 +583,14 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const Text('Contact & Emergency', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          field('Email', _emailCtrl, validator: (v){
+                          field('Email', _emailCtrl, readOnly: !_isKycCompleted, validator: (v){
                             if (v==null || v.trim().isEmpty) return null; // optional
                             final ok = RegExp(r'^.+@.+\..+').hasMatch(v.trim());
                             return ok ? null : 'Invalid email';
                           }),
-                          field('Emergency Name', _emgNameCtrl),
-                          field('Emergency Relation', _emgRelCtrl),
-                          field('Emergency Mobile', _emgMobileCtrl, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
+                          field('Emergency Name', _emgNameCtrl, readOnly: !_isKycCompleted),
+                          field('Emergency Relation', _emgRelCtrl, readOnly: !_isKycCompleted),
+                          field('Emergency Mobile', _emgMobileCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
                         ]),
                       ),
                     ),
@@ -403,14 +602,14 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           const Text('Professional', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 8),
-                          _experienceRow(),
+                          _experienceRow(disabled: !_isKycCompleted),
                           const SizedBox(height: 8),
-                          _languagesRow(),
+                          _languagesRow(disabled: !_isKycCompleted),
                           const SizedBox(height: 8),
                           Row(children: [
-                            Expanded(child: field('One session price', _oneSessionPriceCtrl, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                            Expanded(child: field('One session price', _oneSessionPriceCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
                             const SizedBox(width: 8),
-                            Expanded(child: field('Monthly package price', _monthlyPriceCtrl, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
+                            Expanded(child: field('Monthly package price', _monthlyPriceCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
                           ]),
                         ]),
                       ),
@@ -429,7 +628,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
-                              onPressed: _saving ? null : () => setState(() { _specRows.add(_SpecRowEdit()); }),
+                              onPressed: (_saving || !_isKycCompleted) ? null : () => setState(() { _specRows.add(_SpecRowEdit()); }),
                               icon: const Icon(Icons.add, color: Colors.white),
                               label: const Text('Add more', style: TextStyle(color: Colors.white)),
                             ),
@@ -442,7 +641,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _saving ? null : _save,
+                        onPressed: (_saving || !_isKycCompleted) ? null : _save,
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, padding: const EdgeInsets.symmetric(vertical: 14)),
                         child: _saving
                             ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
@@ -490,15 +689,16 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
               decoration: glassInput().copyWith(labelText: 'Specialisation'),
               value: r.specialization != null && specOptions.contains(r.specialization) ? r.specialization : null,
               items: specOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: (v) => setState(() => r.specialization = v),
+              onChanged: !_isKycCompleted ? null : (v) => setState(() => r.specialization = v),
               validator: (v) => (v==null || v.isEmpty) ? 'Choose' : null,
+              disabledHint: r.specialization != null ? Text(r.specialization!, style: const TextStyle(color: Colors.white70)) : null,
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             tooltip: _specRows.length == 1 ? 'Cannot remove last row' : 'Remove this row',
-            onPressed: _specRows.length == 1 ? null : () {
+            onPressed: (!_isKycCompleted || _specRows.length == 1) ? null : () {
               setState(() {
                 r.dispose();
                 _specRows.removeAt(index);
@@ -507,11 +707,11 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           ),
         ]),
         const SizedBox(height: 10),
-        field('Certificate Name (optional)', r.certificateNameCtrl),
+        field('Certificate Name (optional)', r.certificateNameCtrl, readOnly: !_isKycCompleted),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: InkWell(
-            onTap: () async {
+            onTap: !_isKycCompleted ? null : () async {
               try {
                 final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
                 if (picked == null) return;
@@ -546,7 +746,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                   const SizedBox(width: 12),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 18),
-                    onPressed: () => setState(() {
+                    onPressed: !_isKycCompleted ? null : () => setState(() {
                       r.certificatePhotoPath = null;
                       r.existingImageUrl = null; // treat as removed; will recreate if new picked
                     }),
@@ -562,7 +762,10 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   }
 
   List<String> get _specializationOptions => const [
-    'Strength', 'HIIT', 'Yoga', 'Pilates', 'Rehab', 'Zumba',
+    'Strength', 
+    'HIIT', 
+    'Yoga', 
+    'Pilates', 'Rehab', 'Zumba',
     'Prenatal Yoga', 'Postnatal Yoga', 'Recreational Yoga', 'Nutrition', 'Counselors',
     'Cardio', 'CrossFit', 'Aerobics', 'Bodybuilding', 'Weight Loss', 'Weight Gain',
     'Yoga Therapy', 'Functional Training', 'Martial Arts', 'Dance Fitness', 'Sports Conditioning',
@@ -580,23 +783,25 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     );
   }
 
-  Widget _experienceRow() {
-  final opts = kExperienceOptions;
+  Widget _experienceRow({bool disabled = false}) {
+    final opts = kExperienceOptions;
     return Row(children: [
       const SizedBox(width: 130, child: Text('Experience', style: TextStyle(color: Colors.white70))),
       const SizedBox(width: 8),
       Expanded(
         child: DropdownButtonFormField<String>(
-      value: opts.contains(_experience) ? _experience : null,
+          value: opts.contains(_experience) ? _experience : null,
           items: opts.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-          onChanged: (v) => setState(() => _experience = v),
+          onChanged: disabled ? null : (v) => setState(() => _experience = v),
           decoration: glassInput(),
+          disabledHint: _experience != null ? Text(_experience!, style: const TextStyle(color: Colors.white70)) : null,
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     ]);
   }
 
-  Widget _languagesRow() {
+  Widget _languagesRow({bool disabled = false}) {
     final preset = ['English','Hindi'];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Languages', style: TextStyle(color: Colors.white70)),
@@ -605,7 +810,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
         ...preset.map((l) => FilterChip(
           label: Text(l, style: const TextStyle(color: Colors.white)),
           selected: _languages.contains(l),
-          onSelected: (v){ setState(() { if (v) _languages.add(l); else _languages.remove(l); }); },
+          onSelected: disabled ? null : (v){ setState(() { if (v) _languages.add(l); else _languages.remove(l); }); },
           selectedColor: Colors.white24,
           backgroundColor: Colors.white12,
           shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))),
@@ -613,10 +818,10 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       ]),
       const SizedBox(height: 8),
       Row(children: [
-        Expanded(child: field('Other language', _otherLangCtrl)),
+        Expanded(child: field('Other language', _otherLangCtrl, readOnly: disabled)),
         const SizedBox(width: 8),
         ElevatedButton(
-          onPressed: (){
+          onPressed: disabled ? null : (){
             final t = _otherLangCtrl.text.trim();
             if (t.isNotEmpty) setState(() { _languages.add(t); _otherLangCtrl.clear(); });
           },

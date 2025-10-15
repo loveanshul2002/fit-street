@@ -1,3 +1,5 @@
+//user_auth
+
 import 'package:fit_street/widgets/scaffold_with_bg.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -44,11 +46,11 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
     setState(() => _loading = true);
 
     try {
-  // Save locally right away so Profile Fill screen and Home greeting can use them
+      // Save locally right away so Profile Fill screen and Home greeting can use them
       await saveUserName(name);
       await saveMobile(mobile);
-  // Ensure profile-complete is false at start so Home shows the CTA until finished
-  try { await saveProfileComplete(false); } catch (_) {}
+      // Ensure profile-complete is false at start so Home shows the CTA until finished
+      try { await saveProfileComplete(false); } catch (_) {}
 
       final auth = context.read<AuthManager>();
       final result = await auth.sendSignupOtp(mobile);
@@ -104,101 +106,102 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
     return ScaffoldWithBg(
 
 
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white)),
-                    const SizedBox(width: 6),
-                    const Text('Join Fit Street',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                GlassCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        // Full Name
-                        TextField(
-                          controller: _nameController,
-                          decoration:
-                          const InputDecoration(labelText: 'Full name'),
-                        ),
-                        const SizedBox(height: 12),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white)),
+                  const SizedBox(width: 6),
+                  const Text('Join Fit Street',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 18),
+              GlassCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      // Full Name
+                      TextField(
+                        controller: _nameController,
+                        decoration:
+                        const InputDecoration(labelText: 'Full name'),
+                      ),
+                      const SizedBox(height: 12),
 
-                        // Mobile Number
-                        TextField(
-                          controller: _mobileController,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(10),
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Mobile number',
-                            prefixText: '+91 ',
-                          ),
+                      // Mobile Number
+                      TextField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Mobile number',
+                          prefixText: '+91 ',
                         ),
-                        const SizedBox(height: 12),
+                      ),
+                      const SizedBox(height: 12),
 
-                        // Send OTP Button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _loading ? null : _sendOtp,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white12,
-                                padding: const EdgeInsets.symmetric(vertical: 14)),
-                            child: _loading
-                                ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                                : const Text('Send OTP',
-                                style: TextStyle(color: Colors.white)),
-                          ),
+                      // Send OTP Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _sendOtp,
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white12,
+                              padding: const EdgeInsets.symmetric(vertical: 14)),
+                          child: _loading
+                              ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                              : const Text('Send OTP',
+                              style: TextStyle(color: Colors.white)),
                         ),
-                        const SizedBox(height: 16),
+                      ),
+                      const SizedBox(height: 16),
 
-                        // Trainer Register Link
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const TrainerRegisterWizard(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            "Are you a Trainer? Register Here",
-                            style: TextStyle(
-                              color: Colors.white,
-                              decoration: TextDecoration.underline,
+                      // Trainer Register Link
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TrainerRegisterWizard(),
                             ),
+                          );
+                        },
+                        child: const Text(
+                          "Are you a Trainer? Register Here",
+                          style: TextStyle(
+                            color: Colors.white,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
 
     );
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_colors.dart';
@@ -130,7 +131,7 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                   width: 96,
                   height: 56,
                   child: Image.asset(
-                    'assets/images/fitstreet_logo.png',
+                    'assets/image/fitstreet_logo.png',
                     fit: BoxFit.contain,
                     errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                   ),
@@ -181,7 +182,11 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                                     // Mobile number input
                                     TextField(
                                       controller: _mobileController,
-                                      keyboardType: TextInputType.phone,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,          // Only numbers
+                                        LengthLimitingTextInputFormatter(10),            // Max 10 digits
+                                      ],
                                       decoration: InputDecoration(
                                         hintText: 'Mobile Number',
                                         filled: true,

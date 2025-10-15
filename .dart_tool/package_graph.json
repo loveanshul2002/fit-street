@@ -30,7 +30,8 @@
         "path_provider",
         "provider",
         "shared_preferences",
-        "signature"
+        "signature",
+        "syncfusion_flutter_charts"
       ],
       "devDependencies": [
         "flutter_launcher_icons",
@@ -1095,6 +1096,24 @@
       "version": "1.1.0",
       "dependencies": [
         "meta",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "syncfusion_flutter_charts",
+      "version": "26.2.14",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "syncfusion_flutter_core",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "syncfusion_flutter_core",
+      "version": "26.2.14",
+      "dependencies": [
+        "flutter",
         "vector_math"
       ]
     }

@@ -1,5 +1,6 @@
 // lib/screens/login/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../config/app_colors.dart';
@@ -133,7 +134,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: [
                         TextField(
                           controller: _mobileController,
-                          keyboardType: TextInputType.phone,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,          // Only numbers
+                            LengthLimitingTextInputFormatter(10),            // Max 10 digits
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Mobile number',
                             prefixText: '+91 ',

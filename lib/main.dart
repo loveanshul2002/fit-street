@@ -8,6 +8,7 @@ import 'screens/trainer/trainer_dashboard.dart';
 import 'screens/home/home_screen.dart';
 import 'services/fitstreet_api.dart';
 import 'state/auth_manager.dart';
+import 'screens/trainer/kyc/trainer_kyc_wizard.dart';
 
 
 
@@ -47,4 +48,5 @@ class FitStreetApp extends StatelessWidget {
     );
   }
 }
+
 

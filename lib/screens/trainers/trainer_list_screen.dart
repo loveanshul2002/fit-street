@@ -5,6 +5,7 @@ import '../../widgets/glass_card.dart';
 import '../../config/app_colors.dart';
 import '../../services/fitstreet_api.dart';
 import 'trainer_profile_screen.dart';
+import '../booking/book_session_screen.dart';
 import 'package:geolocator/geolocator.dart';
 
 class TrainerListScreen extends StatefulWidget {
@@ -451,8 +452,9 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                       final name = (t['fullName'] ?? t['name'] ?? 'Trainer').toString();
                       final code = (t['trainerUniqueId'] ?? '').toString();
                       final mode = (t['mode'] ?? '').toString();
-                      final city = (t['city'] ?? '').toString();
-                      final state = (t['state'] ?? '').toString();
+                      final city = (t['currentCity'] ?? t['city'] ?? '').toString();
+                      final state = (t['currentState'] ?? t['state'] ?? '').toString();
+                      final pincode = (t['currentPincode'] ?? t['pincode'] ?? '').toString();
                       final exp = _expDisplay((t['experience'] ?? '').toString());
                       final price1 = (t['oneSessionPrice'] ?? '').toString();
                       final priceM = (t['monthlySessionPrice'] ?? '').toString();
@@ -557,7 +559,7 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
-                                        [city, state].where((e) => e.trim().isNotEmpty).join(', '),
+                                        [city, state, pincode].where((e) => e.trim().isNotEmpty).join(', '),
                                         style: const TextStyle(color: Colors.white70),
                                       ),
                                     ),
@@ -574,9 +576,9 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
-                                        exp == '—' ? 'Experience overall: —' : '$exp experience overall',
+                                        exp == '—' ? 'Experience not specified' : 'Experience: $exp',
                                         style: const TextStyle(color: Colors.white70),
-                                      ),
+                                      ),      
                                     ),
                                   ],
                                 ),
@@ -611,7 +613,12 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     ),
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking flow coming soon')));
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => BookSessionScreen(trainerId: id),
+                                        ),
+                                      );
                                     },
                                     child: const Text('Book Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                                   ),

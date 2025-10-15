@@ -188,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                    onPressed: () => _showRoleDialog(context),
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserAuthScreen())),
                     child: const Text(
                       "Register",
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -371,38 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ===== Helpers =====
 
-  // Show register role dialog (existing)
-  void _showRoleDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black87,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Register As", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person, color: Colors.white),
-              title: const Text("User", style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const UserAuthScreen()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.fitness_center, color: Colors.white),
-              title: const Text("Trainer", style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerRegisterWizard()));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Removed: _showRoleDialog. Register now always opens UserAuthScreen.
 
   // OPEN the new styled login screen
   void _openLoginScreen(BuildContext context) {

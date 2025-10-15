@@ -47,6 +47,31 @@ class FitstreetApi {
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 
+  // ----------------------
+  // Session booking endpoints
+  // ----------------------
+  Future<http.Response> bookSession(Map<String, dynamic> data, File paymentScreenshot) async {
+    final uri = Uri.parse('$baseUrl/api/session-bookings');
+    var request = http.MultipartRequest('POST', uri)
+      ..headers.addAll(_multipartHeaders());
+
+    // Add all the form fields
+    data.forEach((key, value) {
+      if (value != null) request.fields[key] = value.toString();
+    });
+
+    // Add the payment screenshot
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'paymentSSImageURL',
+        paymentScreenshot.path,
+      ),
+    );
+
+    final response = await request.send();
+    return http.Response.fromStream(await response);
+  }
+
 
   // ----------------------
   // Trainer endpoints

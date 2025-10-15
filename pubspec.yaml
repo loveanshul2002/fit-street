@@ -17,6 +17,8 @@ dependencies:
   glass: ^2.0.0+2
   glassmorphism: ^3.0.0
   liquid_glass_renderer: 0.1.1-dev.11
+  # remove
+  syncfusion_flutter_charts: ^26.1.0
 
   # Media / files
   image_picker: ^0.8.7+X

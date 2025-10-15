@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:signature/signature.dart';
-import '../utils/ui_helpers.dart';
+
 
 class SignaturePad extends StatefulWidget {
   final ValueChanged<Uint8List?> onBytes;

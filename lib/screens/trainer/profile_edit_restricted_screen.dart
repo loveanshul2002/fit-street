@@ -482,7 +482,8 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     return Scaffold(
       appBar: AppBar(
         title: const Text('View & Edit Profile'),
-        backgroundColor: Colors.transparent,
+        backgroundColor:  AppColors.primary,
+
         elevation: 0,
   actions: const [],
       ),

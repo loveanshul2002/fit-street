@@ -52,12 +52,14 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^2.0.0
 
+
 flutter_icons:
   android: true
   ios: true
   image_path: "assets/image/transparent_bull_logo.png"
-  adaptive_icon_background: "assets/image/transparent_bull_logo.png"
+  adaptive_icon_background: "#B0B0B0"  # light grey color
   adaptive_icon_foreground: "assets/image/transparent_bull_logo.png"
+
 
 flutter:
   uses-material-design: true

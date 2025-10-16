@@ -105,9 +105,9 @@
     },
     {
       "name": "file",
-      "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/file-7.0.1",
+      "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/file-6.1.4",
       "packageUri": "lib/",
-      "languageVersion": "3.0"
+      "languageVersion": "2.12"
     },
     {
       "name": "file_picker",
@@ -560,6 +560,12 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "process",
+      "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/process-4.2.4",
+      "packageUri": "lib/",
+      "languageVersion": "2.14"
+    },
+    {
       "name": "provider",
       "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/provider-6.1.5+1",
       "packageUri": "lib/",
@@ -729,9 +735,9 @@
     },
     {
       "name": "xdg_directories",
-      "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/xdg_directories-1.1.0",
+      "rootUri": "file:///Users/ballstreet/.pub-cache/hosted/pub.dev/xdg_directories-0.2.0+3",
       "packageUri": "lib/",
-      "languageVersion": "3.3"
+      "languageVersion": "2.12"
     },
     {
       "name": "xml",

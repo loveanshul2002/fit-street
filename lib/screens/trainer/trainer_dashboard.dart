@@ -128,6 +128,12 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   bool _loadingSlots = false;
   double _feePercent = 10.0;
 
+  // Notification state
+  int notificationCount = 0;
+  List<dynamic> notifications = [];
+  bool showNotificationList = false;
+  bool loadingNotifications = false;
+
   @override
   void initState() {
     super.initState();
@@ -141,6 +147,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _getBookedSessions('upcoming');
       _loadSlotsFromServer();
+      // Fetch notifications on init
+      getNotifications();
     });
   }
 
@@ -824,6 +832,42 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     }
   }
 
+  // Notification API methods
+  Future<void> getNotifications() async {
+    setState(() { loadingNotifications = true; });
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final userType = 'trainer';
+      final userId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      final resp = await api.getNotifications(userType, userId);
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body);
+        setState(() {
+          notifications = body['notifications'] ?? [];
+          notificationCount = body['notificationsCount'] ?? 0;
+        });
+      }
+    } catch (e) {
+      // Optionally show error
+    } finally {
+      setState(() { loadingNotifications = false; });
+    }
+  }
+
+  Future<void> markNotificationsAsRead() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final userType = 'trainer';
+      final userId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      await api.markNotificationsAsRead(userId, userType);
+      setState(() { notificationCount = 0; });
+    } catch (e) {}
+  }
+
   // Date helpers
   String _formatFullDate(String? iso) {
     if (iso == null) return '';
@@ -891,6 +935,22 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     }
   }
 
+  // Small helpers used by refresh (to avoid missing symbol errors)
+  Future<void> _loadInitialData() async {
+    // central initial load used by pull-to-refresh; keep light and safe
+    try {
+      await Future.wait([
+        _loadTrainerInfo(),
+        _loadSlotsFromServer(),
+        getNotifications(),
+      ]);
+    } catch (_) {}
+  }
+
+  Future<void> _loadBookings() async {
+    await _getBookedSessions(_bookingsTab);
+  }
+
   // UI
   @override
   Widget build(BuildContext context) {
@@ -918,7 +978,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       key: _scaffoldKey,
       appBar: AppBar(
         title: const Text("Trainer Dashboard"),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.black,
         elevation: 0,
         actions: [
           IconButton(
@@ -933,231 +993,328 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             tooltip: "Menu",
             onPressed: _openOverflowPanel,
           ),
+          // Notification bell with badge
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                tooltip: "Notifications",
+                onPressed: () {
+                  setState(() {
+                    showNotificationList = !showNotificationList;
+                  });
+                  if (notificationCount > 0 && showNotificationList) {
+                    markNotificationsAsRead();
+                  }
+                  if (showNotificationList) {
+                    getNotifications();
+                  }
+                },
+              ),
+              if (notificationCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                    child: Text(
+                      '$notificationCount',
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       endDrawer: _buildEndDrawer(context),
       body: Container(
         decoration: BoxDecoration(gradient: AppColors.primaryGradient),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 160),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Header(
-                      trainerName: trainerName,
-                      cityCountry: cityCountry,
-                      isAvailable: isAvailable,
-                      onToggleAvailability: _setAvailability,
-                      onOpenAvailabilityEditor: _openAvailabilityEditor,
-                      onNotifications: () {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Notifications clicked")));
-                      },
-                    ),
-                    const SizedBox(height: 12),
+        // Use a Stack so we can place the notification dropdown and FABs using Positioned.
+        child: Stack(
+          children: [
+            SafeArea(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  try {
+                    await Future.wait([
+                      _loadInitialData(),
+                      _loadBookings(),
+                      _loadSlotsFromServer(),
+                      getNotifications(),
+                    ]);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Dashboard refreshed successfully')),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error refreshing: ${e.toString()}')),
+                      );
+                    }
+                  }
+                },
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 160),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Header(
+                        trainerName: trainerName,
+                        cityCountry: cityCountry,
+                        isAvailable: isAvailable,
+                        onToggleAvailability: _setAvailability,
+                        onOpenAvailabilityEditor: _openAvailabilityEditor,
+                        onNotifications: () {
+                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Notifications clicked")));
+                        },
+                      ),
+                      const SizedBox(height: 12),
 
-                    // KYC banners
-                    if (_kycState == KycState.notStarted)
-                      GlassCard(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.verified_user, color: Colors.orangeAccent, size: 28),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text("Complete your KYC", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                    SizedBox(height: 4),
-                                    Text("Complete KYC to enable payouts & bookings.", style: TextStyle(color: Colors.white70)),
-                                  ],
+                      // KYC banners
+                      if (_kycState == KycState.notStarted)
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_user, color: Colors.orangeAccent, size: 28),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text("Complete your KYC", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      SizedBox(height: 4),
+                                      Text("Complete KYC to enable payouts & bookings.", style: TextStyle(color: Colors.white70)),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              ElevatedButton(
-                                onPressed: _openKycWizard,
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                                child: const Text("Complete KYC", style: TextStyle(color: Colors.white)),
-                              ),
-                            ],
+                                ElevatedButton(
+                                  onPressed: _openKycWizard,
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
+                                  child: const Text("Complete KYC", style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else if (_kycState == KycState.submitted)
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 28),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: const [
+                                      Text("Your KYC is submitted.", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      SizedBox(height: 4),
+                                      Text("Once your KYC is approved, we will notify you.", style: TextStyle(color: Colors.white70)),
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.shade200,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text("Pending", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      )
-                    else if (_kycState == KycState.submitted)
+
+                      const SizedBox(height: 12),
+
+                      EarningsCard(
+                        weeklyPaymentsTableData: weeklyList,
+                        monthlyPaymentsTableData: monthlyList,
+                        grossTotal: grossTotal,
+                        netTotal: netTotal,
+                        grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+                        netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+                        weeklySubtitle: '',
+                        grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+                        netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+                        monthlySubtitle: '',
+                        platformFeePercent: _feePercent,
+                      ),
+
+                      const SizedBox(height: 20),
+
                       GlassCard(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 28),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text("Your KYC is submitted.", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                    SizedBox(height: 4),
-                                    Text("Once your KYC is approved, we will notify you.", style: TextStyle(color: Colors.white70)),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.shade200,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Text("Pending", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Preferences", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 10),
+                                Row(children: [
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      const Text("Target Audience", style: TextStyle(color: Colors.white70)),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          _smallChoice("Both", targetAudience == "Both", () => setState(() => targetAudience = "Both")),
+                                          _smallChoice("female", targetAudience == "female", () => setState(() => targetAudience = "female")),
+                                          _smallChoice("male", targetAudience == "male", () => setState(() => targetAudience = "male")),
+                                        ],
+                                      ),
+                                    ]),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      const Text("Mode", style: TextStyle(color: Colors.white70)),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 8,
+                                        children: [
+                                          _smallChoice("Offline", workingMode == "Offline", () => setState(() => workingMode = "Offline")),
+                                          _smallChoice("Online", workingMode == "Online", () => setState(() => workingMode = "Online")),
+                                          _smallChoice("Both", workingMode == "Both", () => setState(() => workingMode = "Both")),
+                                        ],
+                                      ),
+                                    ]),
+                                  ),
+                                ]),
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(onPressed: _saveAudienceAndMode, child: const Text("Save preferences")),
+                                )
+                              ]),
                         ),
                       ),
 
-                    const SizedBox(height: 12),
+                      const SizedBox(height: 14),
+                      GlassCard(child: Padding(padding: const EdgeInsets.all(12), child: Text(motivation, style: const TextStyle(color: Colors.white)))),
+                      const SizedBox(height: 14),
 
-                    EarningsCard(
-                      weeklyPaymentsTableData: weeklyList,
-                      monthlyPaymentsTableData: monthlyList,
-                      grossTotal: grossTotal,
-                      netTotal: netTotal,
-                      grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-                      netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-                      weeklySubtitle: '',
-                      grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-                      netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-                      monthlySubtitle: '',
-                      platformFeePercent: _feePercent,
-                    ),
+                      narrow ? Column(children: [
+                        const SizedBox(height: 6),
+                        _profileCard(width, uiIdDisplay),
+                        const SizedBox(height: 10),
+                        _availabilityCard()
+                      ]) : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Expanded(flex: 2, child: _profileCard(width, uiIdDisplay)),
+                        const SizedBox(width: 12),
+                        Expanded(flex: 3, child: _availabilityCard())
+                      ]),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
+                      // Bookings UI
+                      GlassCard(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Preferences", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              const Text("Session Bookings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                               const SizedBox(height: 10),
                               Row(children: [
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    const Text("Target Audience", style: TextStyle(color: Colors.white70)),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        _smallChoice("Both", targetAudience == "Both", () => setState(() => targetAudience = "Both")),
-                                        _smallChoice("female", targetAudience == "female", () => setState(() => targetAudience = "female")),
-                                        _smallChoice("male", targetAudience == "male", () => setState(() => targetAudience = "male")),
-                                      ],
-                                    ),
-                                  ]),
+                                GestureDetector(
+                                  onTap: () => _getBookedSessions('upcoming'),
+                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'upcoming' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Upcoming', style: TextStyle(color: Colors.white))),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    const Text("Mode", style: TextStyle(color: Colors.white70)),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        _smallChoice("Offline", workingMode == "Offline", () => setState(() => workingMode = "Offline")),
-                                        _smallChoice("Online", workingMode == "Online", () => setState(() => workingMode = "Online")),
-                                        _smallChoice("Both", workingMode == "Both", () => setState(() => workingMode = "Both")),
-                                      ],
-                                    ),
-                                  ]),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _getBookedSessions('completed'),
+                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'completed' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Completed', style: TextStyle(color: Colors.white))),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _getBookedSessions('rejected'),
+                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'rejected' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Rejected', style: TextStyle(color: Colors.white))),
                                 ),
                               ]),
                               const SizedBox(height: 12),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(onPressed: _saveAudienceAndMode, child: const Text("Save preferences")),
-                              )
-                            ]),
-                      ),
-                    ),
-
-                    const SizedBox(height: 14),
-                    GlassCard(child: Padding(padding: const EdgeInsets.all(12), child: Text(motivation, style: const TextStyle(color: Colors.white)))),
-                    const SizedBox(height: 14),
-
-                    narrow ? Column(children: [
-                      const SizedBox(height: 6),
-                      _profileCard(width, uiIdDisplay),
-                      const SizedBox(height: 10),
-                      _availabilityCard()
-                    ]) : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Expanded(flex: 2, child: _profileCard(width, uiIdDisplay)),
-                      const SizedBox(width: 12),
-                      Expanded(flex: 3, child: _availabilityCard())
-                    ]),
-
-                    const SizedBox(height: 20),
-
-                    // Bookings UI
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text("Session Bookings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 10),
-                            Row(children: [
-                              GestureDetector(
-                                onTap: () => _getBookedSessions('upcoming'),
-                                child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'upcoming' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Upcoming', style: TextStyle(color: Colors.white))),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => _getBookedSessions('completed'),
-                                child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'completed' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Completed', style: TextStyle(color: Colors.white))),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: () => _getBookedSessions('rejected'),
-                                child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'rejected' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Rejected', style: TextStyle(color: Colors.white))),
-                              ),
-                            ]),
-                            const SizedBox(height: 12),
-                            if (_loadingBookings) const Center(child: CircularProgressIndicator()) else Column(children: [
-                              if (_bookingsTab == 'upcoming' && _upcomingBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No upcoming sessions.', style: TextStyle(color: Colors.white70))),
-                              if (_bookingsTab == 'completed' && _completedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No completed sessions.', style: TextStyle(color: Colors.white70))),
-                              if (_bookingsTab == 'rejected' && _rejectedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No rejected sessions.', style: TextStyle(color: Colors.white70))),
-                              if (_bookingsTab == 'upcoming') ..._upcomingBookings.map((b) => _trainerBookingTile(b)).toList(),
-                              if (_bookingsTab == 'completed') ..._completedBookings.map((b) => _trainerBookingTile(b)).toList(),
-                              if (_bookingsTab == 'rejected') ..._rejectedBookings.map((b) => _trainerBookingTile(b)).toList(),
-                            ])
-                          ],
+                              if (_loadingBookings) const Center(child: CircularProgressIndicator()) else Column(children: [
+                                if (_bookingsTab == 'upcoming' && _upcomingBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No upcoming sessions.', style: TextStyle(color: Colors.white70))),
+                                if (_bookingsTab == 'completed' && _completedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No completed sessions.', style: TextStyle(color: Colors.white70))),
+                                if (_bookingsTab == 'rejected' && _rejectedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No rejected sessions.', style: TextStyle(color: Colors.white70))),
+                                if (_bookingsTab == 'upcoming') ..._upcomingBookings.map((b) => _trainerBookingTile(b)).toList(),
+                                if (_bookingsTab == 'completed') ..._completedBookings.map((b) => _trainerBookingTile(b)).toList(),
+                                if (_bookingsTab == 'rejected') ..._rejectedBookings.map((b) => _trainerBookingTile(b)).toList(),
+                              ])
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 80),
-                    Center(child: Column(children: [
-                      Container(width: 64, height: 64, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.sports_martial_arts, color: Colors.white)),
-                      const SizedBox(height: 10),
-                      const Text("© Ball Street Pvt. Ltd.", style: TextStyle(color: Colors.white70)),
-                      const SizedBox(height: 20),
-                    ])),
-                  ],
+                      const SizedBox(height: 80),
+                      Center(child: Column(children: [
+                        Container(width: 64, height: 64, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.sports_martial_arts, color: Colors.white)),
+                        const SizedBox(height: 10),
+                        const Text("© Ball Street Pvt. Ltd.", style: TextStyle(color: Colors.white70)),
+                        const SizedBox(height: 20),
+                      ])),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Notification dropdown (positioned)
+            if (showNotificationList)
+              Positioned(
+                right: 16,
+                top: kToolbarHeight + 8,
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    width: 320,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: loadingNotifications
+                      ? const Center(child: CircularProgressIndicator())
+                      : notifications.isEmpty
+                        ? const Text('No notifications', style: TextStyle(color: Colors.white70))
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: notifications.map<Widget>((n) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(n['message'] ?? '', style: const TextStyle(color: Colors.white)),
+                                  Text(n['createdAt'] ?? '', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                ],
+                              ),
+                            )).toList(),
+                          ),
+                  ),
                 ),
               ),
 
-              // Floating actions
-              Positioned(left: 18, bottom: 18, child: FloatingActionButton(heroTag: 'support_fab', onPressed: _openSupport, backgroundColor: AppColors.secondary, child: const Icon(Icons.headset_mic, color: Colors.white))),
-              Positioned(right: 18, bottom: 18, child: FloatingActionButton(heroTag: 'sos_fab', onPressed: _triggerSOS, backgroundColor: AppColors.primary, child: const Icon(Icons.sos, color: Colors.white))),
-              Positioned(right: 18, bottom: 90, child: FloatingActionButton.small(heroTag: 'wallet_fab', onPressed: () { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wallet opened (demo)"))); }, backgroundColor: Colors.white24, child: const Icon(Icons.account_balance_wallet, color: Colors.white))),
-            ],
-          ),
+            // Floating actions (positioned)
+            Positioned(left: 18, bottom: 18, child: FloatingActionButton(heroTag: 'support_fab', onPressed: _openSupport, backgroundColor: AppColors.secondary, child: const Icon(Icons.headset_mic, color: Colors.white))),
+            Positioned(right: 18, bottom: 18, child: FloatingActionButton(heroTag: 'sos_fab', onPressed: _triggerSOS, backgroundColor: AppColors.primary, child: const Icon(Icons.sos, color: Colors.white))),
+            Positioned(right: 18, bottom: 90, child: FloatingActionButton.small(heroTag: 'wallet_fab', onPressed: () { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wallet opened (demo)"))); }, backgroundColor: Colors.white24, child: const Icon(Icons.account_balance_wallet, color: Colors.white))),
+          ],
         ),
       ),
     );

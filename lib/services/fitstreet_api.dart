@@ -236,6 +236,18 @@ Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dyn
     final streamed = await request.send();
     return http.Response.fromStream(streamed);
   }
+  // ----------------------
+  //Notifications
+  // ----------------------
+  Future<http.Response> getNotifications(String userType, String userId) {
+    final uri = Uri.parse('$baseUrl/api/common/notifications/$userType/$userId/unread');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  Future<http.Response> markNotificationsAsRead(String userId, String userType) {
+    final uri = Uri.parse('$baseUrl/api/common/notifications/$userId/read/$userType');
+    return http.patch(uri, headers: _jsonHeaders());
+  }
 
   // ----------------------
   // Common

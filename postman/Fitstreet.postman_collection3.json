@@ -533,7 +533,7 @@
 			"response": []
 		},
 		{
-			"name": "Get All Trainer",
+			"name": "Get All Trainer(not for use)",
 			"request": {
 				"method": "GET",
 				"header": [],
@@ -811,12 +811,6 @@
 							"type": "text"
 						},
 						{
-							"key": "selectedDay",
-							"value": "Mon",
-							"description": "if selectedSession = 'single' => Mon ",
-							"type": "text"
-						},
-						{
 							"key": "selectedTime",
 							"value": "12AM-3AM",
 							"description": "if selectedSession = 'single' => 12AM-3AM ",
@@ -825,7 +819,6 @@
 						{
 							"key": "selectedDate",
 							"value": "",
-							"description": "if selectedSession = 'monthly' => date",
 							"type": "text"
 						},
 						{
@@ -865,6 +858,216 @@
 						"api",
 						"session-bookings",
 						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Session Booking based on status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/user/68e36e13121bb59b3e94e474/upcoming",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						"user",
+						"68e36e13121bb59b3e94e474",
+						"upcoming"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Trainer Session Booking based on status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/trainer/68df624932f9f094164194d1/upcoming",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						"trainer",
+						"68df624932f9f094164194d1",
+						"upcoming"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Accept Session by Trainer",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/accept/{{bookingId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						"accept",
+						"{{bookingId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Complete Session by Trainer",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/complete/{{bookingId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						"complete",
+						"{{bookingId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Unread User Notifications",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/common/notifications/user/{{userId}}/unread",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"common",
+						"notifications",
+						"user",
+						"{{userId}}",
+						"unread"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Unread Trainer Notifications",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/common/notifications/trainer/{{trainerId}}/unread",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"common",
+						"notifications",
+						"trainer",
+						"{{trainerId}}",
+						"unread"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Mark Notification as Read(by using userId or trainerId)",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/common/notifications/{{id}}/read/{{type}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"common",
+						"notifications",
+						"{{id}}",
+						"read",
+						"{{type}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Reject Session By Trainer",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/session-bookings/reject/{{bookingId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"session-bookings",
+						"reject",
+						"{{bookingId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Session Payment",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/wallet/sessionPayment/user/{{userId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"sessionPayment",
+						"user",
+						"{{userId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Trainer Session Payment",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/wallet/sessionPayment/trainer/{{trainerId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"sessionPayment",
+						"trainer",
+						"{{trainerId}}"
 					]
 				}
 			},

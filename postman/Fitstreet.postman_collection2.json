@@ -1072,6 +1072,105 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Get withdrwal  Amount",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/wallet/withdrawalAmount/{{trainerId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"withdrawalAmount",
+						"{{trainerId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Trainer Request withdrawal",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"amount\": \"200\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/wallet/requestWithdrawal/{{trainerId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"requestWithdrawal",
+						"{{trainerId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Withdrawals History",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/wallet/withdrawals/{{trainerId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"withdrawals",
+						"{{trainerId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Pay WithdrwalAmount by Admin",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"processedBy\":\"Admin\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/wallet/withdrawals/pay/{{withdrawalId}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"wallet",
+						"withdrawals",
+						"pay",
+						"{{withdrawalId}}"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }

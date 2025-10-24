@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
 import '../../services/fitstreet_api.dart';
 import 'trainer_profile_screen.dart';
-import '../booking/book_session_screen.dart';
+// Removed direct Book Session navigation; using TrainerProfileScreen instead
 import 'package:geolocator/geolocator.dart';
 
 class TrainerListScreen extends StatefulWidget {
@@ -31,11 +31,174 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
   String _speciality = 'All';
   Position? _userPos;
 
+  // Active glass menu overlay
+  OverlayEntry? _activeMenu;
+  void _hideActiveMenu() {
+    _activeMenu?.remove();
+    _activeMenu = null;
+  }
+
+  void _showGlassMenu({
+    required GlobalKey anchorKey,
+    required List<String> options,
+    required void Function(String) onSelected,
+  }) {
+    // Close any existing menu first
+    _hideActiveMenu();
+    final ctx = anchorKey.currentContext;
+    if (ctx == null) return;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final size = box.size;
+    final offset = box.localToGlobal(Offset.zero);
+    final screen = MediaQuery.of(context).size;
+
+    const double menuWidth = 200;
+    final double horizontalPadding = 16;
+    final double top = offset.dy + size.height + 8;
+    double left = offset.dx;
+    if (left + menuWidth + horizontalPadding > screen.width) {
+      left = screen.width - menuWidth - horizontalPadding;
+      if (left < horizontalPadding) left = horizontalPadding;
+    }
+
+  _activeMenu = OverlayEntry(builder: (oc) {
+      return Stack(children: [
+        // Tap outside to dismiss
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _hideActiveMenu,
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Positioned(
+          left: left,
+          top: top,
+          width: menuWidth,
+          child: Material(
+            color: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 260),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.14),
+                        Colors.white.withOpacity(0.06),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 18, offset: const Offset(0, 8)),
+                    ],
+                  ),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, __) => Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+                    itemBuilder: (c, i) {
+                      final o = options[i];
+                      return InkWell(
+                        onTap: () {
+                          onSelected(o);
+                          _hideActiveMenu();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          child: Text(o, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]);
+    });
+    Overlay.of(context).insert(_activeMenu!);
+  }
+
+  // Removed liquid background animation
+
+  // --- Parsing helpers for filters ---
+  num? _parseMoney(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString();
+    if (s.trim().isEmpty) return null;
+    final digits = s.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (digits.isEmpty) return null;
+    return num.tryParse(digits);
+  }
+
+  String _expBucket(String raw) {
+    final s = (raw).toString().trim().toLowerCase();
+    if (s.isEmpty) return '';
+    // If already one of the buckets, return as-is
+    const buckets = ['0-6', '6m-1y', '1-3', '3-5', '5+'];
+    if (buckets.contains(s)) return s;
+    // Try to parse months/years
+    // Heuristics: if contains 'month', parse number as months; else years
+    final match = RegExp(r"(\d+\.?\d*)").firstMatch(s);
+    if (match != null) {
+      final val = double.tryParse(match.group(1) ?? '');
+      if (val != null) {
+        final isMonth = s.contains('month');
+        final years = isMonth ? (val / 12.0) : val;
+        if (years < 0.5) return '0-6';
+        if (years < 1.0) return '6m-1y';
+        if (years < 3.0) return '1-3';
+        if (years < 5.0) return '3-5';
+        return '5+';
+      }
+    }
+    // Fallback: textual hints
+    if (s.contains('5')) return '5+';
+    if (s.contains('3-5') || s.contains('3 to 5')) return '3-5';
+    if (s.contains('1-3') || s.contains('1 to 3')) return '1-3';
+    if (s.contains('6') && s.contains('month')) return '0-6';
+    return '';
+  }
+
+  String _norm(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[_\-]+'), ' ')
+      .replaceAll(RegExp(r'[^a-z0-9 ]+'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  bool _supportsChannel(String rawMode, String channel) {
+    final s = (rawMode).toString().trim().toLowerCase();
+    if (s.isEmpty) return false;
+    final hasOnline = s.contains('online');
+    final hasOffline = s.contains('offline');
+    final isBoth = s.contains('both') || (hasOnline && hasOffline) || s.contains('&');
+    switch (channel.toLowerCase()) {
+      case 'online':
+        return hasOnline || isBoth;
+      case 'offline':
+        return hasOffline || isBoth;
+      default:
+        return false;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _load();
-    _searchCtrl.addListener(() => setState(() {}));
+  _searchCtrl.addListener(() => setState(() {}));
+  // Update list as user types a location (city/state/pincode)
+  _locationCtrl.addListener(() => setState(() {}));
   }
 
   Future<void> _load() async {
@@ -67,7 +230,10 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
         final filtered = list.whereType<Map>().where((t) {
           final isKyc = (t['isKyc'] ?? false).toString().toLowerCase() == 'true' || t['isKyc'] == true;
           final status = (t['status'] ?? '').toString();
-          return isKyc && status.toLowerCase() == 'approved';
+          // Only show when trainer is available (t['isAvailable'] not explicitly false)
+          final availRaw = t['isAvailable'];
+          final isAvailable = !(availRaw == false || (availRaw is String && availRaw.toLowerCase() == 'false'));
+          return isKyc && status.toLowerCase() == 'approved' && isAvailable;
         }).map((m) => m.map((k, v) => MapEntry(k.toString(), v))).cast<Map<String, dynamic>>().toList();
 
         // compute distance (km) if coordinates available
@@ -90,7 +256,10 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
             return da.compareTo(db);
           });
         }
-        if (mounted) setState(() => _trainers = filtered);
+  if (mounted) setState(() => _trainers = filtered);
+  // Prefetch specializations for better speciality filter options (non-blocking)
+  // Fetch a subset to limit overhead.
+  _primeSpecialities(maxCount: 20);
       } else {
         setState(() => _error = 'Server ${resp.statusCode}');
       }
@@ -98,6 +267,21 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _primeSpecialities({int maxCount = 20}) async {
+    try {
+      final ids = _trainers
+          .map((t) => (t['_id'] ?? t['id'] ?? '').toString())
+          .where((id) => id.isNotEmpty && !_specCache.containsKey(id))
+          .take(maxCount)
+          .toList();
+      if (ids.isEmpty) return;
+      await Future.wait(ids.map(_fetchSpecsFor));
+      if (mounted) setState(() {});
+    } catch (_) {
+      // ignore errors silently
     }
   }
 
@@ -177,11 +361,22 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
 
   List<Map<String, dynamic>> get _filtered {
     final q = _searchCtrl.text.trim().toLowerCase();
+    final lq = _locationCtrl.text.trim().toLowerCase();
     return _trainers.where((t) {
+  // availability guard at view-time as well (defensive)
+  final availRaw = t['isAvailable'];
+  final isAvailable = !(availRaw == false || (availRaw is String && availRaw.toLowerCase() == 'false'));
+  if (!isAvailable) return false;
       // search
       final name = (t['fullName'] ?? t['name'] ?? '').toString().toLowerCase();
       final code = (t['trainerUniqueId'] ?? '').toString().toLowerCase();
       final okSearch = q.isEmpty || name.contains(q) || code.contains(q);
+
+      // location filter: match against city/state/pincode (and current* variants)
+      final city = (t['currentCity'] ?? t['city'] ?? '').toString().toLowerCase();
+      final state = (t['currentState'] ?? t['state'] ?? '').toString().toLowerCase();
+      final pin = (t['currentPincode'] ?? t['pincode'] ?? '').toString().toLowerCase();
+      final okLocation = lq.isEmpty || city.contains(lq) || state.contains(lq) || pin.contains(lq);
 
       // gender
       final g = (t['gender'] ?? '').toString();
@@ -189,21 +384,73 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
 
       // mode
       final m = (t['mode'] ?? '').toString();
-      final okMode = _mode == 'All' || m.toLowerCase() == _mode.toLowerCase();
+      bool okMode;
+      switch (_mode) {
+        case 'All':
+          okMode = true;
+          break;
+        case 'Online':
+          okMode = _supportsChannel(m, 'online');
+          break;
+        case 'Offline':
+          okMode = _supportsChannel(m, 'offline');
+          break;
+        case 'Both':
+          okMode = _supportsChannel(m, 'online') && _supportsChannel(m, 'offline');
+          break;
+        default:
+          okMode = true;
+      }
 
       // experience (string buckets e.g., '0-6','1-3','3-5','5+')
-      final exp = (t['experience'] ?? '').toString();
-      final okExp = _experience == 'All' || exp == _experience;
+      final expRaw = (t['experience'] ?? '').toString();
+      final expBucket = _expBucket(expRaw);
+      final okExp = _experience == 'All' || (_experience.isNotEmpty && expBucket == _experience);
 
-      // speciality (best-effort: string field or comma list)
-      final spec = (t['specialization'] ?? t['speciality'] ?? '').toString().toLowerCase();
-      final okSpec = _speciality == 'All' || spec.contains(_speciality.toLowerCase());
+    // speciality (from payload and cached API proofs)
+    final specsFromPayload = _extractSpecs(t).map((e) => e.toLowerCase().trim());
+    final idForSpecs = (t['_id'] ?? t['id'] ?? '').toString();
+    final specsFromCache = (_specCache[idForSpecs] ?? const <String>[])
+      .map((e) => e.toLowerCase().trim());
+    final mergedSpecs = <String>{}
+    ..addAll(specsFromPayload)
+    ..addAll(specsFromCache);
+    final specStr = (t['specialization'] ?? t['speciality'] ?? '').toString();
+    final normSel = _norm(_speciality);
+    final mergedNorms = mergedSpecs.map(_norm).toList();
+    final specNormStr = _norm(specStr);
+    final okSpec = _speciality == 'All' ||
+      mergedNorms.contains(normSel) ||
+      mergedNorms.any((s) => s.contains(normSel) || normSel.contains(s)) ||
+      specNormStr.contains(normSel);
 
-      // fee filter (simple: skip or allow all)
-      final okFee = true;
+      // fee filter: by one-session price (fallback to monthly if single not present)
+      final priceOne = (t['oneSessionPrice'] ?? t['oneSession'] ?? '').toString();
+      final priceMonth = (t['monthlySessionPrice'] ?? t['monthly'] ?? '').toString();
+      final priceVal = _parseMoney(priceOne) ?? _parseMoney(priceMonth);
+      bool okFee;
+      switch (_fee) {
+        case 'All':
+          okFee = true;
+          break;
+        case '< ₹500':
+          okFee = priceVal != null && priceVal < 500;
+          break;
+        case '₹500-₹999':
+          okFee = priceVal != null && priceVal >= 500 && priceVal <= 999;
+          break;
+        case '₹1000-₹1999':
+          okFee = priceVal != null && priceVal >= 1000 && priceVal <= 1999;
+          break;
+        case '₹2000+':
+          okFee = priceVal != null && priceVal >= 2000;
+          break;
+        default:
+          okFee = true;
+      }
 
   // optional: prioritize within 20km first (sorting done in _load), but we still include everyone
-  return okSearch && okGender && okMode && okExp && okSpec && okFee;
+  return okSearch && okLocation && okGender && okMode && okExp && okSpec && okFee;
     }).toList();
   }
 
@@ -215,26 +462,53 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
   }
 
   Widget _filterChip(String label, String value, List<String> options, void Function(String) onChanged) {
-    return PopupMenuButton<String>(
-      color: Colors.white,
-      onSelected: onChanged,
-      itemBuilder: (_) => options
-          .map((o) => PopupMenuItem<String>(value: o, child: Text(o)))
-          .toList(),
+    final key = GlobalKey();
+    return GestureDetector(
+      onTap: () {
+        if (_activeMenu != null) {
+          _hideActiveMenu();
+        } else {
+          _showGlassMenu(anchorKey: key, options: options, onSelected: onChanged);
+        }
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.12),
+        key: key,
+        decoration: const BoxDecoration(),
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('$label', style: const TextStyle(color: Colors.white)),
-            const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
-          ],
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white.withOpacity(0.16),
+                    Colors.white.withOpacity(0.06),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -308,25 +582,68 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
   Widget build(BuildContext context) {
   // final screenWidth = MediaQuery.of(context).size.width; // not needed in new layout
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text("Find Trainers"),
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 50,
+        leadingWidth: 177,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 20, height: 20),
+                visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                onPressed: () => Navigator.pop(context),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 125,
+                height: 77,
+                child: Opacity(
+                  opacity: 1,
+                  child: Image.asset(
+                    'assets/image/fitstreet-bull-logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
         ),
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : _error != null
-            ? Center(child: Text(_error!, style: const TextStyle(color: Colors.white)))
-            : Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
+        child: Stack(
+          children: [
+            // removed animated liquid overlay for a static, cleaner background
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Center(child: Text(_error!, style: const TextStyle(color: Colors.white)))
+            else
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Search + location bar
@@ -401,20 +718,60 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                     const SizedBox(width: 8),
                     _filterChip('Mode', _mode, const ['All','Online','Offline','Both'], (v) => setState(() => _mode = v)),
                     const SizedBox(width: 8),
-                    _filterChip('Fee', _fee, const ['All'], (v) => setState(() => _fee = v)),
+                    _filterChip('Fee', _fee, const ['All','< ₹500','₹500-₹999','₹1000-₹1999','₹2000+'], (v) => setState(() => _fee = v)),
                     const SizedBox(width: 8),
-                    _filterChip('Speciality', _speciality, const ['All','Yoga','Strength','Rehab'], (v) => setState(() => _speciality = v)),
+                    // Build speciality options dynamically from loaded trainers and cache
+                    Builder(builder: (_) {
+                      final set = <String>{};
+                      for (final t in _trainers) {
+                        for (final s in _extractSpecs(t)) {
+                          if (s.trim().isNotEmpty) set.add(s.trim());
+                        }
+                        final id = (t['_id'] ?? t['id'] ?? '').toString();
+                        final cached = _specCache[id];
+                        if (cached != null) {
+                          for (final s in cached) {
+                            if (s.trim().isNotEmpty) set.add(s.trim());
+                          }
+                        }
+                      }
+                      final options = ['All', ...set.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()))];
+                      return _filterChip('Speciality', _speciality, options, (v) => setState(() => _speciality = v));
+                    }),
                     const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () => setState(() {
-                        _gender = 'All';
-                        _experience = 'All';
-                        _mode = 'All';
-                        _fee = 'All';
-                        _speciality = 'All';
-                        _searchCtrl.clear();
-                      }),
-                      child: const Text('Reset'),
+                    // Reset as a glass chip
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: InkWell(
+                          onTap: () => setState(() {
+                            _gender = 'All';
+                            _experience = 'All';
+                            _mode = 'All';
+                            _fee = 'All';
+                            _speciality = 'All';
+                            _locationCtrl.clear();
+                            _searchCtrl.clear();
+                          }),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withOpacity(0.16),
+                                  Colors.white.withOpacity(0.06),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                            ),
+                            child: const Text('Reset', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -613,10 +970,13 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                     ),
                                     onPressed: () {
+                                      final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) => BookSessionScreen(trainerId: id),
+                                          builder: (_) => TrainerProfileScreen(
+                                            trainer: Map<String, String>.from(trainerForProfile),
+                                          ),
                                         ),
                                       );
                                     },
@@ -633,7 +993,10 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                 ),
               ),
             ],
-          ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

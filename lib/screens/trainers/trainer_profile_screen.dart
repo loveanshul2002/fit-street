@@ -2,12 +2,17 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'dart:ui' show ImageFilter;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
 import '../../services/fitstreet_api.dart';
 import '../booking/book_session_screen.dart';
+import 'package:provider/provider.dart';
+import '../../state/auth_manager.dart';
+import '../login/login_screen_styled.dart';
+import '../user/profile_completion_wizard.dart';
+import '../../utils/role_storage.dart' show getProfileComplete;
 
 class TrainerProfileScreen extends StatefulWidget {
   final Map<String, dynamic> trainer;
@@ -119,7 +124,6 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             if ((_slotsByDay[d] ?? []).isNotEmpty) {
               selectedDayName = d;
               // compute selectedDayValue as next date matching that weekday
-              final now = DateTime.now();
               final target = _nextDateForWeekday(_weekdayIndex(d));
               selectedDayValue = DateFormat('yyyy-MM-dd').format(target);
               break;
@@ -295,7 +299,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => BookSessionScreen(trainerId: trainerId)));
   }
 
-  void confirmSingleBooking() {
+  Future<void> confirmSingleBooking() async {
+    final loggedIn = context.read<AuthManager?>()?.isLoggedIn ?? false;
+    if (!loggedIn) {
+      _promptLoginToBook();
+      return;
+    }
+    final profileDone = await getProfileComplete();
+    if (profileDone != true) {
+      _promptCompleteProfile();
+      return;
+    }
     if (selectedSlotId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a slot')));
       return;
@@ -322,7 +336,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
     _saveBookingAndNavigate(payload, trainerId);
   }
 
-  void confirmMonthlyBooking() {
+  Future<void> confirmMonthlyBooking() async {
+    final loggedIn = context.read<AuthManager?>()?.isLoggedIn ?? false;
+    if (!loggedIn) {
+      _promptLoginToBook();
+      return;
+    }
+    final profileDone = await getProfileComplete();
+    if (profileDone != true) {
+      _promptCompleteProfile();
+      return;
+    }
     final trainerId = (widget.trainer['_id'] ?? widget.trainer['id'] ?? '').toString();
     final payload = {
       'trainerId': trainerId,
@@ -334,6 +358,74 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
       'mode': selectedMode.isNotEmpty ? selectedMode : (widget.trainer['mode'] ?? '')
     };
     _saveBookingAndNavigate(payload, trainerId);
+  }
+
+  void _promptCompleteProfile() {
+    showDialog(
+      context: context,
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text('Complete your profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text('Please complete your profile before booking a trainer.', style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dCtx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(dCtx);
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileCompletionWizard()));
+                },
+                child: const Text('Complete Profile', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _promptLoginToBook() {
+    showDialog(
+      context: context,
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text('Login required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text('Please register or login to book a trainer.', style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dCtx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dCtx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreenStyled()));
+                },
+                child: const Text('Register / Login', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> pickMonthlyStartDate() async {
@@ -397,14 +489,63 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
     final img = (widget.trainer['trainerImageURL'] ?? '').toString();
 
     return Scaffold(
-      appBar: AppBar(title: Text(code.isNotEmpty ? '$name ($code)' : name), backgroundColor: Colors.transparent),
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: Text(code.isNotEmpty ? '$name ($code)' : name),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 50,
+        leadingWidth: 177,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+                visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                onPressed: () => Navigator.pop(context),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 125,
+                height: 77,
+                child: Opacity(
+                  opacity: 1,
+                  child: Image.asset(
+                    'assets/image/fitstreet-bull-logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: stacked
+        child: Stack(
+          children: [
+           
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: stacked
               ? SingleChildScrollView(
             child: Column(
               children: [
@@ -422,6 +563,9 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
               Expanded(flex: 4, child: _rightBookingCard(price1, priceM)),
             ],
           ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -501,17 +645,6 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             Text(langs, style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 12),
           ],
-          Align(
-            alignment: Alignment.centerLeft,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.white.withOpacity(0.12), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
-              onPressed: () {
-                if (selectedSessionType == 'monthly') confirmMonthlyBooking();
-                else ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a slot on the right to book a single session')));
-              },
-              child: const Text('Book Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ),
         ]),
       ),
     );
@@ -525,82 +658,121 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            ChoiceChip(
-              label: const Text('Single Session'),
-              selected: selectedSessionType == 'single',
-              onSelected: (_) {
-                setState(() {
-                  selectedSessionType = 'single';
-                  selectedSlotId = '';
-                });
-              },
-            ),
-            const SizedBox(width: 8),
-            ChoiceChip(
-              label: const Text('Monthly Session'),
-              selected: selectedSessionType == 'monthly',
-              onSelected: (_) {
-                setState(() {
-                  selectedSessionType = 'monthly';
-                  selectedSlotId = '';
-                });
-              },
-            ),
-            const Spacer(),
-            if (selectedSessionType == 'single' && price1.isNotEmpty)
-              Text('₹ $price1 / session', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            if (selectedSessionType == 'monthly' && priceM.isNotEmpty)
-              Text('₹ $priceM / month', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-          ]),
-          const SizedBox(height: 12),
-          const Text('Pick a time slot', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
+          // Top controls row (chips + price), responsive via Wrap to prevent overflow
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 8,
+            spacing: 12,
+            children: [
+              Wrap(
+                spacing: 8,
+                children: [
+                  Builder(builder: (_) {
+                    final sel = selectedSessionType == 'single';
+                    return ChoiceChip(
+                      label: const Text('Single Session'),
+                      selected: sel,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedSessionType = 'single';
+                          selectedSlotId = '';
+                        });
+                      },
+                      backgroundColor: Colors.white12,
+                      selectedColor: Colors.white24,
+                      showCheckmark: false,
+                      labelStyle: const TextStyle(color: Colors.white),
+                      shape: StadiumBorder(side: BorderSide(color: sel ? Colors.white : Colors.white24)),
+                    );
+                  }),
+                  Builder(builder: (_) {
+                    final sel = selectedSessionType == 'monthly';
+                    return ChoiceChip(
+                      label: const Text('Monthly Session'),
+                      selected: sel,
+                      onSelected: (_) {
+                        setState(() {
+                          selectedSessionType = 'monthly';
+                          selectedSlotId = '';
+                        });
+                      },
+                      backgroundColor: Colors.white12,
+                      selectedColor: Colors.white24,
+                      showCheckmark: false,
+                      labelStyle: const TextStyle(color: Colors.white),
+                      shape: StadiumBorder(side: BorderSide(color: sel ? Colors.white : Colors.white24)),
+                    );
+                  }),
+                ],
+              ),
+              if (selectedSessionType == 'single' && price1.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text('₹ $price1 / session', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+              if (selectedSessionType == 'monthly' && priceM.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Text('₹ $priceM / month', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+            ],
+          ),
+          if (selectedSessionType == 'single') ...[
+            const SizedBox(height: 12),
+            const Text('Pick a time slot', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+          ],
 
           if ((widget.trainer['mode'] ?? '').toString().toLowerCase() == 'both') ...[
             const SizedBox(height: 6),
-            Row(children: [
-              const Text('Choose Session Mode:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 12),
-              Container(
-                decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.all(4),
-                child: Row(children: [_modeButton('online'), const SizedBox(width: 8), _modeButton('offline')]),
-              ),
-            ]),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                const Text('Choose Session Mode:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700)),
+                Container(
+                  decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(children: [_modeButton('online'), const SizedBox(width: 8), _modeButton('offline')]),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
           ],
 
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: days.map((d) {
-                final isSelected = selectedDayValue == d['value'];
-                final count = getSlotsForDayName(d['dayName']!).length;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(d['label']!, style: const TextStyle(color: Colors.white70)),
-                    const SizedBox(height: 6),
-                    GestureDetector(
-                      onTap: () => selectDay(d),
-                      child: Container(
-                        height: 44,
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          gradient: isSelected ? const LinearGradient(colors: [Color(0xFF6A82FB), Color(0xFF56CCF2)]) : null,
-                          color: isSelected ? null : Colors.white24.withOpacity(0.06),
-                          border: Border.all(color: isSelected ? Colors.white : Colors.white.withOpacity(0.4)),
+          if (selectedSessionType == 'single')
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: days.map((d) {
+                  final isSelected = selectedDayValue == d['value'];
+                  final count = getSlotsForDayName(d['dayName']!).length;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(d['label']!, style: const TextStyle(color: Colors.white70)),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => selectDay(d),
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            gradient: isSelected ? const LinearGradient(colors: [Color(0xFF6A82FB), Color(0xFF56CCF2)]) : null,
+                            color: isSelected ? null : Colors.white24.withOpacity(0.08),
+                            border: Border.all(color: isSelected ? Colors.white : Colors.white.withOpacity(0.35)),
+                          ),
+                          child: Center(child: Text('$count Slots Available', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
                         ),
-                        child: Center(child: Text('$count Slots Available', style: const TextStyle(color: Colors.white))),
                       ),
-                    ),
-                  ]),
-                );
-              }).toList(),
+                    ]),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
 
           const SizedBox(height: 12),
 
@@ -621,8 +793,15 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             ]),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: confirmMonthlyBooking,
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E88E5), padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20)),
+              onPressed: () => confirmMonthlyBooking(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white12,
+                elevation: 0,
+                shadowColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                shape: const StadiumBorder(),
+                side: const BorderSide(color: Colors.white24),
+              ),
               child: const Text('Confirm Monthly Booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 8),
@@ -672,10 +851,14 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             ),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: selectedSlotId.isNotEmpty ? confirmSingleBooking : null,
+              onPressed: selectedSlotId.isNotEmpty ? () => confirmSingleBooking() : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: selectedSlotId.isNotEmpty ? const Color(0xFF6A82FB) : Colors.white12,
+                backgroundColor: selectedSlotId.isNotEmpty ? Colors.white24 : Colors.white12,
+                elevation: 0,
+                shadowColor: Colors.transparent,
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                shape: const StadiumBorder(),
+                side: BorderSide(color: selectedSlotId.isNotEmpty ? Colors.white : Colors.white24),
               ),
               child: Center(
                 child: Text(selectedSlotId.isNotEmpty ? 'Confirm Booking' : 'Select a slot to confirm', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

@@ -1,8 +1,7 @@
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-
-import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../state/auth_manager.dart';
 import '../user/user_auth_screen.dart';
@@ -94,183 +93,122 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 120,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 56,
+                height: kToolbarHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
       body: Container(
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              // Back button
-              Positioned(
-                left: 12,
-                top: 8,
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ],
-                ),
-              ),
-
-              // Optional logo
-              Positioned(
-                right: 16,
-                top: 8,
-                child: SizedBox(
-                  width: 96,
-                  height: 56,
-                  child: Image.asset(
-                    'assets/image/fitstreet_logo.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-
-              // Main card
-              Center(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: GlassCard(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(28),
-                      color: Colors.white.withOpacity(0.04),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.20),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                      border: Border.all(color: Colors.white.withOpacity(0.06)),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(28),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 22.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GlassCard(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 22.0),
-                                child: Column(
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        'Login',
-                                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 18),
-
-                                    // Mobile number input
-                                    TextField(
-                                      controller: _mobileController,
-                                      keyboardType: TextInputType.number,
-                                      inputFormatters: [
-                                        FilteringTextInputFormatter.digitsOnly,          // Only numbers
-                                        LengthLimitingTextInputFormatter(10),            // Max 10 digits
-                                      ],
-                                      decoration: InputDecoration(
-                                        hintText: 'Mobile Number',
-                                        filled: true,
-                                        fillColor: Colors.white.withOpacity(0.03),
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(color: Colors.white.withOpacity(0.06)),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(14),
-                                          borderSide: BorderSide(color: Colors.white.withOpacity(0.04)),
-                                        ),
-                                        hintStyle: TextStyle(color: Colors.white70),
-                                        prefixText: '+91 ',
-                                        prefixStyle: const TextStyle(color: Colors.white70),
-                                      ),
-                                      style: const TextStyle(color: Colors.white),
-                                    ),
-                                    const SizedBox(height: 20),
-
-                                    // Send OTP button
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 56,
-                                      child: ElevatedButton(
-                                        onPressed: _loading ? null : _sendOtp,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.white.withOpacity(0.10),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(28),
-                                          ),
-                                          elevation: 0,
-                                        ),
-                                        child: _loading
-                                            ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                        )
-                                            : const Text(
-                                          'Send OTP',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 18),
-
-                                    // Signup redirect
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(builder: (_) => const UserAuthScreen()),
-                                        );
-                                      },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                                        child: Text(
-                                          'Not registered yet? Create an account',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            decoration: TextDecoration.underline,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                  padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 22.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Login',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _mobileController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Mobile number',
+                          prefixText: '+91 ',
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _sendOtp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white12,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Text('Send OTP', style: TextStyle(color: Colors.white)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () {
+                          // Keep a single styled auth entry; optionally navigate to a sign-up variant here.
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const UserAuthScreen()),
+                          );
+                        },
+                        child: const Text(
+                          'Not registered yet? Create an account',
+                          style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ), // Center
-            ],
+              ),
+            ),
           ),
         ),
       ),

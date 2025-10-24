@@ -2,6 +2,7 @@
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -10,7 +11,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import '../../../config/app_colors.dart';
+// import '../../../config/app_colors.dart';
 import '../../../widgets/glass_card.dart';
 import 'steps/identity_step.dart';
 import 'steps/bank_step.dart';
@@ -218,18 +219,16 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       if (f1.currentState!.validate() &&
           IdentityStep.validateAge(dob, _toast) &&
           IdentityStep.validateIDs(pan, aadhaar, _toast)) {
-        setState(() => _step = 1);
-        _page.nextPage(
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  setState(() => _step = 1);
+  _page.jumpToPage(1);
       }
       return;
     }
 
     if (_step == 1) {
       if (f2.currentState!.validate()) {
-        setState(() => _step = 2);
-        _page.nextPage(
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  setState(() => _step = 2);
+  _page.jumpToPage(2);
       }
       return;
     }
@@ -238,9 +237,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       if (f3.currentState!.validate() &&
           ProfessionalStep.validateProfessionalRows(
               professionalRows, _toast)) {
-        setState(() => _step = 3);
-        _page.nextPage(
-            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+  setState(() => _step = 3);
+  _page.jumpToPage(3);
       }
       return;
     }
@@ -290,212 +288,235 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   }
 
   void _back() {
-    if (_step == 0) return;
-    setState(() => _step -= 1);
-    _page.previousPage(
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    // Custom back order:
+    // Consent(3) -> Professional(2)
+    // Professional(2) -> Bank(1)
+    // Bank(1) -> Identity(0)
+    // Identity(0) -> pop to Trainer Dashboard
+    if (_step == 3) {
+      setState(() => _step = 2);
+      _page.jumpToPage(2);
+      return;
+    }
+    if (_step == 2) {
+      setState(() => _step = 1);
+      _page.jumpToPage(1);
+      return;
+    }
+    if (_step == 1) {
+      setState(() => _step = 0);
+      _page.jumpToPage(0);
+      return;
+    }
+    // step 0: exit wizard
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Trainer KYC"),
         backgroundColor: Colors.transparent,
         elevation: 0,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
+        automaticallyImplyLeading: false,
+        leadingWidth: 120,
+        leading: Row(
           children: [
-            // step pills
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      _stepPill(0, "Identity"),
-                      const SizedBox(width: 8),
-                      _stepPill(1, "Bank"),
-                      const SizedBox(width: 8),
-                      _stepPill(2, "Professional"),
-                      const SizedBox(width: 8),
-                      _stepPill(3, "Consent"),
-                    ],
-                  ),
-                ),
-              ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: _back,
+              tooltip: 'Back',
             ),
-
-            const SizedBox(height: 8),
-
-            // pages
-            Expanded(
-              child: PageView(
-                controller: _page,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  IdentityStep(
-                    formKey: f1,
-                    language: language,
-                    onLanguageChanged: (v) => setState(() => language = v),
-                    fullName: fullName,
-                    dob: dob,
-                    gender: gender,
-                    mobile: mobile,
-                    email: email,
-                    pincode: pincode,
-                    city: city,
-                    stateCtrl: stateCtrl,
-
-                    // NEW: current address controllers
-                    currentPincode: currentPincode,
-                    currentCity: currentCity,
-                    currentState: currentState,
-
-                    sameAsPermanent: sameAsPermanent,
-                    onSameAsPermanentChanged: (v) => setState(() {
-                      sameAsPermanent = v;
-                      // Mirror/clear current address fields similar to profile_fill_screen.dart
-                      if (v) {
-                        addrCurrent.text = addrPermanent.text;
-                        currentPincode.text = pincode.text;
-                        currentCity.text = city.text;
-                        currentState.text = stateCtrl.text;
-                      } else {
-                        addrCurrent.clear();
-                        currentPincode.clear();
-                        currentCity.clear();
-                        currentState.clear();
-                      }
-                    }),
-                    addrPermanent: addrPermanent,
-                    addrCurrent: addrCurrent,
-                    emgName: emgName,
-                    emgRelation: emgRelation,
-                    emgMobile: emgMobile,
-                    pan: pan,
-                    aadhaar: aadhaar,
-                    // ✅ New props (images)
-                    panPhotoPath: panPhotoPath,
-                    aadhaarPhotofrontPath: aadhaarPhotofrontPath,
-                    aadhaarPhotobackPath: aadhaarPhotobackPath,
-                    selfiePath: selfiePath,
-                    pickPanPhoto: (p) => setState(() => panPhotoPath = p),
-                    pickAadhaarPhotofront: (p) =>
-                        setState(() => aadhaarPhotofrontPath = p),
-                    pickAadhaarPhotoback: (p) =>
-                        setState(() => aadhaarPhotobackPath = p),
-                    pickSelfie: (p) => setState(() => selfiePath = p),
-                    onPincodeChanged: _onPincodeChanged,
-                    onCurrentPincodeChanged: _onCurrentPincodeChanged,
-                    // NEW
-                    readOnlyFullName: true,
-                    readOnlyMobile: true,
-                  ),
-
-
-                  BankStep(
-                    formKey: f2,
-                    accName: accName,
-                    ifsc: ifsc,
-                    bankName: bankName,
-                    branch: branch,
-                    upi: upi,
-                  ),
-
-                  ProfessionalStep(
-                    formKey: f3,
-                    experience: experience,
-                    onExperienceChanged: (v) =>
-                        setState(() => experience = v),
-                    trainingLangs: trainingLangs,
-                    otherLangCtrl: otherLangCtrl,
-                    rows: professionalRows,
-                    // pass pricing callbacks & initial values
-                    onOneSessionPriceChanged: (v) =>
-                        setState(() => oneSessionPrice = v),
-                    onMonthlySessionPriceChanged: (v) =>
-                        setState(() => monthlySessionPrice = v),
-                    oneSessionPriceInitial: oneSessionPrice,
-                    monthlySessionPriceInitial: monthlySessionPrice,
-                  ),
-
-                  ConsentStep(
-                    noCriminalRecord: noCriminalRecord,
-                    agreeHnS: agreeHnS,
-                    ackTrainerAgreement: ackTrainerAgreement,
-                    ackCancellationPolicy: ackCancellationPolicy,
-                    ackPayoutPolicy: ackPayoutPolicy,
-                    ackPrivacyPolicy: ackPrivacyPolicy,
-                    onChange: ({
-                      bool? noCrime,
-                      bool? hns,
-                      bool? agr,
-                      bool? cancel,
-                      bool? payout,
-                      bool? privacy,
-                    }) {
-                      setState(() {
-                        if (noCrime != null) noCriminalRecord = noCrime;
-                        if (hns != null) agreeHnS = hns;
-                        if (agr != null) ackTrainerAgreement = agr;
-                        if (cancel != null) ackCancellationPolicy = cancel;
-                        if (payout != null) ackPayoutPolicy = payout;
-                        if (privacy != null) ackPrivacyPolicy = privacy;
-                      });
-                    },
-                    esignName: esignName,
-                    esignDate: esignDate,
-                    onSignatureBytes: (bytes) => signaturePng = bytes,
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  if (_step > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side:
-                          BorderSide(color: Colors.white.withOpacity(0.6)),
-                        ),
-                        onPressed: _back,
-                        child: const Text("Back"),
-                      ),
-                    ),
-                  if (_step > 0) const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                      ),
-                      onPressed: _next,
-                      child: Text(
-                        _step < 3 ? "Continue" : "Submit KYC",
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(width: 4),
+            Image.asset(
+              'assets/image/fitstreet-bull-logo.png',
+              height: 36,
+              fit: BoxFit.contain,
             ),
           ],
         ),
+        title: const Text(
+          "Trainer KYC",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Container(color: Colors.black.withOpacity(0.35)),
+          SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: GlassCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          _stepPill(0, "Identity"),
+                          const SizedBox(width: 8),
+                          _stepPill(1, "Bank"),
+                          const SizedBox(width: 8),
+                          _stepPill(2, "Professional"),
+                          const SizedBox(width: 8),
+                          _stepPill(3, "Consent"),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: PageView(
+                    controller: _page,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      IdentityStep(
+                        formKey: f1,
+                        language: language,
+                        onLanguageChanged: (v) => setState(() => language = v),
+                        fullName: fullName,
+                        dob: dob,
+                        gender: gender,
+                        mobile: mobile,
+                        email: email,
+                        pincode: pincode,
+                        city: city,
+                        stateCtrl: stateCtrl,
+                        currentPincode: currentPincode,
+                        currentCity: currentCity,
+                        currentState: currentState,
+                        sameAsPermanent: sameAsPermanent,
+                        onSameAsPermanentChanged: (v) => setState(() {
+                          sameAsPermanent = v;
+                          if (v) {
+                            addrCurrent.text = addrPermanent.text;
+                            currentPincode.text = pincode.text;
+                            currentCity.text = city.text;
+                            currentState.text = stateCtrl.text;
+                          } else {
+                            addrCurrent.clear();
+                            currentPincode.clear();
+                            currentCity.clear();
+                            currentState.clear();
+                          }
+                        }),
+                        addrPermanent: addrPermanent,
+                        addrCurrent: addrCurrent,
+                        emgName: emgName,
+                        emgRelation: emgRelation,
+                        emgMobile: emgMobile,
+                        pan: pan,
+                        aadhaar: aadhaar,
+                        panPhotoPath: panPhotoPath,
+                        aadhaarPhotofrontPath: aadhaarPhotofrontPath,
+                        aadhaarPhotobackPath: aadhaarPhotobackPath,
+                        selfiePath: selfiePath,
+                        pickPanPhoto: (p) => setState(() => panPhotoPath = p),
+                        pickAadhaarPhotofront: (p) => setState(() => aadhaarPhotofrontPath = p),
+                        pickAadhaarPhotoback: (p) => setState(() => aadhaarPhotobackPath = p),
+                        pickSelfie: (p) => setState(() => selfiePath = p),
+                        onPincodeChanged: _onPincodeChanged,
+                        onCurrentPincodeChanged: _onCurrentPincodeChanged,
+                        readOnlyFullName: true,
+                        readOnlyMobile: true,
+                      ),
+                      BankStep(
+                        formKey: f2,
+                        accName: accName,
+                        ifsc: ifsc,
+                        bankName: bankName,
+                        branch: branch,
+                        upi: upi,
+                      ),
+                      ProfessionalStep(
+                        formKey: f3,
+                        experience: experience,
+                        onExperienceChanged: (v) => setState(() => experience = v),
+                        trainingLangs: trainingLangs,
+                        otherLangCtrl: otherLangCtrl,
+                        rows: professionalRows,
+                        onOneSessionPriceChanged: (v) => setState(() => oneSessionPrice = v),
+                        onMonthlySessionPriceChanged: (v) => setState(() => monthlySessionPrice = v),
+                        oneSessionPriceInitial: oneSessionPrice,
+                        monthlySessionPriceInitial: monthlySessionPrice,
+                      ),
+                      ConsentStep(
+                        noCriminalRecord: noCriminalRecord,
+                        agreeHnS: agreeHnS,
+                        ackTrainerAgreement: ackTrainerAgreement,
+                        ackCancellationPolicy: ackCancellationPolicy,
+                        ackPayoutPolicy: ackPayoutPolicy,
+                        ackPrivacyPolicy: ackPrivacyPolicy,
+                        onChange: ({
+                          bool? noCrime,
+                          bool? hns,
+                          bool? agr,
+                          bool? cancel,
+                          bool? payout,
+                          bool? privacy,
+                        }) {
+                          setState(() {
+                            if (noCrime != null) noCriminalRecord = noCrime;
+                            if (hns != null) agreeHnS = hns;
+                            if (agr != null) ackTrainerAgreement = agr;
+                            if (cancel != null) ackCancellationPolicy = cancel;
+                            if (payout != null) ackPayoutPolicy = payout;
+                            if (privacy != null) ackPrivacyPolicy = privacy;
+                          });
+                        },
+                        esignName: esignName,
+                        esignDate: esignDate,
+                        onSignatureBytes: (bytes) => signaturePng = bytes,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: Colors.white.withOpacity(0.6)),
+                          ),
+                          onPressed: _back,
+                          child: Text(_step == 0 ? "Exit" : "Back"),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                          ),
+                          onPressed: _next,
+                          child: Text(
+                            _step < 3 ? "Continue" : "Submit KYC",
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

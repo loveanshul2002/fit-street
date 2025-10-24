@@ -1,9 +1,8 @@
 // lib/screens/user/height_picker_screen.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import '../../widgets/glass_card.dart';
+import 'dart:ui' show ImageFilter;
 import '../../utils/profile_storage.dart' show saveHeight;
-import '../../config/app_colors.dart';
 
 class HeightPickerScreen extends StatefulWidget {
   const HeightPickerScreen({super.key});
@@ -45,61 +44,261 @@ class _HeightPickerScreenState extends State<HeightPickerScreen> {
   Navigator.pop(context, {'ft': selectedFt, 'in': selectedInch});
   }
 
-  Widget _pickerTile(Widget child) {
-    return SizedBox(width: 100, height: 160, child: child);
-  }
+  // removed _pickerTile after refactor; inlined pickers into glass container
 
   @override
   Widget build(BuildContext context) {
   // final width = MediaQuery.of(context).size.width; // not used currently
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 18),
-            child: Column(children: [
-              Row(children: [IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back, color: Colors.white)), const SizedBox(width: 6), const Expanded(child: Text('What is Your Height?', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)))]),
-              const SizedBox(height: 12),
-              const Text("Height in ft/in. You can change later.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 22),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.06),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 10)),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Main content column
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                          const SizedBox(height: 6),
+                          const Text(
+                            'What is Your Height?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Height in ft/in. You can change later.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white.withOpacity(0.12),
+                                              Colors.white.withOpacity(0.04),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: Colors.white.withOpacity(0.24), width: 0.75),
+                                        ),
+                                        child: SizedBox(
+                                          height: 400,
+                                          child: Stack(
+                                            children: [
+                                              Positioned.fill(
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    SizedBox(
+                                                      width: 110,
+                                                      child: CupertinoPicker(
+                                                        scrollController: _ftController,
+                                                        itemExtent: 60,
+                                                        useMagnifier: false,
+                                                        magnification: 1.0,
+                                                        selectionOverlay: const SizedBox.shrink(),
+                                                        onSelectedItemChanged: (i) => setState(() => selectedFt = minFt + i),
+                                                        children: List.generate(
+                                                          maxFt - minFt + 1,
+                                                          (i) {
+                                                            final v = minFt + i;
+                                                            final isCenter = v == selectedFt;
+                                                            return Center(
+                                                              child: Text(
+                                                                '$v',
+                                                                style: TextStyle(
+                                                                  color: isCenter ? Colors.white : Colors.white70,
+                                                                  fontSize: isCenter ? 50 : 30,
+                                                                  fontWeight: isCenter ? FontWeight.w700 : FontWeight.w500,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    SizedBox(
+                                                      width: 110,
+                                                      child: CupertinoPicker(
+                                                        scrollController: _inchController,
+                                                        itemExtent: 60,
+                                                        useMagnifier: false,
+                                                        magnification: 1.0,
+                                                        selectionOverlay: const SizedBox.shrink(),
+                                                        onSelectedItemChanged: (i) => setState(() => selectedInch = i),
+                                                        children: List.generate(
+                                                          12,
+                                                          (i) {
+                                                            final isCenter = i == selectedInch;
+                                                            return Center(
+                                                              child: Text(
+                                                                '$i',
+                                                                style: TextStyle(
+                                                                  color: isCenter ? Colors.white : Colors.white70,
+                                                                  fontSize: isCenter ? 50 : 30,
+                                                                  fontWeight: isCenter ? FontWeight.w700 : FontWeight.w500,
+                                                                ),
+                                                              ),
+                                                            );
+                                                          },
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Align(
+                                                alignment: Alignment.center,
+                                                child: Container(
+                                                  height: 20,
+                                                  margin: const EdgeInsets.symmetric(horizontal: 30),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white24,
+                                                    borderRadius: BorderRadius.circular(2),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 80),
+                                  Text(
+                                    '$selectedFt ft $selectedInch in',
+                                    style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _onContinue,
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                elevation: 0,
+                              ),
+                              child: SizedBox(
+                                height: 64,
+                                child: Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(28),
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white.withOpacity(0.16),
+                                              Colors.white.withOpacity(0.06),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(28),
+                                          border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                        ),
+                                        child: const Text(
+                                          'Continue',
+                                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                            ],
+                          ),
 
-              GlassCard(
-                borderRadius: 30,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 12),
-                  child: Column(children: [
-                    const SizedBox(height: 4),
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        _pickerTile(CupertinoPicker(scrollController: _ftController, itemExtent: 34, onSelectedItemChanged: (i) => setState(() => selectedFt = minFt + i), children: List.generate(maxFt - minFt + 1, (i) => Center(child: Text('${minFt + i}', style: TextStyle(color: (minFt + i) == selectedFt ? Colors.white : Colors.white70, fontSize: (minFt + i) == selectedFt ? 40 : 20)))))),
-                        const SizedBox(width: 6),
-                        _pickerTile(CupertinoPicker(scrollController: _inchController, itemExtent: 34, onSelectedItemChanged: (i) => setState(() => selectedInch = i), children: List.generate(12, (i) => Center(child: Text('${i}', style: TextStyle(color: i == selectedInch ? Colors.white : Colors.white70, fontSize: i == selectedInch ? 40 : 20)))))),
-                      ]),
+                          // Glass back button (top-left)
+                          Positioned(
+                            top: 1,
+                            left: 1,
 
-                    const SizedBox(height: 18),
-                    Text('$selectedFt ft $selectedInch in', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                  ]),
-                ),
-              ),
 
-              const Spacer(),
 
-              GlassCard(
-                borderRadius: 40,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(onPressed: _onContinue, style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)), backgroundColor: Colors.transparent, shadowColor: Colors.transparent), child: Ink(decoration: BoxDecoration(gradient: AppColors.primaryGradient, borderRadius: BorderRadius.circular(32)), child: Container(alignment: Alignment.center, height: 52, child: const Text('Continue', style: TextStyle(color: Colors.white, fontSize: 16))))),
+
+
+                                  child: Material(
+                                    type: MaterialType.transparency,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () => Navigator.pop(context),
+                                      child: const SizedBox(
+                                        height: 40,
+                                        width: 40,
+                                        child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+
+
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-
-              const SizedBox(height: 12),
-            ]),
+            ),
           ),
         ),
       ),

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
-import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
+// removed intl date picker usage
+import 'dart:ui' show ImageFilter;
+import '../trainer/kyc/utils/input_formatters.dart' show DateSlashFormatter;
 import '../home/home_screen.dart';
 import '../../utils/role_storage.dart';
 import '../../state/auth_manager.dart';
@@ -63,7 +63,8 @@ Widget field(String label, TextEditingController controller,
 }
 
 class ProfileFillScreen extends StatefulWidget {
-  const ProfileFillScreen({super.key});
+  final bool editableBasics; // allow editing of name/mobile/gender/age
+  const ProfileFillScreen({super.key, this.editableBasics = false});
 
   @override
   State<ProfileFillScreen> createState() => _ProfileFillScreenState();
@@ -71,7 +72,8 @@ class ProfileFillScreen extends StatefulWidget {
 
 class _ProfileFillScreenState extends State<ProfileFillScreen> {
   final _nameCtrl = TextEditingController();
-  DateTime? _dob;
+  // DOB as text in DD/MM/YYYY
+  final _dobTextCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _mobileCtrl = TextEditingController();
   final _genderCtrl = TextEditingController();
@@ -98,8 +100,112 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
   void initState() {
     super.initState();
     _pincodeCtrl.addListener(_onPincodeChanged);
-  _currPincodeCtrl.addListener(_onCurrentPincodeChanged);
+    _currPincodeCtrl.addListener(_onCurrentPincodeChanged);
     _loadSavedBasics();
+    // Also fetch the full profile from server and prefill fields
+    // Doing this after first frame to ensure context is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefillFromServer();
+    });
+  }
+
+  Future<void> _prefillFromServer() async {
+    try {
+      final auth = context.read<AuthManager>();
+      final resp = await auth.getUserProfile();
+      if (resp['success'] == true) {
+        final body = resp['body'];
+        dynamic data;
+        if (body is Map) {
+          data = body['data'] ?? body;
+        } else {
+          data = body;
+        }
+        if (data is Map) {
+          final name = (data['fullName'] ?? data['name'])?.toString();
+          final email = data['email']?.toString();
+          final mobile = (data['mobileNumber'] ?? data['mobile'] ?? data['phone'])?.toString();
+          final gender = data['gender']?.toString();
+          final ageVal = data['age'];
+          final address = data['address']?.toString();
+          final city = data['city']?.toString();
+          final state = data['state']?.toString();
+          final pincode = (data['pincode'] ?? data['pin'])?.toString();
+          final same = data['isAddressSame'];
+          final currAddr = data['currentAddress']?.toString();
+          final currCity = data['currentCity']?.toString();
+          final currState = data['currentState']?.toString();
+          final currPin = (data['currentPincode'] ?? data['currentPin'])?.toString();
+          final health = data['healthIssue']?.toString();
+          final emgName = data['emergencyPersonName']?.toString();
+          final emgRel = data['emergencyPersonRelation']?.toString();
+          final emgPhone = (data['emergencyPersonMobile'] ?? data['emergencyMobile'])?.toString();
+          final dobRaw = (data['dob'] ?? data['dateOfBirth'])?.toString();
+
+          // Normalize DOB into DD/MM/YYYY if possible
+          String? dobText;
+          if (dobRaw != null && dobRaw.isNotEmpty) {
+            // Common formats: 1990-12-31, 1990/12/31, 31/12/1990, 31-12-1990, ISO with time
+            final isoDate = RegExp(r'^(\d{4})[-/](\d{2})[-/](\d{2})');
+            final ddmmyyyy = RegExp(r'^(\d{2})[-/](\d{2})[-/](\d{4})');
+            if (isoDate.hasMatch(dobRaw)) {
+              final m = isoDate.firstMatch(dobRaw)!;
+              final y = m.group(1)!;
+              final mm = m.group(2)!;
+              final dd = m.group(3)!;
+              dobText = '$dd/$mm/$y';
+            } else if (ddmmyyyy.hasMatch(dobRaw)) {
+              final m = ddmmyyyy.firstMatch(dobRaw)!;
+              final dd = m.group(1)!;
+              final mm = m.group(2)!;
+              final y = m.group(3)!;
+              dobText = '$dd/$mm/$y';
+            }
+          }
+
+          if (!mounted) return;
+          setState(() {
+            if (name != null && name.isNotEmpty) _nameCtrl.text = name;
+            if (email != null && email.isNotEmpty) _emailCtrl.text = email;
+            if (mobile != null && mobile.isNotEmpty) _mobileCtrl.text = mobile;
+            if (gender != null && gender.isNotEmpty) _genderCtrl.text = gender;
+            if (ageVal != null) _ageCtrl.text = ageVal.toString();
+            if (dobText != null && dobText.isNotEmpty) _dobTextCtrl.text = dobText;
+
+            if (address != null && address.isNotEmpty) _permAddrCtrl.text = address;
+            if (city != null && city.isNotEmpty) _cityCtrl.text = city;
+            if (state != null && state.isNotEmpty) _stateCtrl.text = state;
+            if (pincode != null && pincode.isNotEmpty) _pincodeCtrl.text = pincode;
+
+            // Address sameness
+            if (same is bool) {
+              sameAsPermanent = same;
+            } else if (same is String) {
+              sameAsPermanent = same.toLowerCase() == 'true' || same == '1';
+            }
+
+            if (sameAsPermanent) {
+              _currAddrCtrl.text = _permAddrCtrl.text;
+              _currCityCtrl.text = _cityCtrl.text;
+              _currStateCtrl.text = _stateCtrl.text;
+              _currPincodeCtrl.text = _pincodeCtrl.text;
+            } else {
+              if (currAddr != null && currAddr.isNotEmpty) _currAddrCtrl.text = currAddr;
+              if (currCity != null && currCity.isNotEmpty) _currCityCtrl.text = currCity;
+              if (currState != null && currState.isNotEmpty) _currStateCtrl.text = currState;
+              if (currPin != null && currPin.isNotEmpty) _currPincodeCtrl.text = currPin;
+            }
+
+            if (health != null && health.isNotEmpty) _healthCtrl.text = health;
+            if (emgName != null && emgName.isNotEmpty) _emgName.text = emgName;
+            if (emgRel != null && emgRel.isNotEmpty) _emgRelation.text = emgRel;
+            if (emgPhone != null && emgPhone.isNotEmpty) _emgPhone.text = emgPhone;
+          });
+        }
+      }
+    } catch (_) {
+      // ignore prefill errors; form remains editable
+    }
   }
 
   Future<void> _loadSavedBasics() async {
@@ -107,6 +213,13 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
     final savedMobile = await getMobile();
     final g = await getGender();
     final a = await getAge();
+    // Email, if cached locally (greeting freshness)
+    try {
+      final email = await getUserEmail();
+      if (email != null && email.isNotEmpty) {
+        _emailCtrl.text = email;
+      }
+    } catch (_) {}
 
     String genderLabel;
     switch (g) {
@@ -140,6 +253,7 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
   void dispose() {
     _pincodeCtrl.removeListener(_onPincodeChanged);
   _currPincodeCtrl.removeListener(_onCurrentPincodeChanged);
+  _dobTextCtrl.dispose();
   _nameCtrl.dispose();
   _mobileCtrl.dispose();
   _genderCtrl.dispose();
@@ -373,157 +487,253 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight)),
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 18),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back, color: Colors.white)),
-                    const SizedBox(width: 6),
-                    const Expanded(
-                        child: Text("Fill Your Profile",
-                            style:
-                            TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Center(
-                            child: InkWell(
-                              onTap: _pickPhoto,
-                              child: CircleAvatar(
-                                radius: 36,
-                                backgroundColor: Colors.white12,
-                                backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
-                                child: _photoPath == null ? const Icon(Icons.camera_alt, color: Colors.white70) : null,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.06),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 10)),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Fill Your Profile',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      Center(
+                                        child: InkWell(
+                                          onTap: _pickPhoto,
+                                          child: CircleAvatar(
+                                            radius: 36,
+                                            backgroundColor: Colors.white12,
+                                            backgroundImage: _photoPath != null ? FileImage(File(_photoPath!)) : null,
+                                            child: _photoPath == null ? const Icon(Icons.camera_alt, color: Colors.white70) : null,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+
+                    // Name — editable if requested
+                    field('Full Name', _nameCtrl, hint: 'Your full name', readOnly: !widget.editableBasics),
+                    // Mobile — editable if requested
+                    field('Mobile', _mobileCtrl, hint: '+91xxxxxxxxxx', readOnly: !widget.editableBasics,
+                      keyboardType: TextInputType.phone,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
+                    // Gender — editable if requested
+                    field('Gender', _genderCtrl, hint: 'Gender', readOnly: !widget.editableBasics),
+                    // Age — editable if requested
+                    field('Age', _ageCtrl, hint: 'Age in years', readOnly: !widget.editableBasics,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)]),
+                                      const SizedBox(height: 6),
+
+                            // ...existing code...
+field(
+  'Date of Birth (DD/MM/YYYY)',
+  _dobTextCtrl,
+  keyboardType: TextInputType.number,
+  inputFormatters: [
+    FilteringTextInputFormatter.digitsOnly,
+    LengthLimitingTextInputFormatter(10),
+    DateSlashFormatter(),
+  ],
+  validator: (v) {
+    final txt = (v ?? '').trim();
+    if (txt.isEmpty) return 'Enter DOB';
+    return RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(txt) ? null : 'Use DD/MM/YYYY';
+  },
+),
+const SizedBox(height: 12),
+
+field('Email', _emailCtrl, keyboardType: TextInputType.emailAddress, hint: 'example@you.com'),
+const SizedBox(height: 6),
+
+SubTitle('Address'),
+field('Pincode', _pincodeCtrl,
+    keyboardType: TextInputType.number,
+    maxLength: 6,
+    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+    hint: '6-digit pin'),
+field('City', _cityCtrl, readOnly: true),
+// ...existing code...
+                                      field('State', _stateCtrl, readOnly: true),
+
+                                      field('Permanent Address', _permAddrCtrl, hint: 'Street / locality / landmark'),
+                                      SwitchListTile(
+                                        value: sameAsPermanent,
+                                        onChanged: (v) {
+                                          setState(() {
+                                            sameAsPermanent = v;
+                                            if (v) {
+                                              _currAddrCtrl.text = _permAddrCtrl.text;
+                                              _currPincodeCtrl.text = _pincodeCtrl.text;
+                                              _currCityCtrl.text = _cityCtrl.text;
+                                              _currStateCtrl.text = _stateCtrl.text;
+                                            } else {
+                                              _currAddrCtrl.clear();
+                                              _currPincodeCtrl.clear();
+                                              _currCityCtrl.clear();
+                                              _currStateCtrl.clear();
+                                            }
+                                          });
+                                        },
+                                        title: const Text('Same as permanent address', style: TextStyle(color: Colors.white)),
+                                        activeColor: Colors.white,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                      if (!sameAsPermanent) ...[
+                                        field('Current Address', _currAddrCtrl, hint: 'Street / locality'),
+                                        field('Current Pincode', _currPincodeCtrl,
+                                            keyboardType: TextInputType.number,
+                                            maxLength: 6,
+                                            inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
+                                            hint: '6-digit pin'),
+                                        field('Current City', _currCityCtrl, readOnly: true),
+                                        field('Current State', _currStateCtrl, readOnly: true),
+                                      ],
+
+                                      const SizedBox(height: 6),
+                                      field('Any health issues / allergies', _healthCtrl, maxLength: 200, hint: 'e.g. asthma, diabetes (optional)'),
+                                      const SizedBox(height: 8),
+
+                                      const SubTitle('Emergency Contact'),
+                                      field('Name', _emgName, hint: 'Contact name'),
+                                      field('Relation', _emgRelation, hint: 'e.g. spouse, parent'),
+                                      field('Phone', _emgPhone, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
+
+                                      const SizedBox(height: 12),
+                                    ]),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: _submit,
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    elevation: 0,
+                                  ),
+                                  child: SizedBox(
+                                    height: 64,
+                                    child: Center(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(28),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.white.withOpacity(0.16),
+                                                  Colors.white.withOpacity(0.06),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                              ),
+                                              borderRadius: BorderRadius.circular(28),
+                                              border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                            ),
+                                            child: Text(
+                                              widget.editableBasics ? 'Save' : 'Start',
+                                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Glass back button (top-left)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withOpacity(0.16),
+                                        Colors.white.withOpacity(0.06),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                  ),
+                                  child: Material(
+                                    type: MaterialType.transparency,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () => Navigator.pop(context),
+                                      child: const SizedBox(
+                                        height: 40,
+                                        width: 40,
+                                        child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-
-                          // Name — prefilled and read-only
-                          field("Full Name", _nameCtrl, hint: "Your full name", readOnly: true),
-                          // Mobile — prefilled and read-only
-                          field("Mobile", _mobileCtrl, hint: "+91xxxxxxxxxx", readOnly: true),
-                          // Gender — prefilled and read-only
-                          field("Gender", _genderCtrl, hint: "Gender", readOnly: true),
-                          // Age — prefilled and read-only
-                          field("Age", _ageCtrl, hint: "Age in years", readOnly: true),
-                          const SizedBox(height: 6),
-
-                          SubTitle("Date of birth"),
-                          GestureDetector(
-                            onTap: () async {
-                              final p = await showDatePicker(
-                                  context: context,
-                                  initialDate: DateTime(1995, 1, 1),
-                                  firstDate: DateTime(1900),
-                                  lastDate: DateTime.now());
-                              if (p != null) setState(() => _dob = p);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                              decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
-                              child: Row(children: [
-                                Expanded(
-                                    child: Text(_dob == null ? "Select date of birth (optional)" : DateFormat.yMMMd().format(_dob!),
-                                        style: TextStyle(color: _dob == null ? Colors.white54 : Colors.white))),
-                                const Icon(Icons.calendar_today, color: Colors.white54)
-                              ]),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          field("Email", _emailCtrl, keyboardType: TextInputType.emailAddress, hint: "example@you.com"),
-                          const SizedBox(height: 6),
-
-                          const SubTitle("Address"),
-                          field("Pincode", _pincodeCtrl,
-                              keyboardType: TextInputType.number,
-                              maxLength: 6,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-                              hint: "6-digit pin"),
-                          field("City", _cityCtrl, readOnly: true),
-                          field("State", _stateCtrl, readOnly: true),
-
-                          field("Permanent Address", _permAddrCtrl, hint: "Street / locality / landmark"),
-                          SwitchListTile(
-                            value: sameAsPermanent,
-                            onChanged: (v) {
-                              setState(() {
-                                sameAsPermanent = v;
-                                if (v) {
-                                  _currAddrCtrl.text = _permAddrCtrl.text;
-                                  _currPincodeCtrl.text = _pincodeCtrl.text;
-                                  _currCityCtrl.text = _cityCtrl.text;
-                                  _currStateCtrl.text = _stateCtrl.text;
-                                } else {
-                                  _currAddrCtrl.clear();
-                                  _currPincodeCtrl.clear();
-                                  _currCityCtrl.clear();
-                                  _currStateCtrl.clear();
-                                }
-                              });
-                            },
-                            title: const Text("Same as permanent address", style: TextStyle(color: Colors.white)),
-                            activeColor: Colors.white,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          if (!sameAsPermanent) ...[
-                            field("Current Address", _currAddrCtrl, hint: "Street / locality"),
-                            field("Current Pincode", _currPincodeCtrl,
-                                keyboardType: TextInputType.number,
-                                maxLength: 6,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
-                                hint: "6-digit pin"),
-                            field("Current City", _currCityCtrl, readOnly: true),
-                            field("Current State", _currStateCtrl, readOnly: true),
-                          ],
-
-                          const SizedBox(height: 6),
-                          field("Any health issues / allergies", _healthCtrl, maxLength: 200, hint: "e.g. asthma, diabetes (optional)"),
-                          const SizedBox(height: 8),
-
-                          const SubTitle("Emergency Contact"),
-                          field("Name", _emgName, hint: "Contact name"),
-                          field("Relation", _emgRelation, hint: "e.g. spouse, parent"),
-                          field("Phone", _emgPhone, keyboardType: TextInputType.phone, hint: "+91xxxxxxxxxx", inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
-
-                          const SizedBox(height: 12),
-                        ]),
+                        ],
                       ),
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                      child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: BorderSide(color: Colors.white.withOpacity(0.25)), padding: const EdgeInsets.symmetric(vertical: 14)),
-                          child: const Text("Back"))),
-                  const SizedBox(width: 12),
-                  Expanded(child: ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, padding: const EdgeInsets.symmetric(vertical: 14)), child: const Text("Start", style: TextStyle(color: Colors.white)))),
-                ]),
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
           ),
         ),

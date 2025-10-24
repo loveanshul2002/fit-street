@@ -1,14 +1,14 @@
 // lib/screens/trainer/trainer_register_wizard.dart
 import 'dart:convert';
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../widgets/scaffold_with_bg.dart';
-import '../../config/app_colors.dart';
+ 
+// import '../../config/app_colors.dart';
 import '../../state/auth_manager.dart';
 import '../../utils/role_storage.dart';
 import '../../utils/user_role.dart';
@@ -34,14 +34,14 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
   bool _otpVerified = false;
   final TextEditingController _otpCtrl = TextEditingController();
 
-  bool _acceptTnc = false;
+  // bool _acceptTnc = false; // kept from previous Payment step; not used currently
 
-  // demo fallback id (if backend doesn't return one)
-  final String _demoTrainerId =
-      "FS${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+  // demo fallback id (kept from previous flow)
+  // final String _demoTrainerId =
+  //     "FS${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
 
   bool _loading = false;
-  String? _rawTrainerId;
+  // String? _rawTrainerId;
 
   // resend cooldown state
   int _resendCooldown = 0; // seconds remaining
@@ -84,30 +84,9 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
             raw;
       }
 
-      String? extractDisplayId(String? s) {
-        if (s == null) return null;
-        final trimmed = s.trim();
-        final tokenMatch = RegExp(r'^[A-Za-z0-9\-_]{3,40}$').firstMatch(trimmed);
-        if (tokenMatch != null) return trimmed;
-        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-          try {
-            final decoded = jsonDecode(trimmed);
-            if (decoded is Map) {
-              final cand = (decoded['trainerUniqueId'] ?? decoded['trainerUniqueID'] ?? decoded['trainerUniqueid'] ?? decoded['_id'] ?? decoded['id']);
-              if (cand != null) return cand.toString();
-            }
-          } catch (_) {}
-        }
-        final uniMatch = RegExp("trainerUniqueId\\s*[:=]\\s*['\"]?([A-Za-z0-9_-]+)['\"]?").firstMatch(trimmed);
-        if (uniMatch != null) return uniMatch.group(1);
-        final hex = RegExp(r'([0-9a-fA-F]{24})').firstMatch(trimmed);
-        if (hex != null) return hex.group(1);
-        final preview = trimmed.length > 20 ? '${trimmed.substring(0, 18)}...' : trimmed;
-        return preview;
-      }
-
-      final display = extractDisplayId(raw);
-      if (display != null && mounted) setState(() => _rawTrainerId = display);
+  // Previously we displayed a derived trainer id preview; no longer used in UI
+  // final display = extractDisplayId(raw);
+  // if (display != null && mounted) setState(() => _rawTrainerId = display);
     } catch (e) {
       debugPrint('Failed to load saved ids: $e');
     }
@@ -412,23 +391,65 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  String _displayTrainerId() {
-    if (_rawTrainerId != null && _rawTrainerId!.isNotEmpty) {
-      final s = _rawTrainerId!.trim();
-      return s.length <= 30 ? s : '${s.substring(0, 27)}...';
-    }
-    return _demoTrainerId;
-  }
+  // String _displayTrainerId() {
+  //   if (_rawTrainerId != null && _rawTrainerId!.isNotEmpty) {
+  //     final s = _rawTrainerId!.trim();
+  //     return s.length <= 30 ? s : '${s.substring(0, 27)}...';
+  //   }
+  //   return _demoTrainerId;
+  // }
 
   // UI
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldWithBg(
-      title: const Text("Register as Trainer"),
-      child: SafeArea(
-        child: Column(
-          children: [
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Register as Trainer'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 120,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 56,
+                height: kToolbarHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
             // Step indicator
         //    Padding(
         //      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -449,84 +470,87 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           //    ),
           //  ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            // Pages - only Basic active; Payment & Done calls are commented for now
-            Expanded(
-              child: PageView(
-                controller: _page,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _stepBasic(),
-                  // _stepPayment(), // commented out - kept in file below for future restore
-                  // _stepConfirm(), // commented out - kept in file below for future restore
-                ],
+              // Pages - only Basic active; Payment & Done calls are commented for now
+              Expanded(
+                child: PageView(
+                  controller: _page,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                    _stepBasic(),
+                    // _stepPayment(), // commented out - kept in file below for future restore
+                    // _stepConfirm(), // commented out - kept in file below for future restore
+                  ],
+                ),
               ),
-            ),
 
-            // Nav buttons
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Row(
-                children: [
-                  if (_step > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white.withOpacity(0.6)),
+              // Nav buttons
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Row(
+                  children: [
+                    if (_step > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: Colors.white.withOpacity(0.6)),
+                          ),
+                          onPressed: _back,
+                          child: const Text("Back"),
                         ),
-                        onPressed: _back,
-                        child: const Text("Back"),
+                      ),
+                    if (_step > 0) const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                        ),
+                        onPressed: _next,
+                        child: Text(
+                          _step < 1 ? "Continue" : "Go to Dashboard",
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
-                  if (_step > 0) const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                      ),
-                      onPressed: _next,
-                      child: Text(_step < 1 ? "Continue" : "Go to Dashboard",
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _stepDot(int index, String label) {
-    final active = _step == index;
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            width: 30, height: 30,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? Colors.orange : Colors.white.withOpacity(0.25),
-              border: Border.all(color: Colors.white.withOpacity(0.5)),
-            ),
-            alignment: Alignment.center,
-            child: Text("${index + 1}",
-                style: TextStyle(
-                  color: active ? AppColors.secondary : Colors.white,
-                  fontWeight: FontWeight.w800,
-                )),
-          ),
-          const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-        ],
-      ),
-    );
-  }
+  // Widget _stepDot(int index, String label) {
+  //   final active = _step == index;
+  //   return Expanded(
+  //     child: Column(
+  //       children: [
+  //         Container(
+  //           width: 30, height: 30,
+  //           decoration: BoxDecoration(
+  //             shape: BoxShape.circle,
+  //             color: active ? Colors.orange : Colors.white.withOpacity(0.25),
+  //             border: Border.all(color: Colors.white.withOpacity(0.5)),
+  //           ),
+  //           alignment: Alignment.center,
+  //           child: Text("${index + 1}",
+  //               style: TextStyle(
+  //                 color: active ? AppColors.secondary : Colors.white,
+  //                 fontWeight: FontWeight.w800,
+  //               )),
+  //         ),
+  //         const SizedBox(height: 6),
+  //         Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _line() => const SizedBox(width: 12);
+  // Widget _line() => const SizedBox(width: 12);
 
   Widget _stepBasic() {
     return Padding(
@@ -812,21 +836,20 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
 }
 
-// Small bullet row (kept active since it may be used if you uncomment payment)
-class _Bullet extends StatelessWidget {
-  final String text;
-  const _Bullet(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          const Text("• ", style: TextStyle(color: Colors.white70)),
-          Expanded(child: Text(text, style: const TextStyle(color: Colors.white70)))
-        ],
-      ),
-    );
-  }
-}
+// Small bullet row kept commented for future use with payment step
+// class _Bullet extends StatelessWidget {
+//   final String text;
+//   const _Bullet(this.text);
+//   @override
+//   Widget build(BuildContext context) {
+//     return Padding(
+//       padding: const EdgeInsets.only(bottom: 6),
+//       child: Row(
+//         children: [
+//           const Text("• ", style: TextStyle(color: Colors.white70)),
+//           Expanded(child: Text(text, style: const TextStyle(color: Colors.white70)))
+//         ],
+//       ),
+//     );
+//   }
+// }

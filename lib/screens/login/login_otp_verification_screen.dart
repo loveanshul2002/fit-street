@@ -1,8 +1,8 @@
 // lib/screens/login/login_otp_verification_screen.dart
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../state/auth_manager.dart';
 import '../home/home_screen.dart';
@@ -151,26 +151,60 @@ class _LoginOtpVerificationScreenState extends State<LoginOtpVerificationScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        title: const Text('Verify OTP'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leadingWidth: 120,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                tooltip: 'Back',
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 56,
+                height: kToolbarHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                ),
+              ),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
       body: Container(
         width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
         ),
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
-            child: Column(children: [
-              const SizedBox(height: 8),
-              Row(children: [
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.arrow_back, color: Colors.white)),
-                const SizedBox(width: 6),
-                const Text('Verify OTP', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-              ]),
-              const SizedBox(height: 18),
-              GlassCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(children: [
+            child: GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text('OTP sent to +91 ${widget.mobile}', style: const TextStyle(color: Colors.white70)),
                     const SizedBox(height: 12),
                     _otpField(),
@@ -189,10 +223,10 @@ class _LoginOtpVerificationScreenState extends State<LoginOtpVerificationScreen>
                     ),
                     const SizedBox(height: 12),
                     TextButton(onPressed: _loading ? null : _resendOtp, child: const Text('Resend OTP', style: TextStyle(color: Colors.white70))),
-                  ]),
+                  ],
                 ),
               ),
-            ]),
+            ),
           ),
         ),
       ),

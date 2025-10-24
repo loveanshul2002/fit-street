@@ -1,5 +1,6 @@
 // lib/screens/trainer/trainer_dashboard.dart
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,7 +11,7 @@ import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
 import '../../widgets/earnings_card.dart'; // PaymentDetail included
 import '../trainer/kyc/widgets/header.dart';
-import '../trainer/kyc/widgets/bookings_list.dart';
+// import '../trainer/kyc/widgets/bookings_list.dart';
 import '../trainer/kyc/trainer_kyc_wizard.dart';
 import '../../state/auth_manager.dart';
 import '../../utils/role_storage.dart';
@@ -40,7 +41,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   String trainerName = "";
   String cityCountry = "Mumbai, India";
   String addressLine = "Andheri West, Mumbai";
-  String motivation = "Small daily wins add up — keep going!";
+  String? trainerImageURL;
 
   KycStatus kycStatus = KycStatus.pending;
   bool isAvailable = true;
@@ -52,12 +53,12 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   List<dynamic> _rejectedBookings = [];
   bool _loadingBookings = false;
 
-  // Selected user (passed into dialog when viewing profile)
-  Map<String, dynamic>? _selectedBookingUser;
+  // Selected user (kept from previous UI; no longer used)
+  // Map<String, dynamic>? _selectedBookingUser;
 
   // KYC
   KycState _kycState = KycState.notStarted;
-  String? _kycStatusRaw;
+  // String? _kycStatusRaw;
 
   // Availability / slots
   String _selectedDay = "Mon";
@@ -131,8 +132,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   // Notification state
   int notificationCount = 0;
   List<dynamic> notifications = [];
-  bool showNotificationList = false;
   bool loadingNotifications = false;
+  OverlayEntry? _notifEntry;
 
   @override
   void initState() {
@@ -190,6 +191,9 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   @override
   void dispose() {
     _tabs.dispose();
+    try {
+      _hideNotificationOverlay();
+    } catch (_) {}
     super.dispose();
   }
 
@@ -311,8 +315,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   }
 
   KycState _kycStateFromData(Map<dynamic, dynamic> data) {
-    final rawStatus = (data['status'] ?? data['kycStatus'] ?? '').toString().toLowerCase();
-    _kycStatusRaw = rawStatus;
+  final rawStatus = (data['status'] ?? data['kycStatus'] ?? '').toString().toLowerCase();
+  // _kycStatusRaw = rawStatus;
     final bool isKycFlag = (data['isKyc'] == true) || (data['kycCompleted'] == true) || (data['isKycCompleted'] == true);
     if (rawStatus == 'approved' || (data['kycApproved'] == true)) return KycState.approved;
     if (rawStatus == 'submitted' || rawStatus == 'inprogress' || isKycFlag) return KycState.submitted;
@@ -333,6 +337,10 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       if (numId != null) formatted = _formatTrainerCode(numId);
 
       KycState resolvedState = _kycState;
+  // Will resolve real city/state/address from server
+  String resolvedCity = cityCountry;
+  String resolvedStateText = '';
+  String resolvedAddress = addressLine;
 
       try {
         final token = sp.getString('fitstreet_token') ?? '';
@@ -345,11 +353,23 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             final parsed = jsonDecode(resp.body);
             final data = (parsed is Map) ? (parsed['data'] ?? parsed) : null;
             if (data is Map) {
-              final serverState = _kycStateFromData(data as Map<dynamic, dynamic>);
+              final serverState = _kycStateFromData(data);
               if (serverState == KycState.approved) resolvedState = KycState.approved;
               else if (serverState == KycState.submitted) resolvedState = KycState.submitted;
               else if (localSubmitted) resolvedState = KycState.submitted;
               else resolvedState = KycState.notStarted;
+
+              // Extract city/state/address from profile
+              try {
+                final rawCity = (data['currentCity'] ?? data['city'] ?? '').toString().trim();
+                final rawState = (data['currentState'] ?? data['state'] ?? '').toString().trim();
+                final rawAddress = (data['currentAddress'] ?? data['address'] ?? data['addressLine'] ?? data['address1'] ?? data['addressLine1'] ?? '').toString().trim();
+                final rawImage = (data['trainerImageURL'] ?? data['imageURL'] ?? data['profileImageURL'] ?? '').toString().trim();
+                if (rawCity.isNotEmpty) resolvedCity = rawCity;
+                if (rawState.isNotEmpty) resolvedStateText = rawState;
+                if (rawAddress.isNotEmpty) resolvedAddress = rawAddress;
+                if (rawImage.isNotEmpty) trainerImageURL = rawImage;
+              } catch (_) {}
             }
           } else {
             if (sp.getBool(_kycKey) ?? false) resolvedState = KycState.submitted;
@@ -370,6 +390,12 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         _trainerCode = formatted;
         if (storedName != null && storedName.isNotEmpty) trainerName = storedName;
         _kycState = resolvedState;
+        // Show city or state only (prefer city); update address if present
+        final onlyCityOrState = (resolvedCity.isNotEmpty)
+            ? resolvedCity
+            : (resolvedStateText.isNotEmpty ? resolvedStateText : cityCountry);
+        cityCountry = onlyCityOrState;
+        addressLine = resolvedAddress;
       });
 
       if ((storedName == null || storedName.isEmpty) && dbId != null && dbId.isNotEmpty) {
@@ -585,6 +611,55 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     }
   }
 
+  Future<void> _rejectBookingApi(dynamic bookingOrId) async {
+    final bookingId = _extractBookingId(bookingOrId);
+    if (bookingId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking id not found')));
+      }
+      return;
+    }
+
+    final token = await _getTokenFromPrefs();
+    final encodedId = Uri.encodeComponent(bookingId);
+    final uri = Uri.parse('https://api.fitstreet.in/api/session-bookings/reject/$encodedId');
+
+    try {
+      final resp = await http.patch(uri, headers: {
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      });
+
+      if (resp.statusCode == 200 || resp.statusCode == 201 || resp.statusCode == 204) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking rejected')));
+        }
+        await _getBookedSessions('upcoming');
+        await _getBookedSessions('rejected');
+        return;
+      }
+
+      String message = 'Reject failed (${resp.statusCode})';
+      try {
+        final parsed = jsonDecode(resp.body);
+        if (parsed is Map) {
+          message = (parsed['message'] ?? parsed['error'] ?? parsed).toString();
+        } else if (parsed is String && parsed.isNotEmpty) {
+          message = parsed;
+        }
+      } catch (_) {
+        if (resp.body.isNotEmpty) message = resp.body;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      }
+    }
+  }
+
   Future<void> _saveKycStatusLocally(bool done) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -623,33 +698,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     );
   }
 
-  void _acceptBooking(Map<String, dynamic> b) {
-    setState(() => b['accepted'] = true);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Booking accepted — contact visible.")));
-  }
-
-  void _completeBooking(Map<String, dynamic> b) {
-    setState(() {
-      live.removeWhere((e) => e['id'] == b['id']);
-      completed.insert(0, {...b, 'id': 'cmp_${DateTime.now().millisecondsSinceEpoch}'});
-    });
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Marked complete.")));
-  }
-
-  void _showContact(Map<String, dynamic> b) {
-    if (b['accepted'] == true || b['isAccepted'] == true) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: Text(b['client'] ?? "Client"),
-          content: Text("Phone: ${b['contact'] ?? "N/A"}\nLocation: ${b['location'] ?? "N/A"}"),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
-        ),
-      );
-    } else {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Accept booking to view contact.")));
-    }
-  }
+  // Removed old demo handlers (_acceptBooking, _completeBooking, _showContact) as they were unused in current flow.
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -844,9 +893,34 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       final resp = await api.getNotifications(userType, userId);
       if (resp.statusCode == 200) {
         final body = jsonDecode(resp.body);
+        final List raw = (body['notifications'] ?? []) as List;
+        final now = DateTime.now();
+        final cutoff = now.subtract(const Duration(days: 7));
+        bool within7(dynamic n) {
+          try {
+            final v = n?['createdAt'];
+            DateTime? dt;
+            if (v is String) {
+              dt = DateTime.tryParse(v);
+              if (dt == null) {
+                final numVal = int.tryParse(v);
+                if (numVal != null) {
+                  dt = numVal > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(numVal) : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
+                }
+              }
+            } else if (v is int) {
+              dt = v > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(v) : DateTime.fromMillisecondsSinceEpoch(v * 1000);
+            }
+            if (dt == null) return true; // keep if unknown timestamp
+            return dt.isAfter(cutoff);
+          } catch (_) {
+            return true;
+          }
+        }
+        final filtered = raw.where(within7).toList();
         setState(() {
-          notifications = body['notifications'] ?? [];
-          notificationCount = body['notificationsCount'] ?? 0;
+          notifications = filtered;
+          notificationCount = filtered.length;
         });
       }
     } catch (e) {
@@ -866,6 +940,104 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       await api.markNotificationsAsRead(userId, userType);
       setState(() { notificationCount = 0; });
     } catch (e) {}
+  }
+
+  // ===== Notification overlay helpers =====
+  void _toggleNotificationList() async {
+    if (_notifEntry != null) {
+      _hideNotificationOverlay();
+      return;
+    }
+    _showNotificationOverlay();
+    if (notificationCount > 0) {
+      await markNotificationsAsRead();
+      _notifEntry?.markNeedsBuild();
+    }
+  // Do not refresh notifications on open; use currently loaded list
+  }
+
+  void _showNotificationOverlay() {
+    if (!mounted) return;
+    _notifEntry = _createNotifOverlayEntry();
+    Overlay.of(context).insert(_notifEntry!);
+  }
+
+  void _hideNotificationOverlay() {
+    _notifEntry?.remove();
+    _notifEntry = null;
+  }
+
+  OverlayEntry _createNotifOverlayEntry() {
+    return OverlayEntry(
+      builder: (ctx) {
+        final topPad = MediaQuery.of(ctx).padding.top + kToolbarHeight + 8;
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _hideNotificationOverlay,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: topPad,
+              child: Material(
+                color: Colors.transparent,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      width: 320,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(width: 0.75, color: Colors.white.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8)),
+                        ],
+                      ),
+                      child: loadingNotifications
+                          ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                          : (notifications.isEmpty
+                              ? const Text('No notifications', style: TextStyle(color: Colors.white70))
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: notifications.map<Widget>((n) {
+                                    final msg = (n?['message'] ?? '').toString();
+                                    final createdAt = (n?['createdAt'] ?? '').toString();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(msg, style: const TextStyle(color: Colors.white)),
+                                          Text(createdAt, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                )),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Date helpers
@@ -935,6 +1107,25 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     }
   }
 
+  Future<void> _confirmReject(dynamic booking) async {
+    final bookingId = _extractBookingId(booking);
+    final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject booking'),
+        content: Text('Reject session for ${clientName.toString()}? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _rejectBookingApi(bookingId ?? booking);
+    }
+  }
+
   // Small helpers used by refresh (to avoid missing symbol errors)
   Future<void> _loadInitialData() async {
     // central initial load used by pull-to-refresh; keep light and safe
@@ -975,11 +1166,26 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     else if (_dbTrainerId != null && _dbTrainerId!.isNotEmpty) uiIdDisplay = _dbTrainerId!.substring(0, 6);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       key: _scaffoldKey,
       appBar: AppBar(
         title: const Text("Trainer Dashboard"),
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        leadingWidth: 76,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.account_balance_wallet_outlined),
@@ -999,17 +1205,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               IconButton(
                 icon: const Icon(Icons.notifications, color: Colors.white),
                 tooltip: "Notifications",
-                onPressed: () {
-                  setState(() {
-                    showNotificationList = !showNotificationList;
-                  });
-                  if (notificationCount > 0 && showNotificationList) {
-                    markNotificationsAsRead();
-                  }
-                  if (showNotificationList) {
-                    getNotifications();
-                  }
-                },
+                onPressed: _toggleNotificationList,
               ),
               if (notificationCount > 0)
                 Positioned(
@@ -1035,7 +1231,13 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       ),
       endDrawer: _buildEndDrawer(context),
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.primaryGradient),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
         // Use a Stack so we can place the notification dropdown and FABs using Positioned.
         child: Stack(
           children: [
@@ -1070,6 +1272,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                       Header(
                         trainerName: trainerName,
                         cityCountry: cityCountry,
+                        trainerImageURL: trainerImageURL,
+                        trainerUniqueId: uiIdDisplay,
                         isAvailable: isAvailable,
                         onToggleAvailability: _setAvailability,
                         onOpenAvailabilityEditor: _openAvailabilityEditor,
@@ -1207,19 +1411,15 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                       ),
 
                       const SizedBox(height: 14),
-                      GlassCard(child: Padding(padding: const EdgeInsets.all(12), child: Text(motivation, style: const TextStyle(color: Colors.white)))),
-                      const SizedBox(height: 14),
-
-                      narrow ? Column(children: [
-                        const SizedBox(height: 6),
-                        _profileCard(width, uiIdDisplay),
-                        const SizedBox(height: 10),
-                        _availabilityCard()
-                      ]) : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Expanded(flex: 2, child: _profileCard(width, uiIdDisplay)),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 3, child: _availabilityCard())
-                      ]),
+                      // Show only Availability (remove duplicate profile/id and motivation)
+                      narrow
+                          ? Column(children: [
+                              _availabilityCard()
+                            ])
+                          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+                              Expanded(child: SizedBox()),
+                            ]),
+                      if (!narrow) _availabilityCard(),
 
                       const SizedBox(height: 20),
 
@@ -1275,40 +1475,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               ),
             ),
 
-            // Notification dropdown (positioned)
-            if (showNotificationList)
-              Positioned(
-                right: 16,
-                top: kToolbarHeight + 8,
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    width: 320,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black87,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: loadingNotifications
-                      ? const Center(child: CircularProgressIndicator())
-                      : notifications.isEmpty
-                        ? const Text('No notifications', style: TextStyle(color: Colors.white70))
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: notifications.map<Widget>((n) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(n['message'] ?? '', style: const TextStyle(color: Colors.white)),
-                                  Text(n['createdAt'] ?? '', style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                                ],
-                              ),
-                            )).toList(),
-                          ),
-                  ),
-                ),
-              ),
+            // Notification dropdown now rendered via OverlayEntry above the AppBar
 
             // Floating actions (positioned)
             Positioned(left: 18, bottom: 18, child: FloatingActionButton(heroTag: 'support_fab', onPressed: _openSupport, backgroundColor: AppColors.secondary, child: const Icon(Icons.headset_mic, color: Colors.white))),
@@ -1337,6 +1504,22 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final isAccepted = (b['isAccepted'] == true || b['isAccepted']?.toString() == 'true' || b['accepted'] == true || b['accepted']?.toString() == 'true');
 
     final sessionLabel = selectedSession.isNotEmpty ? '${selectedSession[0].toUpperCase()}${selectedSession.substring(1)}' : 'Session';
+  final inRejectedTab = _bookingsTab == 'rejected';
+  final inCompletedTab = _bookingsTab == 'completed';
+
+  // Extract mode and goal for upcoming view
+  String modeRaw = (b['mode'] ?? b['sessionMode'] ?? b['selectedMode'] ?? b['bookingMode'] ?? b['trainingMode'] ?? '').toString();
+  modeRaw = modeRaw.trim().toLowerCase();
+  String modeLabel = '';
+  if (modeRaw.contains('online')) modeLabel = 'Online';
+  else if (modeRaw.contains('offline') || modeRaw.contains('inperson') || modeRaw.contains('in-person')) modeLabel = 'Offline';
+
+  final goalRaw = (user is Map
+      ? (user['goal'] ?? user['fitnessGoal'] ?? user['goalName'])
+      : (b['goal'] ?? b['fitnessGoal']))
+    ?.toString()
+    .trim();
+  final goalLabel = (goalRaw != null && goalRaw.isNotEmpty) ? goalRaw : '';
 
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -1355,6 +1538,17 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if ((modeLabel.isNotEmpty || goalLabel.isNotEmpty)) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (modeLabel.isNotEmpty) _glassBadge(modeLabel),
+                      if (goalLabel.isNotEmpty) _glassBadge('Goal: $goalLabel'),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 6),
                 Text('$userCity${userCity.isNotEmpty ? ", " : ""}$userState', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
               ]),
@@ -1365,21 +1559,28 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF3DD1FF), borderRadius: BorderRadius.circular(8)), child: Text('₹$price', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
                 const SizedBox(height: 8),
-                Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.end, children: [
-                  if (!isAccepted)
-                    TextButton(onPressed: () => _confirmAccept(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Accept', style: TextStyle(color: Colors.white))),
-                  if (isAccepted)
-                    TextButton(onPressed: () => _confirmComplete(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Complete', style: TextStyle(color: Colors.white))),
-                  if (isAccepted)
-                    TextButton(onPressed: () {
-                      final userCopy = (user is Map) ? Map<String, dynamic>.from(user) : {'fullName': userName};
-                      _showUserProfileModalDialog(userCopy);
-                    }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white)))
-                  else
-                    TextButton(onPressed: () {
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Accept the booking to view contact details.')));
-                    }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white70))),
-                ])
+                if (inRejectedTab)
+                  _glassBadge('Rejected')
+                else if (inCompletedTab)
+                  _glassBadge('Completed')
+                else
+                  Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.end, children: [
+                    if (!isAccepted)
+                      TextButton(onPressed: () => _confirmAccept(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Accept', style: TextStyle(color: Colors.white))),
+                    if (!isAccepted)
+                      TextButton(onPressed: () => _confirmReject(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Reject', style: TextStyle(color: Colors.redAccent))),
+                    if (isAccepted)
+                      TextButton(onPressed: () => _confirmComplete(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Complete', style: TextStyle(color: Colors.white))),
+                    if (isAccepted)
+                      TextButton(onPressed: () {
+                        final userCopy = (user is Map) ? Map<String, dynamic>.from(user) : {'fullName': userName};
+                        _showUserProfileModalDialog(userCopy);
+                      }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white)))
+                    else
+                      TextButton(onPressed: () {
+                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Accept the booking to view contact details.')));
+                      }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white70))),
+                  ])
               ]),
             )
           ],
@@ -1423,61 +1624,165 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final width = MediaQuery.of(context).size.width;
     final drawerWidth = width * 0.8;
     return Drawer(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       width: drawerWidth,
-      child: SafeArea(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
-            child: Row(children: [
-              const CircleAvatar(radius: 26, backgroundColor: Colors.black12, child: Icon(Icons.person, color: Colors.black54)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(trainerName.isNotEmpty ? trainerName : 'Trainer', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('View and edit profile', style: TextStyle(color: Colors.blue.shade600, fontSize: 13)),
-              ])),
-              IconButton(icon: const Icon(Icons.chevron_right), onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
-              }),
-            ]),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          bottomLeft: Radius.circular(24),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: Container(
+            color: Colors.black.withOpacity(0.35),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 26,
+                          backgroundColor: Colors.white12,
+                          child: Icon(Icons.person, color: Colors.white70),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              // Trainer name
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          trainerName.isNotEmpty ? trainerName : 'Trainer',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'View and edit profile',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Colors.white24),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      children: [
+                        _drawerItem(
+                          icon: Icons.person_outline,
+                          label: 'Profile',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.account_balance,
+                          label: 'Bank Details',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const BankDetailsEditScreen()));
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.settings_outlined,
+                          label: 'Settings',
+                          onTap: () {
+                            Navigator.pop(context);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+                            }
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.info_outline,
+                          label: 'About Us',
+                          onTap: () {
+                            Navigator.pop(context);
+                            showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.support_agent,
+                          label: 'Support',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openSupport();
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.more_horiz,
+                          label: 'Other',
+                          onTap: () {
+                            Navigator.pop(context);
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('More options coming soon')));
+                            }
+                          },
+                        ),
+                        const Divider(height: 16, color: Colors.white24),
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: Colors.red),
+                          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await _logout();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView(padding: const EdgeInsets.symmetric(vertical: 8), children: [
-              ListTile(leading: const Icon(Icons.person_outline), title: const Text('Profile'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
-              }),
-              ListTile(leading: const Icon(Icons.account_balance), title: const Text('Bank Details'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const BankDetailsEditScreen()));
-              }),
-              ListTile(leading: const Icon(Icons.settings_outlined), title: const Text('Settings'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
-              }),
-              ListTile(leading: const Icon(Icons.info_outline), title: const Text('About Us'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
-              }),
-              ListTile(leading: const Icon(Icons.support_agent), title: const Text('Support'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                _openSupport();
-              }),
-              ListTile(leading: const Icon(Icons.more_horiz), title: const Text('Other'), trailing: const Icon(Icons.chevron_right), onTap: () {
-                Navigator.pop(context);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('More options coming soon')));
-              }),
-              const Divider(height: 16),
-              ListTile(leading: const Icon(Icons.logout, color: Colors.red), title: const Text('Logout', style: TextStyle(color: Colors.red)), onTap: () async {
-                Navigator.pop(context);
-                await _logout();
-              }),
-            ]),
-          ),
-        ]),
+        ),
+      ),
+    );
+  }
+
+  // Drawer helper with glass-ish tile styling
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Material(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          leading: Icon(icon, color: Colors.white70),
+          title: Text(label, style: const TextStyle(color: Colors.white)),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+          onTap: onTap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
       ),
     );
   }
@@ -1493,28 +1798,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     );
   }
 
-  Widget _profileCard(double width, String uiIdDisplay) {
-    final displayId = uiIdDisplay.isNotEmpty ? uiIdDisplay : '';
-    return GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(children: [
-          CircleAvatar(radius: width < 360 ? 28 : 36, backgroundColor: Colors.white12, child: Text(trainerName.isNotEmpty ? trainerName[0].toUpperCase() : "T", style: const TextStyle(color: Colors.white, fontSize: 20))),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              Expanded(child: Text(trainerName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              const SizedBox(width: 8),
-              if (displayId.isNotEmpty)
-                ConstrainedBox(constraints: const BoxConstraints(maxWidth: 72, minWidth: 48), child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(20)), alignment: Alignment.center, child: Text(displayId, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center))),
-            ]),
-            const SizedBox(height: 6),
-            Text("$cityCountry · $addressLine", style: const TextStyle(color: Colors.white70, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-          ]))
-        ]),
-      ),
-    );
-  }
+  // Removed _profileCard to avoid duplicate name/id section under header
 
   Widget _availabilityCard() {
     final bool disabled = !isAvailable;
@@ -1562,4 +1846,23 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       ),
     );
   }
+}
+
+// Small glass badge for labels like mode/goal
+Widget _glassBadge(String label) {
+  return ClipRRect(
+    borderRadius: BorderRadius.circular(12),
+    child: BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.75),
+        ),
+        child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+      ),
+    ),
+  );
 }

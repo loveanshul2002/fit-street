@@ -1,6 +1,7 @@
 // lib/screens/trainer/profile_edit_restricted_screen.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,8 +29,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   // Readonly fields
   String _name = '';
   String _mobile = '';
-  String _dob = '';
-  String _gender = '';
+  // Removed unused fields _dob and _gender
   String _pincode = '';
   String _city = '';
   String _state = '';
@@ -199,8 +199,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           // readonly
           _name = (data['fullName'] ?? data['name'] ?? '').toString();
           _mobile = (data['mobileNumber'] ?? data['mobile'] ?? '').toString();
-          _dob = (data['dob'] ?? '').toString();
-          _gender = (data['gender'] ?? '').toString();
+          // dob and gender are read-only and unused in this screen
           _pincode = (data['pincode'] ?? data['currentPincode'] ?? '').toString();
           _city = (data['city'] ?? data['currentCity'] ?? '').toString();
           _state = (data['state'] ?? data['currentState'] ?? '').toString();
@@ -480,27 +479,49 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('View & Edit Profile'),
-        backgroundColor:  AppColors.primary,
-
+        backgroundColor: Colors.transparent,
         elevation: 0,
-  actions: const [],
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leadingWidth: 120,
+        leading: Row(
+          children: [
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+            ),
+            const SizedBox(width: 4),
+            Image.asset(
+              'assets/image/fitstreet-bull-logo.png',
+              height: 36,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+        title: const Text('View & Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
           ),
         ),
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                child: Column(
-                  children: [
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Container(color: Colors.black.withOpacity(0.35)),
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: Column(
+                      children: [
                     GlassCard(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -650,9 +671,11 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                       ),
                     ),
                     const SizedBox(height: 12),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+        ],
       ),
     );
   }
@@ -772,17 +795,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     'Yoga Therapy', 'Functional Training', 'Martial Arts', 'Dance Fitness', 'Sports Conditioning',
   ];
 
-  Widget _imageChip(String label, String url) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.image, size: 16, color: Colors.white70),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: Colors.white70)),
-      ]),
-    );
-  }
+  // Removed unused helper _imageChip
 
   Widget _experienceRow({bool disabled = false}) {
     final opts = kExperienceOptions;

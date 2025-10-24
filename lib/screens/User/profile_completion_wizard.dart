@@ -1,7 +1,6 @@
 // lib/screens/user/profile_completion_wizard.dart
 import 'package:flutter/material.dart';
-import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
+import 'dart:ui' show ImageFilter;
 import '../../utils/role_storage.dart';
 import 'weight_picker_screen.dart';
 import 'height_picker_screen.dart';
@@ -81,31 +80,151 @@ class _ProfileCompletionWizardState extends State<ProfileCompletionWizard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Complete Profile"),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
         ),
         child: SafeArea(
           child: Center(
-            child: GlassCard(
-              child: Padding(
-                padding: const EdgeInsets.all(18.0),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text("Completing your profile", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 8),
-                  const Text("We’ll collect a few details (weight, height, goals, activity level and profile) so you can book trainers", style: TextStyle(color: Colors.white70), textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  _saving ? const CircularProgressIndicator() : ElevatedButton(
-                    onPressed: _runFlow,
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                    child: const Text("Start", style: TextStyle(color: Colors.white)),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.06),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 10)),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Complete Profile',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'We’ll collect a few details (weight, height, goals, activity level and profile) so you can book trainers',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              const SizedBox(height: 16),
+                              if (_saving)
+                                const Center(child: CircularProgressIndicator())
+                              else
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton(
+                                    onPressed: _runFlow,
+                                    style: ElevatedButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                                      backgroundColor: Colors.transparent,
+                                      shadowColor: Colors.transparent,
+                                      elevation: 0,
+                                    ),
+                                    child: SizedBox(
+                                      height: 64,
+                                      child: Center(
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(28),
+                                          child: BackdropFilter(
+                                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.white.withOpacity(0.16),
+                                                    Colors.white.withOpacity(0.06),
+                                                  ],
+                                                  begin: Alignment.topLeft,
+                                                  end: Alignment.bottomRight,
+                                                ),
+                                                borderRadius: BorderRadius.circular(28),
+                                                border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                              ),
+                                              child: const Text(
+                                                'Start',
+                                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          // Glass back button (top-left)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: BackdropFilter(
+                                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withOpacity(0.16),
+                                        Colors.white.withOpacity(0.06),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                  ),
+                                  child: Material(
+                                    type: MaterialType.transparency,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () => Navigator.pop(context),
+                                      child: const SizedBox(
+                                        height: 40,
+                                        width: 40,
+                                        child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ]),
+                ),
               ),
             ),
           ),

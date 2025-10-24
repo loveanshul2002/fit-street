@@ -1,11 +1,10 @@
 // lib/screens/booking/booking_screen.dart
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/fitstreet_api.dart';
 import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 
@@ -135,17 +134,6 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
 
-
-  String _formatDate(dynamic dateRaw) {
-    if (dateRaw == null) return '';
-    try {
-      // Backend sometimes returns ISO string or Date object — handle strings
-      final d = DateTime.parse(dateRaw.toString()).toLocal();
-      return DateFormat('MMM d, yyyy').format(d);
-    } catch (_) {
-      return dateRaw.toString();
-    }
-  }
 
   String _formatFullDate(dynamic dateRaw) {
     if (dateRaw == null) return '';
@@ -422,34 +410,72 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('My Booked Sessions'),
         backgroundColor: Colors.transparent,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        elevation: 0,
+        toolbarHeight: 50,
+        leadingWidth: 177,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _tabButton('upcoming', 'Upcoming'),
-                  _tabButton('completed', 'Completed'),
-                  _tabButton('rejected', 'Rejected'),
-                ],
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                iconSize: 20,
               ),
-              const SizedBox(height: 12),
-              Expanded(child: RefreshIndicator(onRefresh: () async {
-                final sp = await SharedPreferences.getInstance();
-                final token = sp.getString('fitstreet_token') ?? '';
-                await _fetchBookings(_activeTab, token);
-              }, child: _body())),
+              const SizedBox(width: 8),
+              Image.asset('assets/image/fitstreet-bull-logo.png', width: 100, height: 40, fit: BoxFit.contain),
             ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
+      ),
+      body: Container(  
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _tabButton('upcoming', 'Upcoming'),
+                    _tabButton('completed', 'Completed'),
+                    _tabButton('rejected', 'Rejected'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () async {
+                      final sp = await SharedPreferences.getInstance();
+                      final token = sp.getString('fitstreet_token') ?? '';
+                      await _fetchBookings(_activeTab, token);
+                    },
+                    child: _body(),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,15 +1,20 @@
 // lib/screens/home/home_screen.dart
+import 'dart:convert';
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
-import '../../config/app_colors.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../widgets/glass_card.dart';
 
 // utils
 import '../../utils/role_storage.dart';
 import '../../utils/profile_storage.dart';
 import '../../utils/user_role.dart';
-import 'package:provider/provider.dart';
-import '../../state/auth_manager.dart';
 
+// services
+import '../../services/fitstreet_api.dart';
 
 // screens referenced from the home screen
 import '../trainers/trainer_list_screen.dart';
@@ -17,12 +22,13 @@ import '../bookings/booking_screen.dart';
 import '../diet/diet_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../trainers/trainer_profile_screen.dart';
-import '../trainer/trainer_register_wizard.dart';
-import '../user/user_auth_screen.dart';
 import '../user/profile_completion_wizard.dart';
+import '../User/profile_fill_screen.dart';
 
 // NEW: use the styled login screen
 import '../login/login_screen_styled.dart';
+import '../../state/auth_manager.dart';
+import '../../config/app_colors.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,48 +42,61 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
   String _greetingName = '';
+
+  // ===== Notifications (USER) =====
+  int _notificationCount = 0;
+  List<dynamic> _notifications = [];
+  bool _loadingNotifications = false;
+  OverlayEntry? _notifEntry;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Removed animated background to simplify performance
+
   void _onAuthChanged() {
-    // When auth (login/logout) changes, refresh greeting and flags
     _loadProfileState();
+    _fetchNotificationsIfLoggedIn();
   }
 
   @override
   void initState() {
     super.initState();
     _loadProfileState();
-    // Listen for auth changes to update greeting live
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthManager?>();
       auth?.addListener(_onAuthChanged);
+      _fetchNotificationsIfLoggedIn();
     });
   }
 
   @override
   void dispose() {
-    // Remove listener to avoid leaks
     try {
       final auth = context.read<AuthManager?>();
       auth?.removeListener(_onAuthChanged);
+    } catch (_) {}
+    try {
+      _hideNotificationOverlay();
     } catch (_) {}
     super.dispose();
   }
 
   Future<void> _loadProfileState() async {
-    // load role and profile-complete flag
     final role = await getUserRole();
     final done = await getProfileComplete();
-  final name = await getUserName();
-  final mobile = await getMobile();
+    final name = await getUserName();
+    final mobile = await getMobile();
+
     if (!mounted) return;
     setState(() {
       _role = role;
       _profileComplete = done;
       _loadingProfileState = false;
-    _greetingName = (name != null && name.isNotEmpty)
-      ? name
-      : (mobile != null && mobile.isNotEmpty)
-        ? mobile
-        : 'there';
+      _greetingName = (name != null && name.isNotEmpty)
+          ? name
+          : (mobile != null && mobile.isNotEmpty)
+              ? mobile
+              : 'there';
     });
 
     // If logged in but no name yet, fetch profile to populate fullName
@@ -93,30 +112,82 @@ class _HomeScreenState extends State<HomeScreen> {
           } else {
             await auth.getUserProfile();
           }
-          // Re-read saved name and update greeting
           final freshName = await getUserName();
           if (!mounted) return;
           if (freshName != null && freshName.isNotEmpty) {
-            setState(() {
-              _greetingName = freshName;
-            });
+            setState(() => _greetingName = freshName);
           }
         }
       }
     } catch (_) {}
   }
 
-  // Public method to trigger greeting refresh from other screens
-  void refreshGreeting() {
-    _loadProfileState();
-  }
+  void refreshGreeting() => _loadProfileState();
 
   Future<void> _openProfileFill() async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ProfileCompletionWizard()),
     );
-    await _loadProfileState(); // refresh flag after return
+    await _loadProfileState();
+  }
+
+  // ===== Support & SOS (mirror trainer dashboard) =====
+  void _openSupport() {
+    showDialog(
+      context: context,
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Support", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Need help? Call support or request a callback.", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _triggerSOS() {
+    showDialog(
+      context: context,
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Emergency (SOS)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("This will alert support. Proceed?", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dCtx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("SOS triggered.")));
+                  }
+                },
+                child: Text("Confirm", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmAndLogout(BuildContext ctx) async {
@@ -124,19 +195,32 @@ class _HomeScreenState extends State<HomeScreen> {
     if (auth == null) return;
     final confirm = await showDialog<bool>(
       context: ctx,
-      builder: (dCtx) => AlertDialog(
-        title: const Text("Logout"),
-        content: const Text("Are you sure you want to logout?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, true),
-            child: const Text("Logout", style: TextStyle(color: Colors.red)),
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dCtx, false),
+                child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dCtx, true),
+                child: const Text("Logout", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
-
     if (confirm == true) {
       await auth.logout();
       if (!mounted) return;
@@ -148,35 +232,315 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ===== Notifications (USER) =====
+  // Decide which API target to hit for notifications based on role
+  Future<Map<String, String>?> _resolveNotificationTarget() async {
+    final auth = context.read<AuthManager?>();
+    final sp = await SharedPreferences.getInstance();
+
+    if (_role == UserRole.trainer) {
+      // Trainer: use canonical DB id for trainer endpoints
+      String? trainerId;
+      try {
+        trainerId = await auth?.getApiTrainerId();
+      } catch (_) {
+        trainerId = null;
+      }
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      if (trainerId == null || trainerId.isEmpty) return null;
+      return {'type': 'trainer', 'id': trainerId};
+    }
+
+    // Default to user
+    String? userId = auth?.userId;
+    userId ??= sp.getString('fitstreet_user_db_id') ?? sp.getString('fitstreet_user_id');
+    if (userId == null || userId.isEmpty) return null;
+    return {'type': 'user', 'id': userId};
+  }
+
+  Future<void> _fetchNotificationsIfLoggedIn() async {
+    try {
+      final auth = context.read<AuthManager?>();
+      if (auth?.isLoggedIn != true) {
+        setState(() {
+          _notifications = [];
+          _notificationCount = 0;
+        });
+        return;
+      }
+
+      final target = await _resolveNotificationTarget();
+      if (target == null) {
+        setState(() {
+          _notifications = [];
+          _notificationCount = 0;
+        });
+        return;
+      }
+
+      await _getNotifications(target['type']!, target['id']!);
+    } catch (_) {}
+  }
+
+  Future<void> _getNotifications(String userType, String id) async {
+    setState(() => _loadingNotifications = true);
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+
+      // GET /api/common/notifications/{userType}/{id}/unread
+      final resp = await api.getNotifications(userType, id);
+      if (resp.statusCode == 200) {
+        dynamic body;
+        try {
+          body = resp.body.isNotEmpty ? (jsonDecode(resp.body) as Object) : {};
+        } catch (_) {
+          body = {};
+        }
+        final map = (body is Map) ? body : {};
+        final List raw = (map['notifications'] ?? []) as List;
+        final now = DateTime.now();
+        final cutoff = now.subtract(const Duration(days: 7));
+        bool within7(dynamic n) {
+          try {
+            final v = n?['createdAt'];
+            DateTime? dt;
+            if (v is String) {
+              dt = DateTime.tryParse(v);
+              if (dt == null) {
+                final numVal = int.tryParse(v);
+                if (numVal != null) {
+                  dt = numVal > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(numVal) : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
+                }
+              }
+            } else if (v is int) {
+              dt = v > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(v) : DateTime.fromMillisecondsSinceEpoch(v * 1000);
+            }
+            if (dt == null) return true; // keep if unknown timestamp
+            return dt.isAfter(cutoff);
+          } catch (_) {
+            return true;
+          }
+        }
+        final filtered = raw.where(within7).toList();
+        setState(() {
+          _notifications = filtered;
+          _notificationCount = filtered.length;
+        });
+      }
+    } catch (_) {
+      // ignore for badge
+    } finally {
+      if (mounted) setState(() => _loadingNotifications = false);
+    }
+  }
+
+  Future<void> _markNotificationsAsRead(String userType, String id) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+
+      // PATCH /api/common/notifications/{id}/read/{userType}
+      await api.markNotificationsAsRead(id, userType);
+      if (mounted) setState(() => _notificationCount = 0);
+    } catch (_) {}
+  }
+
+  void _toggleNotificationList() async {
+    // If already visible, hide it
+    if (_notifEntry != null) {
+      _hideNotificationOverlay();
+      return;
+    }
+
+    final target = await _resolveNotificationTarget();
+    if (target == null) return;
+
+    _showNotificationOverlay();
+
+  // Mark-as-read; do not refresh on open
+    if (_notificationCount > 0) {
+      await _markNotificationsAsRead(target['type']!, target['id']!);
+      _notifEntry?.markNeedsBuild();
+    }
+  // Use the currently loaded list to avoid extra refresh
+  }
+
+  void _showNotificationOverlay() {
+    if (!mounted) return;
+    _notifEntry = _createNotifOverlayEntry();
+    Overlay.of(context).insert(_notifEntry!);
+  }
+
+  void _hideNotificationOverlay() {
+    _notifEntry?.remove();
+    _notifEntry = null;
+  }
+
+  OverlayEntry _createNotifOverlayEntry() {
+    return OverlayEntry(
+      builder: (ctx) {
+        final topPad = MediaQuery.of(ctx).padding.top + kToolbarHeight + 8;
+        return Stack(
+          children: [
+            // Tap outside to dismiss
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _hideNotificationOverlay,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            Positioned(
+              right: 16,
+              top: topPad,
+              child: Material(
+                color: Colors.transparent,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      width: 320,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.15),
+                            Colors.white.withOpacity(0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(width: 0.75, color: Colors.white.withOpacity(0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: _loadingNotifications
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator(),
+                              ),
+                            )
+                          : (_notifications.isEmpty
+                              ? const Text('No notifications', style: TextStyle(color: Colors.white70))
+                              : Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: _notifications.map<Widget>((n) {
+                                    final msg = (n?['message'] ?? '').toString();
+                                    final createdAt = (n?['createdAt'] ?? '').toString();
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(msg, style: const TextStyle(color: Colors.white)),
+                                          Text(createdAt, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                )),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Top bar with Login and Register button
+      key: _scaffoldKey,
+      extendBodyBehindAppBar: true,
+  endDrawer: _buildEndDrawer(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leadingWidth: 90,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Image.asset(
+              'assets/image/fitstreet-bull-logo.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
         actions: [
-          // We use AuthManager (Provider) to decide which buttons to show.
           Builder(builder: (ctx) {
             final auth = ctx.watch<AuthManager?>();
             final loggedIn = auth?.isLoggedIn ?? false;
 
             if (loggedIn) {
-              // Show Logout button when logged in
               return Row(
                 children: [
-                  TextButton(
-                    onPressed: () => _confirmAndLogout(ctx),
-                    child: const Text(
-                      "Logout",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.account_balance_wallet_outlined),
+                    tooltip: "Wallet",
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Wallet tapped (coming soon).")),
+                      );
+                    },
+                  ),
+                  Stack(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.notifications, color: Colors.white),
+                        tooltip: "Notifications",
+                        onPressed: _toggleNotificationList,
+                      ),
+                      if (_notificationCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                            child: Text(
+                              '$_notificationCount',
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.white),
+                    tooltip: 'Menu',
+                    onPressed: _openOverflowPanel,
                   ),
                   const SizedBox(width: 8),
                 ],
               );
             } else {
-              // Not logged in — show Login and Register
               return Row(
                 children: [
                   TextButton(
@@ -188,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserAuthScreen())),
+                    onPressed: () => _openLoginScreen(context),
                     child: const Text(
                       "Register",
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -202,161 +566,188 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
-
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      // Body in a Stack so the dropdown can be positioned under the AppBar
+      body: Stack(
+        children: [
+          // Background: image + subtle animated liquid gradient overlay
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/image/bg.png'),
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+              ),
+            ),
+            child: Stack(
               children: [
-                // Greeting
-                Text("Hi $_greetingName 👋", style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 4),
-                const Text("Ready for your transformation?", style: TextStyle(color: Colors.white70)),
-
-                const SizedBox(height: 20),
-
-                // ===== Complete Profile CTA - only show when:
-                //  - we've finished loading AND
-                //  - user role == member (i.e. registered as user) AND
-                //  - profile is NOT complete
-                if (_loadingProfileState)
-                  const SizedBox(height: 8)
-                else if ((_role == UserRole.member || _role == UserRole.unknown) && !_profileComplete) ...[
-                  GlassCard(
-                    onTap: _openProfileFill,
+                // Static subtle overlay (animation removed)
+                Positioned.fill(
+                  child: IgnorePointer(
                     child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              color: Colors.white12,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.person_add, color: Colors.white),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Complete your profile",
-                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 6),
-                                Text("Add weight, height, goals & profile to start booking.",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 18),
-                        ],
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment.center,
+                          radius: 1.2,
+                          colors: [
+                            Colors.white.withOpacity(0.04),
+                            Colors.white.withOpacity(0.00),
+                          ],
+                          stops: const [0.0, 1.0],
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Quick Actions
-                GridView.count(
-                  shrinkWrap: true,
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.1,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    GlassCard(
-                      onTap: () {
-                        if (!_profileComplete) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Complete profile to book trainers.")));
-                          return;
-                        }
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen()));
-                      },
-                      child: _quickAction(Icons.fitness_center, "Trainers"),
-                    ),
-                    GlassCard(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen())),
-                      child: _quickAction(Icons.calendar_today, "Bookings"),
-                    ),
-                    GlassCard(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
-                      child: _quickAction(Icons.restaurant_menu, "Diet Plans"),
-                    ),
-                    GlassCard(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
-                      child: _quickAction(Icons.psychology, "Counsellors"),
-                    ),
-                  ],
                 ),
-
-                const SizedBox(height: 32),
-
-                // Featured Trainers
-                Text("🔥 Featured Trainers", style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 200,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _trainerCard(context, "Rahul Sharma", "Yoga", "₹500"),
-                      _trainerCard(context, "Sneha Kapoor", "Strength", "₹700"),
-                      _trainerCard(context, "Amit Singh", "Zumba", "₹600"),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Popular Diet Plans
-                Text("🥗 Popular Diet Plans", style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 160,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _dietCard(context, "Organic Protein Pack", "₹999"),
-                      _dietCard(context, "Weight Loss Plan", "₹1499"),
-                      _dietCard(context, "Superfood Combo", "₹799"),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Special Offers
-                Text("⚡ Special Offers", style: Theme.of(context).textTheme.headlineMedium),
-                const SizedBox(height: 12),
-                GlassCard(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offer applied!")));
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    child: const Column(
+                SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("20% OFF on First Booking 🎉",
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                        SizedBox(height: 6),
-                        Text("Book your first session now and save big!", style: TextStyle(color: Colors.white70)),
+                        // Auth state for body controls
+                        Builder(builder: (ctx) {
+                          // This empty builder exists just to establish a local watch context
+                          // for auth within the body section below.
+                          return const SizedBox.shrink();
+                        }),
+                        // Greeting
+                        Text("Hi $_greetingName 👋", style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 4),
+                        const Text("Ready for your transformation?", style: TextStyle(color: Colors.white70)),
+
+                        const SizedBox(height: 20),
+
+                        // Complete Profile CTA (only when logged in)
+                        if (_loadingProfileState)
+                          const SizedBox(height: 8)
+                        else if ((context.watch<AuthManager?>()?.isLoggedIn ?? false) && (_role == UserRole.member) && !_profileComplete) ...[
+                          GlassCard(
+                            onTap: _openProfileFill,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white12,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.person_add, color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text("Complete your profile",
+                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        SizedBox(height: 6),
+                                        Text("Add weight, height, goals & profile to start booking.",
+                                            style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Quick Actions
+                        GridView.count(
+                          shrinkWrap: true,
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.1,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            GlassCard(
+                              onTap: () {
+                                // Allow browsing trainers without login or profile completion
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen()));
+                              },
+                              child: _quickAction(Icons.fitness_center, "Trainers"),
+                            ),
+                            GlassCard(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen())),
+                              child: _quickAction(Icons.calendar_today, "Bookings"),
+                            ),
+                            GlassCard(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
+                              child: _quickAction(Icons.restaurant_menu, "Diet Plans"),
+                            ),
+                            GlassCard(
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+                              child: _quickAction(Icons.psychology, "Counsellors"),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Featured Trainers
+                        Text("🔥 Featured Trainers", style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 200,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _trainerCard(context, "Rahul Sharma", "Yoga", "₹500"),
+                              _trainerCard(context, "Sneha Kapoor", "Strength", "₹700"),
+                              _trainerCard(context, "Amit Singh", "Zumba", "₹600"),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Popular Diet Plans
+                        Text("🥗 Popular Diet Plans", style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 160,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _dietCard(context, "Organic Protein Pack", "₹999"),
+                              _dietCard(context, "Weight Loss Plan", "₹1499"),
+                              _dietCard(context, "Superfood Combo", "₹799"),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Special Offers
+                        Text("⚡ Special Offers", style: Theme.of(context).textTheme.headlineMedium),
+                        const SizedBox(height: 12),
+                        GlassCard(
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offer applied!")));
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            child: const Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("20% OFF on First Booking 🎉",
+                                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 6),
+                                Text("Book your first session now and save big!", style: TextStyle(color: Colors.white70)),
+                              ],
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -364,18 +755,160 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-        ),
+
+          // Notification dropdown now rendered via OverlayEntry above the AppBar
+
+          // Floating actions (Support & SOS)
+          Positioned(
+            left: 18,
+            bottom: 18,
+            child: FloatingActionButton(
+              heroTag: 'home_support_fab',
+              onPressed: _openSupport,
+              backgroundColor: AppColors.secondary,
+              child: const Icon(Icons.headset_mic, color: Colors.white),
+            ),
+          ),
+          Positioned(
+            right: 18,
+            bottom: 18,
+            child: FloatingActionButton(
+              heroTag: 'home_sos_fab',
+              onPressed: _triggerSOS,
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.sos, color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // ===== Helpers =====
 
-  // Removed: _showRoleDialog. Register now always opens UserAuthScreen.
-
-  // OPEN the new styled login screen
   void _openLoginScreen(BuildContext context) {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreenStyled()));
+  }
+
+  void _openOverflowPanel() {
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
+
+  // Drawer helper with glass-ish styling similar to trainer dashboard
+  Widget _buildEndDrawer(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final drawerWidth = width * 0.8;
+    return Drawer(
+      backgroundColor: Colors.transparent,
+      width: drawerWidth,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          bottomLeft: Radius.circular(24),
+        ),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+          child: Container(
+            color: Colors.black.withOpacity(0.35),
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _greetingName.isNotEmpty ? _greetingName : 'User',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text('View and edit profile', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Colors.white24),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      children: [
+                        _drawerItem(
+                          icon: Icons.person_outline,
+                          label: 'Profile',
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => ProfileFillScreen(editableBasics: true)),
+                            );
+                            await _loadProfileState();
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.settings_outlined,
+                          label: 'Settings',
+                          onTap: () {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.info_outline,
+                          label: 'About Us',
+                          onTap: () {
+                            Navigator.pop(context);
+                            showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.support_agent,
+                          label: 'Support',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openSupport();
+                          },
+                        ),
+                        const Divider(height: 16, color: Colors.white24),
+                        ListTile(
+                          leading: const Icon(Icons.logout, color: Colors.red),
+                          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await _confirmAndLogout(context);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Material(
+        color: Colors.white.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          leading: Icon(icon, color: Colors.white70),
+          title: Text(label, style: const TextStyle(color: Colors.white)),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+          onTap: onTap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
   }
 
   Widget _quickAction(IconData icon, String label) {
@@ -401,7 +934,15 @@ class _HomeScreenState extends State<HomeScreen> {
           width: 160,
           padding: const EdgeInsets.all(12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: Colors.white24), child: const Center(child: Icon(Icons.person, size: 50, color: Colors.white70)))),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white24,
+                ),
+                child: const Center(child: Icon(Icons.person, size: 50, color: Colors.white70)),
+              ),
+            ),
             const SizedBox(height: 8),
             Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             Text("$speciality · $price", style: const TextStyle(color: Colors.white70, fontSize: 12)),
@@ -418,35 +959,35 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
         child: Container(
           width: 160,
-          height: 140, // Fixed height to prevent overflow
-          padding: const EdgeInsets.all(12), // Reduced padding
+          height: 140,
+          padding: const EdgeInsets.all(12),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, 
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.restaurant, color: Colors.white, size: 32), // Smaller icon
-              const SizedBox(height: 8), // Reduced spacing
+              const Icon(Icons.restaurant, color: Colors.white, size: 32),
+              const SizedBox(height: 8),
               Flexible(
                 child: Text(
-                  name, 
-                  textAlign: TextAlign.center, 
-                  maxLines: 2, // Limit to 2 lines
-                  overflow: TextOverflow.ellipsis, // Handle overflow
+                  name,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Colors.white, 
+                    color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14, // Smaller font
+                    fontSize: 14,
                   ),
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                price, 
-                maxLines: 1, // Single line for price
+                price,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white70, 
+                  color: Colors.white70,
                   fontWeight: FontWeight.bold,
-                  fontSize: 13, // Smaller font
+                  fontSize: 13,
                 ),
               ),
             ],

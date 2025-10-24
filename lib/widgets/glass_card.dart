@@ -23,7 +23,7 @@ class GlassCard extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1), // ⬅️ stronger blur
+          filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1), // stronger blur for glass effect
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
@@ -38,7 +38,7 @@ class GlassCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
               border: Border.all(
                 width: 0.75,
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withOpacity(0.4),
               ),
               boxShadow: [
                 BoxShadow(

@@ -1,11 +1,12 @@
 // lib/screens/booking/book_session_screen.dart
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../widgets/glass_card.dart';
-import '../../config/app_colors.dart';
 import '../../services/fitstreet_api.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -17,7 +18,7 @@ class BookSessionScreen extends StatefulWidget {
   State<BookSessionScreen> createState() => _BookSessionScreenState();
 }
 
-class _BookSessionScreenState extends State<BookSessionScreen> {
+class _BookSessionScreenState extends State<BookSessionScreen> with SingleTickerProviderStateMixin {
   bool _loading = true;
   Map<String, dynamic> _trainer = {};
   Map<String, dynamic> _sessionInfo = {};
@@ -26,9 +27,13 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
   final ImagePicker _picker = ImagePicker();
   final String _apiBase = 'https://api.fitstreet.in'; // used by FitstreetApi
 
+  // subtle liquid overlay controller
+  late final AnimationController _liquidCtrl;
+
   @override
   void initState() {
     super.initState();
+  _liquidCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 16))..repeat();
     _loadData();
   }
 
@@ -71,7 +76,7 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
           } else if (body['trainer'] is Map) {
             trainerObj = Map<String, dynamic>.from(body['trainer'] as Map);
           } else {
-            trainerObj = Map<String, dynamic>.from(body as Map);
+            trainerObj = Map<String, dynamic>.from(body);
           }
         }
         _trainer = trainerObj ?? {};
@@ -251,8 +256,48 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          toolbarHeight: 50,
+          leadingWidth: 177,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  iconSize: 20,
+                ),
+                const SizedBox(width: 8),
+                Image.asset('assets/image/fitstreet-bull-logo.png', width: 100, height: 40, fit: BoxFit.contain),
+              ],
+            ),
+          ),
+          flexibleSpace: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+              child: Container(color: Colors.black.withOpacity(0.15)),
+            ),
+          ),
+          title: const Text('Book Session'),
+        ),
+        body: Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/image/bg.png'),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+            ),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
@@ -266,18 +311,78 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
     final hasNetworkImage = imageUrl.isNotEmpty && (imageUrl.startsWith('http') || imageUrl.startsWith('https'));
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Book Session'),
         backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 50,
+        leadingWidth: 177,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                iconSize: 20,
+              ),
+              const SizedBox(width: 8),
+              Image.asset('assets/image/fitstreet-bull-logo.png', width: 100, height: 40, fit: BoxFit.contain),
+            ],
+          ),
+        ),
+        flexibleSpace: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
+          ),
+        ),
       ),
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [AppColors.primary, AppColors.secondary], begin: Alignment.topLeft, end: Alignment.bottomRight),
+          image: DecorationImage(
+            image: AssetImage('assets/image/bg.png'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
+        child: Stack(
+          children: [
+            // liquid glow overlay
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _liquidCtrl,
+                  builder: (context, _) {
+                    final t = _liquidCtrl.value * 2 * math.pi;
+                    final dx = 0.5 + 0.25 * math.sin(t);
+                    final dy = 0.4 + 0.25 * math.cos(t * 1.3);
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          center: Alignment(dx * 2 - 1, dy * 2 - 1),
+                          radius: 1.2,
+                          colors: [
+                            Colors.white.withOpacity(0.06),
+                            Colors.white.withOpacity(0.00),
+                          ],
+                          stops: const [0.0, 1.0],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
               // Session Details Card
               GlassCard(
                 child: Padding(
@@ -437,9 +542,12 @@ class _BookSessionScreenState extends State<BookSessionScreen> {
                 ),
               ),
 
-              const SizedBox(height: 24),
-            ],
-          ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

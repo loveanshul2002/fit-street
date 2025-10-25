@@ -718,17 +718,6 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
               disabledHint: r.specialization != null ? Text(r.specialization!, style: const TextStyle(color: Colors.white70)) : null,
             ),
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            tooltip: _specRows.length == 1 ? 'Cannot remove last row' : 'Remove this row',
-            onPressed: (!_isKycCompleted || _specRows.length == 1) ? null : () {
-              setState(() {
-                r.dispose();
-                _specRows.removeAt(index);
-              });
-            },
-          ),
         ]),
         const SizedBox(height: 10),
         field('Certificate Name (optional)', r.certificateNameCtrl, readOnly: !_isKycCompleted),

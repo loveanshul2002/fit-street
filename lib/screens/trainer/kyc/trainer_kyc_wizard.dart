@@ -99,6 +99,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   // signature bytes (set by consent step)
   Uint8List? signaturePng;
+  String? paymentScreenshotPath;
 
   // Uploading flag
   bool _uploading = false;
@@ -269,6 +270,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         ackCancellationPolicy: ackCancellationPolicy,
         ackPayoutPolicy: ackPayoutPolicy,
         ackPrivacyPolicy: ackPrivacyPolicy,
+        paymentScreenshotPath: paymentScreenshotPath,
         toast: _toast,
       );
 
@@ -314,6 +316,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   @override
   Widget build(BuildContext context) {
+  final bool keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0.0;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -357,25 +360,26 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           SafeArea(
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: GlassCard(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          _stepPill(0, "Identity"),
-                          const SizedBox(width: 8),
-                          _stepPill(1, "Bank"),
-                          const SizedBox(width: 8),
-                          _stepPill(2, "Professional"),
-                          const SizedBox(width: 8),
-                          _stepPill(3, "Consent"),
-                        ],
+                if (!keyboardOpen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: GlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            _stepPill(0, "Identity"),
+                            const SizedBox(width: 8),
+                            _stepPill(1, "Bank"),
+                            const SizedBox(width: 8),
+                            _stepPill(2, "Professional"),
+                            const SizedBox(width: 8),
+                            _stepPill(3, "Consent"),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 8),
                 Expanded(
                   child: PageView(
@@ -479,40 +483,43 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         esignName: esignName,
                         esignDate: esignDate,
                         onSignatureBytes: (bytes) => signaturePng = bytes,
+                        initialPaymentScreenshotPath: paymentScreenshotPath,
+                        onPaymentScreenshotSelected: (p) => setState(() => paymentScreenshotPath = p),
                       ),
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(color: Colors.white.withOpacity(0.6)),
-                          ),
-                          onPressed: _back,
-                          child: Text(_step == 0 ? "Exit" : "Back"),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                          ),
-                          onPressed: _next,
-                          child: Text(
-                            _step < 3 ? "Continue" : "Submit KYC",
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                if (!keyboardOpen)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: BorderSide(color: Colors.white.withOpacity(0.6)),
+                            ),
+                            onPressed: _back,
+                            child: Text(_step == 0 ? "Exit" : "Back"),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                            ),
+                            onPressed: _next,
+                            child: Text(
+                              _step < 3 ? "Continue" : "Submit KYC",
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),

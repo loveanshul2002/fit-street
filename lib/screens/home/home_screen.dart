@@ -24,6 +24,7 @@ import '../counsellors/counsellor_screen.dart';
 import '../trainers/trainer_profile_screen.dart';
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
+import '../User/user_auth_screen.dart';
 
 // NEW: use the styled login screen
 import '../login/login_screen_styled.dart';
@@ -552,7 +553,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: 8),
                   TextButton(
-                    onPressed: () => _openLoginScreen(context),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => UserAuthScreen()));
+                    },
                     child: const Text(
                       "Register",
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

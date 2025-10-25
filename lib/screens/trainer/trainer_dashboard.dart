@@ -39,8 +39,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   String _trainerCode = '';
 
   String trainerName = "";
-  String cityCountry = "Mumbai, India";
-  String addressLine = "Andheri West, Mumbai";
+  String cityCountry = ""; // hide placeholder until KYC
+  String addressLine = ""; // hide placeholder until KYC
   String? trainerImageURL;
 
   KycStatus kycStatus = KycStatus.pending;
@@ -390,12 +390,17 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         _trainerCode = formatted;
         if (storedName != null && storedName.isNotEmpty) trainerName = storedName;
         _kycState = resolvedState;
-        // Show city or state only (prefer city); update address if present
-        final onlyCityOrState = (resolvedCity.isNotEmpty)
-            ? resolvedCity
-            : (resolvedStateText.isNotEmpty ? resolvedStateText : cityCountry);
-        cityCountry = onlyCityOrState;
-        addressLine = resolvedAddress;
+        // Show city/state after KYC is submitted or approved; before that, keep it blank
+        if (resolvedState == KycState.approved || resolvedState == KycState.submitted) {
+          final locationDisplay = [resolvedCity, resolvedStateText]
+              .where((s) => s.isNotEmpty)
+              .join(resolvedCity.isNotEmpty && resolvedStateText.isNotEmpty ? ", " : "");
+          cityCountry = locationDisplay;
+          addressLine = resolvedAddress;
+        } else {
+          cityCountry = '';
+          addressLine = '';
+        }
       });
 
       if ((storedName == null || storedName.isEmpty) && dbId != null && dbId.isNotEmpty) {
@@ -670,10 +675,23 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   void _openSupport() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Support"),
-        content: const Text("Need help? Call support or request a callback."),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close"))],
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Support", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Need help? Call support or request a callback.", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -681,19 +699,32 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   void _triggerSOS() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Emergency (SOS)"),
-        content: const Text("This will alert support. Proceed?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("SOS triggered.")));
-            },
-            child: Text("Confirm", style: TextStyle(color: AppColors.primary)),
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Emergency (SOS)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("This will alert support. Proceed?", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dCtx);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("SOS triggered.")));
+                  }
+                },
+                child: Text("Confirm", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -703,13 +734,27 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Logout"),
-        content: const Text("Are you sure you want to logout?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Logout", style: TextStyle(color: Colors.red))),
-        ],
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                onPressed: () => Navigator.pop(dCtx, true),
+                child: const Text("Logout", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
@@ -1011,19 +1056,19 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                           ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
                           : (notifications.isEmpty
                               ? const Text('No notifications', style: TextStyle(color: Colors.white70))
-                              : Column(
+          : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: notifications.map<Widget>((n) {
                                     final msg = (n?['message'] ?? '').toString();
-                                    final createdAt = (n?['createdAt'] ?? '').toString();
+            final ts = _formatNotificationDateTime(n?['createdAt']);
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(msg, style: const TextStyle(color: Colors.white)),
-                                          Text(createdAt, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              Text(ts, style: const TextStyle(color: Colors.white38, fontSize: 12)),
                                         ],
                                       ),
                                     );
@@ -1068,19 +1113,66 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     return months[m - 1];
   }
 
+  // Notification timestamp formatter: dd/MM/yyyy · hh:mm am
+  String _formatNotificationDateTime(dynamic raw) {
+    if (raw == null) return '';
+    DateTime? dt;
+    try {
+      if (raw is String) {
+        final s = raw.trim();
+        if (s.isEmpty) return '';
+        dt = DateTime.tryParse(s);
+        if (dt == null) {
+          final n = int.tryParse(s);
+          if (n != null) {
+            dt = n > 100000000000
+                ? DateTime.fromMillisecondsSinceEpoch(n)
+                : DateTime.fromMillisecondsSinceEpoch(n * 1000);
+          }
+        }
+      } else if (raw is int) {
+        dt = raw > 100000000000
+            ? DateTime.fromMillisecondsSinceEpoch(raw)
+            : DateTime.fromMillisecondsSinceEpoch(raw * 1000);
+      }
+    } catch (_) {}
+    dt ??= DateTime.now();
+    final local = dt.toLocal();
+    final dd = local.day.toString().padLeft(2, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    final yyyy = local.year.toString();
+    int h = local.hour % 12;
+    if (h == 0) h = 12;
+    final hh = h.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    final ampm = local.hour < 12 ? 'am' : 'pm';
+    return '$dd/$mm/$yyyy · $hh:$min $ampm';
+  }
+
   // Confirm dialogs
   Future<void> _confirmAccept(dynamic booking) async {
     final bookingId = _extractBookingId(booking);
     final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Accept booking'),
-        content: Text('Accept session for ${clientName.toString()}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Accept')),
-        ],
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text('Accept booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text('Accept session for ${clientName.toString()}?', style: const TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
+              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text('Accept', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        ),
       ),
     );
     if (ok == true) {
@@ -1093,13 +1185,24 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mark complete'),
-        content: Text('Mark session as complete for ${clientName.toString()}?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Complete')),
-        ],
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text('Mark complete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text('Mark session as complete for ${clientName.toString()}?', style: const TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
+              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text('Complete', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        ),
       ),
     );
     if (ok == true) {
@@ -1112,13 +1215,24 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject booking'),
-        content: Text('Reject session for ${clientName.toString()}? This action cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reject', style: TextStyle(color: Colors.red))),
-        ],
+      builder: (dCtx) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: AlertDialog(
+            backgroundColor: Colors.white.withOpacity(0.12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+            ),
+            title: const Text('Reject booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text('Reject session for ${clientName.toString()}? This action cannot be undone.', style: const TextStyle(color: Colors.white70)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
+              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Reject', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700))),
+            ],
+          ),
+        ),
       ),
     );
     if (ok == true) {
@@ -1480,7 +1594,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             // Floating actions (positioned)
             Positioned(left: 18, bottom: 18, child: FloatingActionButton(heroTag: 'support_fab', onPressed: _openSupport, backgroundColor: AppColors.secondary, child: const Icon(Icons.headset_mic, color: Colors.white))),
             Positioned(right: 18, bottom: 18, child: FloatingActionButton(heroTag: 'sos_fab', onPressed: _triggerSOS, backgroundColor: AppColors.primary, child: const Icon(Icons.sos, color: Colors.white))),
-            Positioned(right: 18, bottom: 90, child: FloatingActionButton.small(heroTag: 'wallet_fab', onPressed: () { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wallet opened (demo)"))); }, backgroundColor: Colors.white24, child: const Icon(Icons.account_balance_wallet, color: Colors.white))),
+            // Wallet FAB removed to match Home’s two-button layout (Support & SOS only)
           ],
         ),
       ),
@@ -1723,8 +1837,10 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                           label: 'About Us',
                           onTap: () {
                             Navigator.pop(context);
-                            showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
-                          },
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('About Us coming soon')));
+                            }
+                            },
                         ),
                         _drawerItem(
                           icon: Icons.support_agent,

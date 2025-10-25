@@ -42,31 +42,50 @@ class ConsentStep extends StatefulWidget {
   /// VALIDATION: NOTE — e-sign matching / date checks removed.
   /// Now only verifies background declarations and policy acknowledgements.
   static bool validateConsent({
-    required Uint8List? signaturePng, // kept for compatibility — optional now
-    required String fullName,         // ignored for validation
-    required String esignName,        // ignored
-    required String esignDate,        // ignored
+    required Uint8List? signaturePng,
+    required String fullName, // ignored for validation
+    required String esignName, // ignored (no input field rendered currently)
+    required String esignDate,
     required bool noCriminalRecord,
     required bool agreeHnS,
     required bool ackTrainerAgreement,
     required bool ackCancellationPolicy,
     required bool ackPayoutPolicy,
     required bool ackPrivacyPolicy,
+    required String? paymentScreenshotPath,
     required void Function(String) toast,
   }) {
-    // Check background declarations
+    // 1) Background declarations
     if (!noCriminalRecord || !agreeHnS) {
       toast("Please confirm background declarations.");
       return false;
     }
 
-    // Check policy acknowledgements
+    // 2) Policy acknowledgements
     if (!ackTrainerAgreement || !ackCancellationPolicy || !ackPayoutPolicy || !ackPrivacyPolicy) {
       toast("Please open & acknowledge all policies.");
       return false;
     }
 
-    // Signature/date/name are optional now — no validation required.
+    // 3) Payment screenshot required
+    if (paymentScreenshotPath == null || paymentScreenshotPath.trim().isEmpty) {
+      toast("Please upload the activation payment screenshot.");
+      return false;
+    }
+
+    // 4) Signature required
+    if (signaturePng == null || signaturePng.isEmpty) {
+      toast("Please add your handwritten e-sign.");
+      return false;
+    }
+
+  // 5) Date required and valid (DD/MM/YYYY)
+  final dateTxt = esignDate.trim();
+  if (!RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(dateTxt)) {
+      toast("Enter e-sign date as DD/MM/YYYY.");
+      return false;
+    }
+
     return true;
   }
 

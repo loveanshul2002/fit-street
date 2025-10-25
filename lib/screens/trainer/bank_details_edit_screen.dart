@@ -1,5 +1,6 @@
 // lib/screens/trainer/bank_details_edit_screen.dart
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -278,122 +279,148 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('Bank Details'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leadingWidth: 120,
+        leading: Row(
+          children: [
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back',
+            ),
+            const SizedBox(width: 4),
+            Image.asset(
+              'assets/image/fitstreet-bull-logo.png',
+              height: 36,
+              fit: BoxFit.contain,
+            ),
+          ],
+        ),
+        title: const Text('Bank Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(color: Colors.black.withOpacity(0.15)),
           ),
         ),
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(16),
-                child: GlassCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Form(
-                      key: _formKey,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Section('2. Bank & Payout'),
+      ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Container(color: Colors.black.withOpacity(0.35)),
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : SafeArea(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: GlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Section('2. Bank & Payout'),
 
-                            // KYC Status Banner
-                            if (!_isKycCompleted)
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                margin: const EdgeInsets.only(bottom: 16),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.9),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.orange.shade300),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Complete KYC to Edit Bank Details',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                              // KYC Status Banner (matches profile edit styling)
+                              if (!_isKycCompleted)
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.orange.shade300),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: const [
+                                            Text(
+                                              'Complete KYC to Edit Bank Details',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          const Text(
-                                            'Your bank details are read-only until KYC verification is completed.',
-                                            style: TextStyle(color: Colors.white, fontSize: 14),
-                                          ),
-                                        ],
+                                            SizedBox(height: 4),
+                                            Text(
+                                              'Your bank details are read-only until KYC verification is completed.',
+                                              style: TextStyle(color: Colors.white, fontSize: 14),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: _navigateToKyc,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        foregroundColor: Colors.orange,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      const SizedBox(width: 8),
+                                      ElevatedButton(
+                                        onPressed: _navigateToKyc,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white,
+                                          foregroundColor: Colors.orange,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        ),
+                                        child: const Text('Complete KYC', style: TextStyle(fontWeight: FontWeight.bold)),
                                       ),
-                                      child: const Text('Complete KYC', style: TextStyle(fontWeight: FontWeight.bold)),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
+                                ),
+
+                              field('Account Number', _accCtrl,
+                                  readOnly: !_isKycCompleted,
+                                  validator: req,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+                              field('IFSC Code', _ifscCtrl,
+                                  readOnly: !_isKycCompleted,
+                                  validator: req,
+                                  inputFormatters: [UpperCaseTextFormatter(), FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))],
+                                  maxLength: 11),
+                              field('Bank Name', _bankCtrl, readOnly: !_isKycCompleted, validator: req),
+                              field('UPI ID (optional)', _upiCtrl,
+                                  readOnly: !_isKycCompleted,
+                                  validator: (v) {
+                                    if (v != null && v.isNotEmpty && !v.contains('@')) {
+                                      return 'Invalid UPI ID';
+                                    }
+                                    return null;
+                                  },
+                                  inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\\s'))]),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: (_saving || !_isKycCompleted) ? null : _save,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white12,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  child: _saving
+                                      ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                                      : const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16)),
                                 ),
                               ),
-
-                            field('Account Number', _accCtrl,
-                                readOnly: !_isKycCompleted,
-                                validator: req,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
-                            field('IFSC Code', _ifscCtrl,
-                                readOnly: !_isKycCompleted,
-                                validator: req,
-                                inputFormatters: [UpperCaseTextFormatter(), FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))],
-                                maxLength: 11),
-                            field('Bank Name', _bankCtrl, readOnly: !_isKycCompleted, validator: req),
-                            field('UPI ID (optional)', _upiCtrl,
-                                readOnly: !_isKycCompleted,
-                                validator: (v) {
-                                  if (v != null && v.isNotEmpty && !v.contains('@')) {
-                                    return 'Invalid UPI ID';
-                                  }
-                                  return null;
-                                },
-                                inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))]),
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                onPressed: (_saving || !_isKycCompleted) ? null : _save,
-                                icon: const Icon(Icons.save),
-                                label: _saving
-                                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                    : const Text('Save changes'),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                              ),
-                            )
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
+        ],
       ),
     );
   }

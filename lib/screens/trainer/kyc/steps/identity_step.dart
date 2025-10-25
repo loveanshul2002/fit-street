@@ -268,8 +268,25 @@ class IdentityStep extends StatelessWidget {
                     },
                     validator: (v) => RegExp(r'^\d{6}$').hasMatch(v ?? "") ? null : "6-digit pincode"),
 
-                field("City", city, readOnly: true),
-                field("State", stateCtrl, readOnly: true),
+                // Allow manual edit of City/State and require values (reject placeholder '—')
+                field(
+                  "City",
+                  city,
+                  validator: (v) {
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty || t == '—') return "Enter city";
+                    return null;
+                  },
+                ),
+                field(
+                  "State",
+                  stateCtrl,
+                  validator: (v) {
+                    final t = (v ?? '').trim();
+                    if (t.isEmpty || t == '—') return "Enter state";
+                    return null;
+                  },
+                ),
                 field("Permanent Address", addrPermanent, validator: req),
 
                 SwitchListTile(
@@ -290,8 +307,25 @@ class IdentityStep extends StatelessWidget {
                         }
                       },
                       validator: (v) => RegExp(r'^\d{6}$').hasMatch(v ?? "") ? null : "6-digit pincode"),
-                  field("Current City", currentCity, readOnly: true),
-                  field("Current State", currentState, readOnly: true),
+                  // Allow manual edit of current City/State and require values (reject placeholder '—')
+                  field(
+                    "Current City",
+                    currentCity,
+                    validator: (v) {
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty || t == '—') return "Enter current city";
+                      return null;
+                    },
+                  ),
+                  field(
+                    "Current State",
+                    currentState,
+                    validator: (v) {
+                      final t = (v ?? '').trim();
+                      if (t.isEmpty || t == '—') return "Enter current state";
+                      return null;
+                    },
+                  ),
                   field("Current Address", addrCurrent, validator: req),
                 ],
 

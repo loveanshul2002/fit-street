@@ -6,6 +6,8 @@ import 'config/app_theme.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/trainer/trainer_dashboard.dart';
 import 'screens/home/home_screen.dart';
+import 'screens/wallet/user_wallet_screen.dart';
+import 'screens/wallet/trainer_wallet_screen.dart';
 import 'services/fitstreet_api.dart';
 import 'state/auth_manager.dart';
 
@@ -44,6 +46,8 @@ class FitStreetApp extends StatelessWidget {
         '/auth': (context) => const HomeScreen(),
         '/home': (context) => const HomeScreen(),
         '/trainer': (context) => const TrainerDashboard(),
+  '/wallet/user': (context) => const UserWalletScreen(),
+  '/wallet/trainer': (context) => const TrainerWalletScreen(),
       },
     );
   }

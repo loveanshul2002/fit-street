@@ -21,7 +21,6 @@ import '../trainers/trainer_list_screen.dart';
 import '../bookings/booking_screen.dart';
 import '../diet/diet_screen.dart';
 import '../counsellors/counsellor_screen.dart';
-import '../trainers/trainer_profile_screen.dart';
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
 import '../User/user_auth_screen.dart';
@@ -30,6 +29,7 @@ import '../User/user_auth_screen.dart';
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
+import 'featured_trainers_section.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
   String _greetingName = '';
+
 
   // ===== Notifications (USER) =====
   int _notificationCount = 0;
@@ -81,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
     super.dispose();
   }
+
 
   Future<void> _loadProfileState() async {
     final role = await getUserRole();
@@ -501,9 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: const Icon(Icons.account_balance_wallet_outlined),
                     tooltip: "Wallet",
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Wallet tapped (coming soon).")),
-                      );
+                      Navigator.pushNamed(context, '/wallet/user');
                     },
                   ),
                   Stack(
@@ -697,19 +697,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 32),
 
                         // Featured Trainers
-                        Text("🔥 Featured Trainers", style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 200,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _trainerCard(context, "Rahul Sharma", "Yoga", "₹500"),
-                              _trainerCard(context, "Sneha Kapoor", "Strength", "₹700"),
-                              _trainerCard(context, "Amit Singh", "Zumba", "₹600"),
-                            ],
-                          ),
-                        ),
+                        const FeaturedTrainersSection(),
 
                         const SizedBox(height: 32),
 
@@ -925,35 +913,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _trainerCard(BuildContext context, String name, String speciality, String price) {
-    final trainer = {"name": name, "speciality": speciality, "price": price};
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: GlassCard(
-        onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => TrainerProfileScreen(trainer: trainer)));
-        },
-        child: Container(
-          width: 160,
-          padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: Colors.white24,
-                ),
-                child: const Center(child: Icon(Icons.person, size: 50, color: Colors.white70)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            Text("$speciality · $price", style: const TextStyle(color: Colors.white70, fontSize: 12)),
-          ]),
-        ),
-      ),
-    );
-  }
+  // _trainerCard removed after extracting FeaturedTrainersSection
+
 
   Widget _dietCard(BuildContext context, String name, String price) {
     return Padding(

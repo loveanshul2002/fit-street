@@ -256,4 +256,33 @@ Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dyn
     final uri = Uri.parse('$baseUrl/api/common/city-state-by-pincode/$pincode');
     return http.get(uri, headers: _jsonHeaders());
   }
+
+  // ----------------------
+  // Wallet
+  // ----------------------
+  Future<http.Response> getUserSessionPayments(String userId) {
+    final uri = Uri.parse('$baseUrl/api/wallet/sessionPayment/user/$userId');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  Future<http.Response> getTrainerSessionPayments(String trainerId) {
+    final uri = Uri.parse('$baseUrl/api/wallet/sessionPayment/trainer/$trainerId');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  Future<http.Response> getWithdrawalAmount(String trainerId) {
+    final uri = Uri.parse('$baseUrl/api/wallet/withdrawalAmount/$trainerId');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  Future<http.Response> getWithdrawals(String trainerId) {
+    final uri = Uri.parse('$baseUrl/api/wallet/withdrawals/$trainerId');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  Future<http.Response> requestWithdrawal(String trainerId, num amount) {
+    final uri = Uri.parse('$baseUrl/api/wallet/requestWithdrawal/$trainerId');
+    final body = jsonEncode({'amount': amount});
+    return http.post(uri, headers: _jsonHeaders(), body: body);
+  }
 }

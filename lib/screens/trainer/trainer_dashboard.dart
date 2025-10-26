@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/app_colors.dart';
 import '../../widgets/glass_card.dart';
-import '../../widgets/earnings_card.dart'; // PaymentDetail included
+// import '../../widgets/earnings_card.dart'; // PaymentDetail included
 import '../trainer/kyc/widgets/header.dart';
 // import '../trainer/kyc/widgets/bookings_list.dart';
 import '../trainer/kyc/trainer_kyc_wizard.dart';
@@ -1262,17 +1262,17 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final width = MediaQuery.of(context).size.width;
     final narrow = width < 720;
 
-    final paymentDetails = allBookingMaps.map((m) {
-      return PaymentDetail(
-        client: m['client'] ?? 'Client',
-        netAmount: (m['netAmount'] ?? 0.0).toDouble(),
-        isPaid: m['isPaid'] ?? false,
-        date: m['date'],
-      );
-    }).toList();
+//    final paymentDetails = allBookingMaps.map((m) {
+//      return PaymentDetail(
+ //       client: m['client'] ?? 'Client',
+ //       netAmount: (m['netAmount'] ?? 0.0).toDouble(),
+ //       isPaid: m['isPaid'] ?? false,
+//        date: m['date'],
+//      );
+//    }).toList();
 
-    final weeklyList = paymentDetails;
-    final monthlyList = paymentDetails;
+//    final weeklyList = paymentDetails;
+//    final monthlyList = paymentDetails;
 
     String uiIdDisplay = '';
     if (_uniqueTrainerCode != null && _uniqueTrainerCode!.isNotEmpty) uiIdDisplay = _uniqueTrainerCode!;
@@ -1305,7 +1305,7 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             icon: const Icon(Icons.account_balance_wallet_outlined),
             tooltip: "Wallet",
             onPressed: () {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Wallet tapped (demo).")));
+              Navigator.pushNamed(context, '/wallet/trainer');
             },
           ),
           IconButton(
@@ -1458,19 +1458,19 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
 
                       const SizedBox(height: 12),
 
-                      EarningsCard(
-                        weeklyPaymentsTableData: weeklyList,
-                        monthlyPaymentsTableData: monthlyList,
-                        grossTotal: grossTotal,
-                        netTotal: netTotal,
-                        grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-                        netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-                        weeklySubtitle: '',
-                        grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-                        netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-                        monthlySubtitle: '',
-                        platformFeePercent: _feePercent,
-                      ),
+              //        EarningsCard(
+              //          weeklyPaymentsTableData: weeklyList,
+              //          monthlyPaymentsTableData: monthlyList,
+              //          grossTotal: grossTotal,
+              //          netTotal: netTotal,
+              //          grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+              //          netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+              //          weeklySubtitle: '',
+              //          grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+               //         netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+               //         monthlySubtitle: '',
+               //         platformFeePercent: _feePercent,
+               //       ),
 
                       const SizedBox(height: 20),
 

@@ -41,6 +41,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
   late String selectedMonthlyStartDate;
 
   Timer? _ticker;
+  // Cache for fetched specializations (by trainer id)
+  final Map<String, List<String>> _specCache = {};
 
   @override
   void initState() {
@@ -254,6 +256,78 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
     final now = DateTime.now();
     final endDt = DateTime(now.year, now.month, now.day, endHour, minutePart);
     return now.isAfter(endDt) || now.isAtSameMomentAs(endDt);
+  }
+
+  // --- Specialization helpers (match Trainer List behavior) ---
+  List<String> _parseSpecs(dynamic v) {
+    if (v == null) return const [];
+    if (v is String) {
+      final s = v.trim();
+      if (s.isEmpty) return const [];
+      return s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty && e.toLowerCase() != 'null').toList();
+    }
+    if (v is List) {
+      return v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty && e.toLowerCase() != 'null').toList();
+    }
+    return const [];
+  }
+
+  List<String> _extractSpecs(Map<String, dynamic> t) {
+    // Common fields at list/profile level
+    final List<String> fromFields = <String>[]
+      ..addAll(_parseSpecs(t['specialization']))
+      ..addAll(_parseSpecs(t['speciality']))
+      ..addAll(_parseSpecs(t['specializations']))
+      ..addAll(_parseSpecs(t['specializationList']));
+    if (fromFields.isNotEmpty) {
+      final seen = <String>{};
+      return fromFields.where((e) => seen.add(e.toLowerCase())).toList();
+    }
+    // Nested under proofs sometimes
+    final proofs = t['trainerSpecializationProof'] ?? t['trainerSpecializationProofs'] ?? t['specializationProofs'];
+    final list = proofs is List ? proofs : [];
+    final fromProofs = list
+        .map((e) => (e is Map ? (e['specialization'] ?? e['name'] ?? '').toString() : e.toString()))
+        .where((s) => s.trim().isNotEmpty)
+        .map((s) => s.trim())
+        .toList();
+    if (fromProofs.isNotEmpty) {
+      final seen = <String>{};
+      return fromProofs.where((e) => seen.add(e.toLowerCase())).toList();
+    }
+    return const [];
+  }
+
+  Future<List<String>> _fetchSpecsFor(String trainerId) async {
+    if (trainerId.isEmpty) return const [];
+    if (_specCache.containsKey(trainerId)) return _specCache[trainerId]!;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      final resp = await api.getSpecializationProofs(trainerId);
+      if (resp.statusCode == 200) {
+        final body = jsonDecode(resp.body);
+        List items;
+        if (body is List) {
+          items = body;
+        } else if (body is Map) {
+          items = (body['data'] ?? body['proofs'] ?? body['specializations'] ?? body['items'] ?? []) as List? ?? [];
+        } else {
+          items = const [];
+        }
+        final specs = items
+            .map((e) => (e is Map ? (e['specialization'] ?? e['name'] ?? '').toString() : e.toString()))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        final seen = <String>{};
+        final out = specs.where((e) => seen.add(e.toLowerCase())).toList();
+        _specCache[trainerId] = out;
+        return out;
+      }
+    } catch (_) {}
+    return const [];
   }
 
   List<Map<String, String>> getDisplayDays() {
@@ -574,8 +648,8 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
   Widget _leftCard(String name, String code, String img, String city, String state, String exp, String price1, String priceM) {
     final mode = _modeDisplay((widget.trainer['mode'] ?? '').toString());
     final langs = (widget.trainer['languages'] ?? '').toString();
-    final specs = (widget.trainer['specialization'] ?? '').toString();
-    final specTags = specs.isNotEmpty ? specs.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList() : <String>[];
+  final trainerId = (widget.trainer['_id'] ?? widget.trainer['id'] ?? '').toString();
+  final initialSpecs = _extractSpecs(widget.trainer);
 
     return GlassCard(
       child: Padding(
@@ -633,12 +707,45 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             ),
           ]),
           const SizedBox(height: 12),
-          if (specTags.isNotEmpty) ...[
-            const Text('Specializations:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 6),
-            Text(specTags.join(', '), style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 12),
-          ],
+          // Specializations (chips) – mirror Trainer List behavior
+          Builder(builder: (_) {
+            if (initialSpecs.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Specializations:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: initialSpecs.map((s) => _specChip(s)).toList(),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              );
+            }
+            if (trainerId.isEmpty) return const SizedBox.shrink();
+            return FutureBuilder<List<String>>(
+              future: _fetchSpecsFor(trainerId),
+              builder: (ctx, snap) {
+                final list = snap.data ?? const [];
+                if (list.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Specializations:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: list.map((s) => _specChip(s)).toList(),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                );
+              },
+            );
+          }),
           if (langs.isNotEmpty) ...[
             const Text('Known Language:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
@@ -646,6 +753,21 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             const SizedBox(height: 12),
           ],
         ]),
+      ),
+    );
+  }
+
+  Widget _specChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(right: 0),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E88E5).withOpacity(0.9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );
   }

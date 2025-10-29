@@ -8,43 +8,53 @@ plugins {
 }
 
 android {
-    namespace = "com.example.newfitstreet"
+    namespace = "com.anshul.newfitstreet"
 
     // SDK versions
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.example.newfitstreet"
+        applicationId = "com.anshul.newfitstreet"
         minSdk = 21
-    targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        versionCode = 2
+        versionName = "2.0"
     }
 
+    // ✅ Use Java 17 for compilation
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    // ✅ Release signing configuration (points to android/app/key.jks)
+    signingConfigs {
+        create("release") {
+            storeFile = file("key.jks")          // keystore inside android/app/
+            storePassword = "fitstreet"          // your keystore password
+            keyAlias = "release-key"             // alias used while creating key.jks
+            keyPassword = "fitstreet"            // key password
+        }
     }
 
     buildTypes {
         getByName("release") {
-            // TEMP: use debug signing so flutter run --release works
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
 
-            // ✅ Correct Kotlin DSL flags
+            // Disable shrinking/minification for now
             isMinifyEnabled = false
             isShrinkResources = false
 
-            // ✅ Kotlin DSL syntax for proguardFiles
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                file("proguard-rules.pro")
-            )
+            // If you add ProGuard later, uncomment:
+             proguardFiles(
+                 getDefaultProguardFile("proguard-android-optimize.txt"),
+                 file("proguard-rules.pro")
+             )
         }
 
         getByName("debug") {

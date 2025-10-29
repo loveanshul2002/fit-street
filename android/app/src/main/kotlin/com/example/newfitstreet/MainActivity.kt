@@ -1,4 +1,4 @@
-package com.example.newfitstreet
+package com.anshul.newfitstreet
 
 import io.flutter.embedding.android.FlutterActivity
 

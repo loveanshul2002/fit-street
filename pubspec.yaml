@@ -19,6 +19,7 @@ dependencies:
   liquid_glass_renderer: 0.1.1-dev.11
   # remove
   syncfusion_flutter_charts: ^26.1.0
+  url_launcher: ^6.3.0
 
   # Media / files
   image_picker: ^0.8.7+X

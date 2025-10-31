@@ -49,13 +49,13 @@ class _UserRegisterWizardState extends State<UserRegisterWizard> {
         _showMsg('Please select a gender to continue');
         return;
       }
-      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+  _pageController.jumpToPage(1);
       return;
     }
 
     // existing behavior for other pages
     if (_page < 4) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+      _pageController.jumpToPage(_page + 1);
     } else {
       _submit();
     }
@@ -63,7 +63,7 @@ class _UserRegisterWizardState extends State<UserRegisterWizard> {
 
 
   void _back() {
-    if (_page > 0) _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+  if (_page > 0) _pageController.jumpToPage(_page - 1);
   }
 
   void _submit() {
@@ -170,8 +170,7 @@ class _UserRegisterWizardState extends State<UserRegisterWizard> {
 
     return GestureDetector(
       onTap: () => setState(() => _gender = g),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
+      child: Container(
         width: diameter,
         height: diameter,
         decoration: BoxDecoration(

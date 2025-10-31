@@ -24,25 +24,25 @@ class FitstreetApi {
   // Auth endpoints
   // ----------------------
   Future<http.Response> sendSignupOtp(String mobile, {String? type}) {
-    final uri = Uri.parse('$baseUrl/api/auth/send-otp');
+    final uri = Uri.parse('$baseUrl/api/auth/send-otp-hc');
     final body = jsonEncode({'mobileNumber': mobile, if (type != null) 'type': type});
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 
   Future<http.Response> sendLoginOtp(String mobile) {
-    final uri = Uri.parse('$baseUrl/api/auth/login/send-otp');
+    final uri = Uri.parse('$baseUrl/api/auth/login/send-otp-hc');
     final body = jsonEncode({'mobileNumber': mobile});
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 
   Future<http.Response> verifySignupOtp(String mobile, String otp, {String? role}) {
-    final uri = Uri.parse('$baseUrl/api/auth/verify-otp');
+    final uri = Uri.parse('$baseUrl/api/auth/verify-otp-hc');
     final body = jsonEncode({'mobileNumber': mobile, 'otp': otp, if (role != null) 'type': role});
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 
   Future<http.Response> verifyLoginOtp(String mobile, String otp) {
-    final uri = Uri.parse('$baseUrl/api/auth/login/verify-otp'); // <-- correct path
+    final uri = Uri.parse('$baseUrl/api/auth/login/verify-otp-hc'); // <-- correct path
     final body = jsonEncode({'mobileNumber': mobile, 'otp': otp});
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }

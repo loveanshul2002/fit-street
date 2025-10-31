@@ -20,6 +20,7 @@ import '../../services/fitstreet_api.dart';
 import '../../utils/profile_storage.dart';
 import 'profile_edit_restricted_screen.dart';
 import '../trainer/bank_details_edit_screen.dart';
+import '../legal/legal_page.dart';
 
 enum KycStatus { pending, done }
 enum KycState { notStarted, submitted, approved, rejected }
@@ -685,14 +686,89 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Support", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("Need help? Call support or request a callback.", style: TextStyle(color: Colors.white70)),
+            title: const Text(
+  "Support",
+  style: TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+  ),
+),
+content: const Text(
+  "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
+  style: TextStyle(
+    color: Colors.white70,
+    height: 1.5,
+  ),
+),
+  
             actions: [
               TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _openSupportAndPoliciesSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(
+              color: Colors.black.withOpacity(0.30),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).padding.bottom + 16,
+                top: 12,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(height: 4, width: 36, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      leading: const Icon(Icons.support_agent_outlined, color: Colors.white70),
+                      title: const Text('Support', style: TextStyle(color: Colors.white)),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _openSupport();
+                      },
+                    ),
+                    // Removed 'Support' underlined section
+                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us', 'assets/legal/about.html'),
+                    _policyTile(ctx, Icons.privacy_tip_outlined, 'Privacy Policy', 'Privacy Policy', 'assets/legal/privacy.html'),
+                    _policyTile(ctx, Icons.rule_folder_outlined, 'Terms & Conditions', 'Terms & Conditions', 'assets/legal/terms.html'),
+                    _policyTile(ctx, Icons.receipt_long_outlined, 'Refund & Cancellation', 'Refund & Cancellation', 'assets/legal/refund.html'),
+                    _policyTile(ctx, Icons.local_shipping_outlined, 'Shipping Policy', 'Shipping Policy', 'assets/legal/shipping.html'),
+                    _policyTile(ctx, Icons.contact_support_outlined, 'Contact Us', 'Contact Us', 'assets/legal/contact.html'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _policyTile(BuildContext ctx, IconData icon, String label, String title, String assetPath) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      onTap: () {
+        Navigator.pop(ctx);
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
+      },
     );
   }
 
@@ -1518,7 +1594,11 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                                 const SizedBox(height: 12),
                                 Align(
                                   alignment: Alignment.centerRight,
-                                  child: TextButton(onPressed: _saveAudienceAndMode, child: const Text("Save preferences")),
+                                  child: _glassButton(
+                                    "Save preferences",
+                                    onTap: _saveAudienceAndMode,
+                                    blurSigma: 1,
+                                  ),
                                 )
                               ]),
                         ),
@@ -1833,23 +1913,14 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
                           },
                         ),
                         _drawerItem(
-                          icon: Icons.info_outline,
-                          label: 'About Us',
-                          onTap: () {
-                            Navigator.pop(context);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('About Us coming soon')));
-                            }
-                            },
-                        ),
-                        _drawerItem(
                           icon: Icons.support_agent,
-                          label: 'Support',
+                          label: 'Support & Policies',
                           onTap: () {
                             Navigator.pop(context);
-                            _openSupport();
+                            _openSupportAndPoliciesSheet(context);
                           },
                         ),
+                   
                         _drawerItem(
                           icon: Icons.more_horiz,
                           label: 'Other',
@@ -1903,14 +1974,123 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     );
   }
 
+  // Glass helpers (sigma 1) for chips and buttons
+  Widget _glassChip(
+    String label, {
+    required bool selected,
+    required VoidCallback onTap,
+    double blurSigma = 1,
+    bool disabled = false,
+  }) {
+    const accent = Color(0xFFFF5503);
+    final baseColor = Colors.white.withOpacity(disabled ? 0.04 : 0.08);
+    final selGradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        accent.withOpacity(disabled ? 0.20 : 0.22),
+        accent.withOpacity(disabled ? 0.10 : 0.12),
+      ],
+    );
+    return Opacity(
+      opacity: disabled ? 0.6 : 1,
+      child: InkWell(
+        onTap: disabled ? null : onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? null : baseColor,
+                gradient: selected ? selGradient : null,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: selected ? accent : Colors.white.withOpacity(0.25), width: 0.9),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _glassButton(
+    String label, {
+    IconData? icon,
+    VoidCallback? onTap,
+    bool disabled = false,
+    double blurSigma = 1,
+  }) {
+    final baseBg = Colors.white.withOpacity(disabled ? 0.06 : 0.10);
+    const pressedAccent = Color(0xFFFF5503);
+    return Opacity(
+      opacity: disabled ? 0.6 : 1,
+      child: StatefulBuilder(
+        builder: (context, setLocal) {
+          bool isPressed = false;
+          void setPressed(bool v) => setLocal(() => isPressed = v);
+          final decoration = BoxDecoration(
+            color: isPressed ? null : baseBg,
+            gradient: isPressed
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [pressedAccent, pressedAccent],
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: isPressed ? pressedAccent : Colors.white.withOpacity(0.28), width: 0.9),
+          );
+          final textStyle = const TextStyle(color: Colors.white, fontWeight: FontWeight.w600);
+          final iconColor = Colors.white;
+
+          return GestureDetector(
+            onTapDown: disabled ? null : (_) => setPressed(true),
+            onTapCancel: disabled ? null : () => setPressed(false),
+            onTapUp: disabled
+                ? null
+                : (_) {
+                    setPressed(false);
+                    onTap?.call();
+                  },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: decoration,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 18, color: iconColor),
+                        const SizedBox(width: 8),
+                      ],
+                      Text(label, style: textStyle),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _smallChoice(String label, bool selected, VoidCallback onTap) {
-    return ChoiceChip(
-      label: Text(label, style: const TextStyle(color: Colors.white)),
+    return _glassChip(
+      label,
       selected: selected,
-      selectedColor: Colors.white24,
-      backgroundColor: Colors.white12,
-      onSelected: (_) => onTap(),
-      shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.25))),
+      onTap: onTap,
+      blurSigma: 1,
     );
   }
 
@@ -1933,29 +2113,70 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               IconButton(onPressed: _loadSlotsFromServer, icon: const Icon(Icons.refresh, color: Colors.white70)),
             ]),
             const SizedBox(height: 8),
-            SizedBox(height: 42, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: days.length, separatorBuilder: (_, __) => const SizedBox(width: 8), itemBuilder: (ctx, idx) {
-              final d = days[idx];
-              final sel = _selectedDay == d;
-              return ChoiceChip(label: Text(d, style: const TextStyle(color: Colors.white)), selected: sel, selectedColor: Colors.white24, backgroundColor: Colors.white12, onSelected: (v) {
-                if (disabled) return;
-                setState(() => _selectedDay = d);
-              }, shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))));
-            })),
+            SizedBox(
+              height: 42,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: days.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (ctx, idx) {
+                  final d = days[idx];
+                  final sel = _selectedDay == d;
+                  return _glassChip(
+                    d,
+                    selected: sel,
+                    onTap: () {
+                      if (disabled) return;
+                      setState(() => _selectedDay = d);
+                    },
+                    blurSigma: 1,
+                    disabled: disabled,
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: slotLabels.map((s) {
-              final selected = currentSlots.contains(s);
-              return FilterChip(label: Text(s, style: const TextStyle(color: Colors.white)), selected: selected, selectedColor: Colors.white24, backgroundColor: Colors.white12, onSelected: disabled ? null : (v) {
-                setState(() {
-                  if (v) availability[_selectedDay]!.add(s);
-                  else availability[_selectedDay]!.remove(s);
-                });
-              }, shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))));
-            }).toList()),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: slotLabels.map((s) {
+                final selected = currentSlots.contains(s);
+                return _glassChip(
+                  s,
+                  selected: selected,
+                  onTap: disabled
+                      ? () {}
+                      : () {
+                          setState(() {
+                            if (!selected) {
+                              availability[_selectedDay]!.add(s);
+                            } else {
+                              availability[_selectedDay]!.remove(s);
+                            }
+                          });
+                        },
+                  blurSigma: 1,
+                  disabled: disabled,
+                );
+              }).toList(),
+            ),
             const SizedBox(height: 12),
             Row(children: [
-              ElevatedButton.icon(onPressed: disabled ? null : _saveSlotsToServer, icon: const Icon(Icons.upload, size: 18), label: const Text("Update Slots"), style: ElevatedButton.styleFrom(backgroundColor: Colors.white12)),
+              _glassButton(
+                "Update Slots",
+                icon: Icons.upload,
+                onTap: disabled ? null : _saveSlotsToServer,
+                blurSigma: 1,
+                disabled: disabled,
+              ),
               const SizedBox(width: 12),
-              TextButton(onPressed: disabled ? null : () => setState(() => availability[_selectedDay]!.clear()), child: const Text("Clear day")),
+              _glassButton(
+                "Clear day",
+                icon: Icons.clear,
+                onTap: disabled ? null : () => setState(() => availability[_selectedDay]!.clear()),
+                blurSigma: 1,
+                disabled: disabled,
+              ),
             ]),
           ]),
         ),

@@ -534,46 +534,61 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
   // removed old _badge helper (not needed after redesign)
 
   Widget _specChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      margin: const EdgeInsets.only(right: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E88E5).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.16),
+                Colors.white.withOpacity(0.06),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+          ),
+        ),
       ),
     );
   }
 
   Widget _modePill(String mode) {
-    Color bg;
-    switch (mode.toLowerCase()) {
-      case 'offline':
-        bg = const Color(0xFF29B770); // green
-        break;
-      case 'online':
-        bg = const Color(0xFF5C6BC0); // indigo
-        break;
-      case 'both':
-        bg = const Color(0xFFAB47BC); // purple
-        break;
-      default:
-        bg = Colors.white.withOpacity(0.15);
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        mode.toLowerCase() == 'both'
-            ? 'Online & Offline Session'
-            : '${mode.isNotEmpty ? mode[0].toUpperCase() + mode.substring(1).toLowerCase() : ''} Session',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+    final label = mode.toLowerCase() == 'both'
+        ? 'Online & Offline Session'
+        : '${mode.isNotEmpty ? mode[0].toUpperCase() + mode.substring(1).toLowerCase() : ''} Session';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8), 
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.16),
+                Colors.white.withOpacity(0.06),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+          ),
+        ),
       ),
     );
   }

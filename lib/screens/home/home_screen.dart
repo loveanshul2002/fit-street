@@ -19,17 +19,20 @@ import '../../services/fitstreet_api.dart';
 // screens referenced from the home screen
 import '../trainers/trainer_list_screen.dart';
 import '../bookings/booking_screen.dart';
-import '../diet/diet_screen.dart';
 import '../counsellors/counsellor_screen.dart';
+import '../nutrition/nutrition_screen.dart';
+
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
 import '../User/user_auth_screen.dart';
+import '../legal/legal_page.dart';
 
 // NEW: use the styled login screen
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
 import 'featured_trainers_section.dart';
+//import 'circular_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +42,68 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  void _openSupportAndPoliciesSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(
+              color: Colors.black.withOpacity(0.30),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).padding.bottom + 16,
+                top: 12,
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(height: 4, width: 36, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(height: 10),
+                    ListTile(
+                      leading: const Icon(Icons.support_agent, color: Colors.white70),
+                      title: const Text('Support', style: TextStyle(color: Colors.white)),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _openSupport();
+                      },
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                    ),
+                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us', 'assets/legal/about.html'),
+                    _policyTile(ctx, Icons.privacy_tip_outlined, 'Privacy Policy', 'Privacy Policy', 'assets/legal/privacy.html'),
+                    _policyTile(ctx, Icons.rule_folder_outlined, 'Terms & Conditions', 'Terms & Conditions', 'assets/legal/terms.html'),
+                    _policyTile(ctx, Icons.receipt_long_outlined, 'Refund & Cancellation', 'Refund & Cancellation', 'assets/legal/refund.html'),
+                    _policyTile(ctx, Icons.local_shipping_outlined, 'Shipping Policy', 'Shipping Policy', 'assets/legal/shipping.html'),
+                    _policyTile(ctx, Icons.contact_support_outlined, 'Contact Us', 'Contact Us', 'assets/legal/contact.html'),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _policyTile(BuildContext ctx, IconData icon, String label, String title, String assetPath) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white70),
+      title: Text(label, style: const TextStyle(color: Colors.white)),
+      onTap: () {
+        Navigator.pop(ctx);
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
+      },
+    );
+  }
   bool _profileComplete = false;
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
@@ -149,8 +214,21 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(16),
               side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Support", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("Need help? Call support or request a callback.", style: TextStyle(color: Colors.white70)),
+title: const Text(
+  "Support",
+  style: TextStyle(
+    color: Colors.white,
+    fontWeight: FontWeight.bold,
+  ),
+),
+content: const Text(
+  "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
+  style: TextStyle(
+    color: Colors.white70,
+    height: 1.5,
+  ),
+),
+
             actions: [
               TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
             ],
@@ -622,6 +700,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 20),
 
+                        // Circular categories UI
+                     //   GlassCard(
+                      //    child: Padding(
+                        //    padding: const EdgeInsets.symmetric(vertical: 12),
+                         //   child: Center(child: CircularHomeScreen(embedded: true)),
+                       //   ),
+                      //  ),
+
+                        const SizedBox(height: 20),
+
                         // Complete Profile CTA (only when logged in)
                         if (_loadingProfileState)
                           const SizedBox(height: 8)
@@ -683,10 +771,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen())),
                               child: _quickAction(Icons.calendar_today, "Bookings"),
                             ),
+                           // TODO: add nutrition section
                             GlassCard(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
-                              child: _quickAction(Icons.restaurant_menu, "Diet Plans"),
+                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen())),
+                              child: _quickAction(Icons.restaurant_menu, "Nutrition"),
                             ),
+                            // TODO: add counsellors section
                             GlassCard(
                               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
                               child: _quickAction(Icons.psychology, "Counsellors"),
@@ -701,44 +791,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Popular Diet Plans
-                        Text("🥗 Popular Diet Plans", style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 160,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _dietCard(context, "Organic Protein Pack", "₹999"),
-                              _dietCard(context, "Weight Loss Plan", "₹1499"),
-                              _dietCard(context, "Superfood Combo", "₹799"),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Special Offers
-                        Text("⚡ Special Offers", style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: 12),
-                        GlassCard(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Offer applied!")));
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(20),
-                            child: const Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("20% OFF on First Booking 🎉",
-                                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 6),
-                                Text("Book your first session now and save big!", style: TextStyle(color: Colors.white70)),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // Removed Popular Diet Plans and Special Offers sections
                       ],
                     ),
                   ),
@@ -782,7 +835,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openOverflowPanel() {
-    _scaffoldKey.currentState?.openEndDrawer();
+  _scaffoldKey.currentState?.openEndDrawer();
   }
 
   // Drawer helper with glass-ish styling similar to trainer dashboard
@@ -836,28 +889,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             await _loadProfileState();
                           },
                         ),
+                      
+                        _drawerItem(
+                          icon: Icons.policy,
+                          label: 'Support & Policies',
+                          onTap: () {
+                            Navigator.pop(context);
+                            _openSupportAndPoliciesSheet(context);
+                          },
+                        ),
+                    
+                    
                         _drawerItem(
                           icon: Icons.settings_outlined,
                           label: 'Settings',
                           onTap: () {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
-                          },
-                        ),
-                        _drawerItem(
-                          icon: Icons.info_outline,
-                          label: 'About Us',
-                          onTap: () {
-                            Navigator.pop(context);
-                            showAboutDialog(context: context, applicationName: 'FitStreet', applicationVersion: '1.0.0');
-                          },
-                        ),
-                        _drawerItem(
-                          icon: Icons.support_agent,
-                          label: 'Support',
-                          onTap: () {
-                            Navigator.pop(context);
-                            _openSupport();
                           },
                         ),
                         const Divider(height: 16, color: Colors.white24),
@@ -916,48 +964,5 @@ class _HomeScreenState extends State<HomeScreen> {
   // _trainerCard removed after extracting FeaturedTrainersSection
 
 
-  Widget _dietCard(BuildContext context, String name, String price) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: GlassCard(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DietScreen())),
-        child: Container(
-          width: 160,
-          height: 140,
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.restaurant, color: Colors.white, size: 32),
-              const SizedBox(height: 8),
-              Flexible(
-                child: Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                price,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // _dietCard helper removed
 }

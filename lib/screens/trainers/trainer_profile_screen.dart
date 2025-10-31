@@ -14,6 +14,7 @@ import '../login/login_screen_styled.dart';
 import '../user/profile_completion_wizard.dart';
 import '../../utils/role_storage.dart' show getProfileComplete;
 
+
 class TrainerProfileScreen extends StatefulWidget {
   final Map<String, dynamic> trainer;
   const TrainerProfileScreen({super.key, required this.trainer});
@@ -615,7 +616,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
         ),
         child: Stack(
           children: [
-           
+
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -677,10 +678,27 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerRight,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(color: Colors.blueAccent.withOpacity(0.4), borderRadius: BorderRadius.circular(8)),
-                          child: Text(mode, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withOpacity(0.16),
+                                    Colors.white.withOpacity(0.06),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                              ),
+                              child: Text(mode, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -758,16 +776,30 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
   }
 
   Widget _specChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      margin: const EdgeInsets.only(right: 0),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E88E5).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          margin: const EdgeInsets.only(right: 0),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.16),
+                Colors.white.withOpacity(0.06),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+          ),
+        ),
       ),
     );
   }
@@ -790,42 +822,64 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
               Wrap(
                 spacing: 8,
                 children: [
-                  Builder(builder: (_) {
-                    final sel = selectedSessionType == 'single';
-                    return ChoiceChip(
-                      label: const Text('Single Session'),
-                      selected: sel,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedSessionType = 'single';
-                          selectedSlotId = '';
-                        });
-                      },
-                      backgroundColor: Colors.white12,
-                      selectedColor: Colors.white24,
-                      showCheckmark: false,
-                      labelStyle: const TextStyle(color: Colors.white),
-                      shape: StadiumBorder(side: BorderSide(color: sel ? Colors.white : Colors.white24)),
-                    );
-                  }),
-                  Builder(builder: (_) {
-                    final sel = selectedSessionType == 'monthly';
-                    return ChoiceChip(
-                      label: const Text('Monthly Session'),
-                      selected: sel,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedSessionType = 'monthly';
-                          selectedSlotId = '';
-                        });
-                      },
-                      backgroundColor: Colors.white12,
-                      selectedColor: Colors.white24,
-                      showCheckmark: false,
-                      labelStyle: const TextStyle(color: Colors.white),
-                      shape: StadiumBorder(side: BorderSide(color: sel ? Colors.white : Colors.white24)),
-                    );
-                  }),
+                  // Glass Single Session chip
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedSessionType = 'single';
+                        selectedSlotId = '';
+                      });
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selectedSessionType == 'single'
+                                ? Colors.white.withOpacity(0.10)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: selectedSessionType == 'single' ? Colors.white : Colors.white.withOpacity(0.28),
+                              width: selectedSessionType == 'single' ? 1.0 : 0.75,
+                            ),
+                          ),
+                          child: const Text('Single Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Glass Monthly Session chip
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedSessionType = 'monthly';
+                        selectedSlotId = '';
+                      });
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selectedSessionType == 'monthly'
+                                ? Colors.white.withOpacity(0.10)
+                                : Colors.white.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: selectedSessionType == 'monthly' ? Colors.white : Colors.white.withOpacity(0.28),
+                              width: selectedSessionType == 'monthly' ? 1.0 : 0.75,
+                            ),
+                          ),
+                          child: const Text('Monthly Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               if (selectedSessionType == 'single' && price1.isNotEmpty)
@@ -854,10 +908,17 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
               runSpacing: 8,
               children: [
                 const Text('Choose Session Mode:', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700)),
-                Container(
-                  decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(children: [_modeButton('online'), const SizedBox(width: 8), _modeButton('offline')]),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(0),
+
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(children: [_modeButton('online'), const SizedBox(width: 8), _modeButton('offline')]),
+                    ),
+
                 ),
               ],
             ),
@@ -878,13 +939,12 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
                       const SizedBox(height: 6),
                       GestureDetector(
                         onTap: () => selectDay(d),
-                        child: Container(
+            child: Container(
                           height: 38,
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
-                            gradient: isSelected ? const LinearGradient(colors: [Color(0xFF6A82FB), Color(0xFF56CCF2)]) : null,
-                            color: isSelected ? null : Colors.white24.withOpacity(0.08),
+              color: isSelected ? Colors.white.withOpacity(0.10) : Colors.white24.withOpacity(0.08),
                             border: Border.all(color: isSelected ? Colors.white : Colors.white.withOpacity(0.35)),
                           ),
                           child: Center(child: Text('$count Slots Available', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
@@ -951,8 +1011,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
                     final selected = selectedSlotId == id;
                     return GestureDetector(
                       onTap: expired ? null : () => selectSlot(slotObj),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(28),
@@ -1000,16 +1059,24 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
           selectedMode = modeKey;
         });
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          gradient: active ? const LinearGradient(colors: [Color(0xFF6A82FB), Color(0xFF56CCF2)]) : null,
-          color: active ? null : Colors.white12,
-          border: Border.all(color: active ? Colors.transparent : Colors.white24),
+          gradient: LinearGradient(
+            colors: [
+              Colors.white.withOpacity(active ? 0.22 : 0.16),
+              Colors.white.withOpacity(active ? 0.10 : 0.06),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: active ? Colors.white : Colors.white.withOpacity(0.28), width: active ? 1.0 : 0.75),
         ),
-        child: Text(modeKey[0].toUpperCase() + modeKey.substring(1), style: TextStyle(color: active ? Colors.white : Colors.white70, fontWeight: FontWeight.w700)),
+        child: Text(
+          modeKey[0].toUpperCase() + modeKey.substring(1),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }

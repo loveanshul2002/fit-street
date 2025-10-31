@@ -1,0 +1,44 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "flutter",
+			"command": "flutter",
+			"args": [
+				"build",
+				"bundle"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "flutter: flutter build bundle",
+			"detail": ""
+		},
+		{
+			"label": "flutter analyze quick",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"analyze"
+			],
+			"problemMatcher": [
+				"$dart-errors"
+			],
+			"group": "build"
+		},
+		{
+			"label": "flutter analyze quick",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"analyze"
+			],
+			"problemMatcher": [
+				"$dart-errors"
+			],
+			"group": "build"
+		}
+	]
+}

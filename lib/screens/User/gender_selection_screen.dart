@@ -266,21 +266,20 @@ class _GenderCircle extends StatelessWidget {
     final double diameter = MediaQuery.of(context).size.width * 0.4;
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
+      child: Container(
         width: diameter,
         height: diameter,
         decoration: selected
             ? BoxDecoration(
                 shape: BoxShape.circle,
                 // subtle glow ring using a sweep gradient halo
-                gradient: SweepGradient(
-                  colors: const [
+                gradient: const SweepGradient(
+                  colors: [
                     Color(0xFF5C6BC0), // indigo
                     Color(0xFFAB47BC), // purple
                     Color(0xFF5C6BC0),
                   ],
-                  stops: const [0.0, 0.5, 1.0],
+                  stops: [0.0, 0.5, 1.0],
                 ),
                 boxShadow: [
                   BoxShadow(color: const Color(0xFFAB47BC).withOpacity(0.35), blurRadius: 24, spreadRadius: 1, offset: const Offset(0, 8)),
@@ -291,24 +290,19 @@ class _GenderCircle extends StatelessWidget {
           padding: selected ? const EdgeInsets.all(2.0) : EdgeInsets.zero,
           child: ClipOval(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: selected ? 14 : 10, sigmaY: selected ? 14 : 10),
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
-                    colors: selected
-                        ? [
-                            Colors.white.withOpacity(0.08),
-                            Colors.white.withOpacity(0.02),
-                          ]
-                        : [
-                            Colors.white.withOpacity(0.16),
-                            Colors.white.withOpacity(0.06),
-                          ],
+                    colors: [
+                      Colors.white.withOpacity(0.16),
+                      Colors.white.withOpacity(0.06),
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  border: Border.all(color: Colors.white.withOpacity(selected ? 0.5 : 0.28), width: selected ? 1.2 : 0.75),
+                  border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -317,8 +311,8 @@ class _GenderCircle extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       label,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),

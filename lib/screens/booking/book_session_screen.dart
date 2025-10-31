@@ -2,7 +2,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show ImageFilter;
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +17,7 @@ class BookSessionScreen extends StatefulWidget {
   State<BookSessionScreen> createState() => _BookSessionScreenState();
 }
 
-class _BookSessionScreenState extends State<BookSessionScreen> with SingleTickerProviderStateMixin {
+class _BookSessionScreenState extends State<BookSessionScreen> {
   bool _loading = true;
   Map<String, dynamic> _trainer = {};
   Map<String, dynamic> _sessionInfo = {};
@@ -27,13 +26,11 @@ class _BookSessionScreenState extends State<BookSessionScreen> with SingleTicker
   final ImagePicker _picker = ImagePicker();
   final String _apiBase = 'https://api.fitstreet.in'; // used by FitstreetApi
 
-  // subtle liquid overlay controller
-  late final AnimationController _liquidCtrl;
+  // removed liquid overlay animation controller
 
   @override
   void initState() {
     super.initState();
-  _liquidCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 16))..repeat();
     _loadData();
   }
 
@@ -352,32 +349,7 @@ class _BookSessionScreenState extends State<BookSessionScreen> with SingleTicker
         ),
         child: Stack(
           children: [
-            // liquid glow overlay
-            Positioned.fill(
-              child: IgnorePointer(
-                child: AnimatedBuilder(
-                  animation: _liquidCtrl,
-                  builder: (context, _) {
-                    final t = _liquidCtrl.value * 2 * math.pi;
-                    final dx = 0.5 + 0.25 * math.sin(t);
-                    final dy = 0.4 + 0.25 * math.cos(t * 1.3);
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment(dx * 2 - 1, dy * 2 - 1),
-                          radius: 1.2,
-                          colors: [
-                            Colors.white.withOpacity(0.06),
-                            Colors.white.withOpacity(0.00),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
+            // static background only (removed animated liquid overlay)
             SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),

@@ -695,7 +695,7 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
   void _back() {
     if (_step == 0) return;
     setState(() => _step -= 1);
-    _page.previousPage(duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  _page.jumpToPage(_step);
   }
 
 // --------------------------------------------------------------------------

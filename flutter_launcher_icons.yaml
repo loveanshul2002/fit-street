@@ -1,6 +1,7 @@
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/image/transparent_bull_logo.png"
-  adaptive_icon_background: "#B0B0B0"  # light grey color
-  adaptive_icon_foreground: "assets/image/transparent_bull_logo.png"
+  image_path: "assets/image/app_icon.png"
+  # Match the black background of the new logo for Android adaptive icon
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/image/app_icon.png"

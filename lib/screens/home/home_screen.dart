@@ -31,7 +31,7 @@ import '../legal/legal_page.dart';
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
-import 'featured_trainers_section.dart';
+ import 'featured_trainers_section.dart';
 //import 'circular_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -786,7 +786,7 @@ content: const Text(
 
                         const SizedBox(height: 32),
 
-                        // Featured Trainers
+                        // TODO: Featured Trainers
                         const FeaturedTrainersSection(),
 
                         const SizedBox(height: 32),

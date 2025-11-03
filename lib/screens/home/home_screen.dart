@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../widgets/glass_card.dart';
+// import '../../widgets/glass_card.dart';
 
 // utils
 import '../../utils/role_storage.dart';
@@ -21,6 +21,7 @@ import '../trainers/trainer_list_screen.dart';
 import '../bookings/booking_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../nutrition/nutrition_screen.dart';
+import '../yoga/yoga_screen.dart';
 
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
@@ -31,7 +32,7 @@ import '../legal/legal_page.dart';
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
- import 'featured_trainers_section.dart';
+// import 'featured_trainers_section.dart'; // removed in Figma redesign
 //import 'circular_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -42,6 +43,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // User avatar url for greeting pill
+  String? _userImageUrl;
   void _openSupportAndPoliciesSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -104,7 +107,9 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+  // ignore: unused_field
   bool _profileComplete = false;
+  // ignore: unused_field
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
   String _greetingName = '';
@@ -171,27 +176,56 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final auth = context.read<AuthManager?>();
       if (auth != null && auth.isLoggedIn) {
-        if (name == null || name.isEmpty) {
-          if (role == UserRole.trainer) {
-            final id = await auth.getApiTrainerId();
-            if (id != null && id.isNotEmpty) {
-              await auth.fetchTrainerProfile(id);
-            }
-          } else {
-            await auth.getUserProfile();
+        // Always try to ensure image once, and name if missing
+        Map<String, dynamic>? resp;
+        if (role == UserRole.trainer) {
+          final id = await auth.getApiTrainerId();
+          if (id != null && id.isNotEmpty) {
+            resp = await auth.fetchTrainerProfile(id);
           }
-          final freshName = await getUserName();
-          if (!mounted) return;
-          if (freshName != null && freshName.isNotEmpty) {
-            setState(() => _greetingName = freshName);
-          }
+        } else {
+          resp = await auth.getUserProfile();
         }
+
+        // Refresh name if it was missing earlier
+        final freshName = await getUserName();
+        if (!mounted) return;
+        if (freshName != null && freshName.isNotEmpty) {
+          setState(() => _greetingName = freshName);
+        }
+
+        // Extract a plausible user image url from profile response
+        try {
+          if (_userImageUrl == null || _userImageUrl!.isEmpty) {
+            final body = resp?['body'];
+            String? url;
+            if (body is Map) {
+              final data = (body['data'] ?? body);
+              if (data is Map) {
+                const keys = [
+                  'userImageURL', 'userImageUrl', 'imageUrl', 'imageURL', 'profileImageURL', 'profileImage', 'avatar', 'photo', 'image'
+                ];
+                for (final k in keys) {
+                  final v = data[k];
+                  if (v is String && v.trim().isNotEmpty) {
+                    url = v.trim();
+                    break;
+                  }
+                }
+              }
+            }
+            if (url != null && mounted) {
+              setState(() => _userImageUrl = url);
+            }
+          }
+        } catch (_) {}
       }
     } catch (_) {}
   }
 
   void refreshGreeting() => _loadProfileState();
 
+  // ignore: unused_element
   Future<void> _openProfileFill() async {
     await Navigator.push(
       context,
@@ -238,6 +272,7 @@ content: const Text(
     );
   }
 
+  // ignore: unused_element
   void _triggerSOS() {
     showDialog(
       context: context,
@@ -545,24 +580,31 @@ content: const Text(
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthManager?>();
+    final loggedIn = auth?.isLoggedIn ?? false;
     return Scaffold(
       key: _scaffoldKey,
       extendBodyBehindAppBar: true,
-  endDrawer: _buildEndDrawer(context),
+      endDrawer: _buildEndDrawer(context),
+      backgroundColor: const Color(0xFF161616),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leadingWidth: 90,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Image.asset(
-              'assets/image/fitstreet-bull-logo.png',
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
+        leadingWidth: loggedIn ? 0 : 90,
+        leading: loggedIn
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset(
+                    'assets/image/fitstreet-bull-logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+        title: loggedIn ? _userGreetingPill(context) : null,
+        centerTitle: false,
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -622,24 +664,41 @@ content: const Text(
             } else {
               return Row(
                 children: [
-                  TextButton(
+                  // Orange filled Login pill
+                  ElevatedButton(
                     onPressed: () => _openLoginScreen(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF5B01),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: const StadiumBorder(),
+                    ),
                     child: const Text(
                       "Login",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+
+                      style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton(
+                  const SizedBox(width: 10),
+                  // White Sign up pill with orange text/border
+                  OutlinedButton(
                     onPressed: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => UserAuthScreen()));
                     },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFFF5B01),
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFFFF5B01), width: 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: const StadiumBorder(),
+                    ),
                     child: const Text(
-                      "Register",
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      "Sign up",
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 22),
                 ],
               );
             }
@@ -647,184 +706,31 @@ content: const Text(
         ],
       ),
 
-      // Body in a Stack so the dropdown can be positioned under the AppBar
-      body: Stack(
-        children: [
-          // Background: image + subtle animated liquid gradient overlay
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/image/bg.png'),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 12),
+              const Text(
+                '24×7 at your Doorstep',
+                style: TextStyle(color: Color(0xFFFF5C00), fontWeight: FontWeight.w900, fontSize: 20),
+
               ),
-            ),
-            child: Stack(
-              children: [
-                // Static subtle overlay (animation removed)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: RadialGradient(
-                          center: Alignment.center,
-                          radius: 1.2,
-                          colors: [
-                            Colors.white.withOpacity(0.04),
-                            Colors.white.withOpacity(0.00),
-                          ],
-                          stops: const [0.0, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SafeArea(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Auth state for body controls
-                        Builder(builder: (ctx) {
-                          // This empty builder exists just to establish a local watch context
-                          // for auth within the body section below.
-                          return const SizedBox.shrink();
-                        }),
-                        // Greeting
-                        Text("Hi $_greetingName 👋", style: Theme.of(context).textTheme.headlineMedium),
-                        const SizedBox(height: 4),
-                        const Text("Ready for your transformation?", style: TextStyle(color: Colors.white70)),
-
-                        const SizedBox(height: 20),
-
-                        // Circular categories UI
-                     //   GlassCard(
-                      //    child: Padding(
-                        //    padding: const EdgeInsets.symmetric(vertical: 12),
-                         //   child: Center(child: CircularHomeScreen(embedded: true)),
-                       //   ),
-                      //  ),
-
-                        const SizedBox(height: 20),
-
-                        // Complete Profile CTA (only when logged in)
-                        if (_loadingProfileState)
-                          const SizedBox(height: 8)
-                        else if ((context.watch<AuthManager?>()?.isLoggedIn ?? false) && (_role == UserRole.member) && !_profileComplete) ...[
-                          GlassCard(
-                            onTap: _openProfileFill,
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white12,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.person_add, color: Colors.white),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text("Complete your profile",
-                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                        SizedBox(height: 6),
-                                        Text("Add weight, height, goals & profile to start booking.",
-                                            style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.arrow_forward_ios, color: Colors.white70, size: 18),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Quick Actions
-                        GridView.count(
-                          shrinkWrap: true,
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.1,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            GlassCard(
-                              onTap: () {
-                                // Allow browsing trainers without login or profile completion
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen()));
-                              },
-                              child: _quickAction(Icons.fitness_center, "Trainers"),
-                            ),
-                            GlassCard(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen())),
-                              child: _quickAction(Icons.calendar_today, "Bookings"),
-                            ),
-                           // TODO: add nutrition section
-                            GlassCard(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen())),
-                              child: _quickAction(Icons.restaurant_menu, "Nutrition"),
-                            ),
-                            // TODO: add counsellors section
-                            GlassCard(
-                              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
-                              child: _quickAction(Icons.psychology, "Counsellors"),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // TODO: Featured Trainers
-                        const FeaturedTrainersSection(),
-
-                        const SizedBox(height: 32),
-
-                        // Removed Popular Diet Plans and Special Offers sections
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              const SizedBox(height: 16),
+              _heroBanner(context),
+              const SizedBox(height: 16),
+              _ctaButton(context),
+              const SizedBox(height: 20),
+              _servicesGrid(context),
+              const SizedBox(height: 90),
+            ],
           ),
-
-          // Notification dropdown now rendered via OverlayEntry above the AppBar
-
-          // Floating actions (Support & SOS)
-          Positioned(
-            left: 18,
-            bottom: 18,
-            child: FloatingActionButton(
-              heroTag: 'home_support_fab',
-              onPressed: _openSupport,
-              backgroundColor: AppColors.secondary,
-              child: const Icon(Icons.headset_mic, color: Colors.white),
-            ),
-          ),
-          Positioned(
-            right: 18,
-            bottom: 18,
-            child: FloatingActionButton(
-              heroTag: 'home_sos_fab',
-              onPressed: _triggerSOS,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.sos, color: Colors.white),
-            ),
-          ),
-        ],
+        ),
       ),
+
+      bottomNavigationBar: _bottomNav(context),
     );
   }
 
@@ -889,6 +795,14 @@ content: const Text(
                             await _loadProfileState();
                           },
                         ),
+                        _drawerItem(
+                          icon: Icons.calendar_month_outlined,
+                          label: 'My Bookings',
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen()));
+                          },
+                        ),
                       
                         _drawerItem(
                           icon: Icons.policy,
@@ -950,19 +864,293 @@ content: const Text(
     );
   }
 
-  Widget _quickAction(IconData icon, String label) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 40, color: Colors.white),
-        const SizedBox(height: 10),
-        Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-      ],
-    );
-  }
-
   // _trainerCard removed after extracting FeaturedTrainersSection
 
 
   // _dietCard helper removed
+
+  // ===== New UI helpers =====
+  Widget _heroBanner(BuildContext context) {
+    // Preserve original Figma aspect ratio (660×308) and cover the area without distortion
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(45),
+      child: AspectRatio(
+        aspectRatio: 660 / 308,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image fills while keeping proportions
+            Image.asset(
+              'assets/image/Frame 178.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+            ),
+            // Left-to-right orange overlay like the Figma Frame 179
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerLeft,
+                  colors: [Colors.transparent, Color(0xFFFF5C00)],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _ctaButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFF5B01),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+  onPressed: _openSupport,
+        child: const Text(
+          'BOOK YOUR FREE CONSULTATION',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+      ),
+    );
+  }
+
+  Widget _servicesGrid(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+  childAspectRatio: 0.85,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _serviceCard(
+          title: 'Fitness Trainers',
+          image: 'assets/image/Frame 30.png',
+          alignment: Alignment.center,
+          imageHeight:   130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.001,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen())),
+        ),
+        _serviceCard(
+          title: 'Yoga Trainers',
+          image: 'assets/image/Frame 30-2.png',
+          alignment: Alignment.centerRight,
+          imageHeight: 130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.01,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const YogaScreen())),
+        ),
+        _serviceCard(
+          title: 'Nutritionists',
+          image: 'assets/image/Frame 30-3.png',
+          alignment: Alignment.topCenter,
+          imageHeight: 130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.01,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen())),
+        ),
+        _serviceCard(
+          title: 'psychiatrists',
+          image: 'assets/image/Frame 30-4.png',
+          alignment: Alignment.center,
+          imageHeight: 130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.01,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+        ),
+      ],
+    );
+  }
+
+  Widget _serviceCard({
+    required String title,
+    required String image,
+    required VoidCallback onTap,
+    Alignment alignment = Alignment.center,
+    double imageHeight = 217,
+  TextStyle? titleStyle,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: Colors.white.withOpacity(0.12)),
+          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 6))],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: imageHeight,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                child: Image.asset(
+                  image,
+                  fit: BoxFit.cover,
+                  alignment: alignment,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 64,
+              child: Center(
+                child: Text(
+                  title,
+                  style: titleStyle ?? const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    shadows: [Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 14,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5C00),
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: const [BoxShadow(color: Color(0x66FF5C00), blurRadius: 10, offset: Offset(0, 7))],
+                  ),
+                  child: const Text('Book Now', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomNav(BuildContext context) {
+    final List<_BottomItem> items = [
+      _BottomItem(Icons.home, 'Home'),
+      _BottomItem(Icons.account_balance_wallet_outlined, 'Wallet'),
+      _BottomItem(Icons.search, 'Search'),
+      _BottomItem(Icons.notifications_none, 'Notification'),
+      _BottomItem(Icons.person_outline, 'Account'),
+    ];
+    return Container(
+      height: 84,
+      decoration: const BoxDecoration(color: Color(0xFF020202)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: items.map((i) {
+          return GestureDetector(
+            onTap: () {
+              switch (i.label) {
+                case 'Wallet':
+                  Navigator.pushNamed(context, '/wallet/user');
+                  break;
+                case 'Search':
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen()));
+                  break;
+                case 'Notification':
+                  _toggleNotificationList();
+                  break;
+                case 'Account':
+                  _openOverflowPanel();
+                  break;
+                default:
+                  break;
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 12),
+                Icon(i.icon, color: const Color(0xFFFF5503)),
+                const SizedBox(height: 6),
+                Text(i.label, style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _userGreetingPill(BuildContext context) {
+    final name = _greetingName.isNotEmpty ? _greetingName : 'User';
+    final initials = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.5), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white12,
+            backgroundImage: (_userImageUrl != null && _userImageUrl!.startsWith('http'))
+                ? NetworkImage(_userImageUrl!)
+                : null,
+            child: (_userImageUrl == null || !_userImageUrl!.startsWith('http'))
+                ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Hello  $name',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+              // Location intentionally omitted per request
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomItem {
+  final IconData icon;
+  final String label;
+  const _BottomItem(this.icon, this.label);
 }

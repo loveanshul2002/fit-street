@@ -258,6 +258,24 @@ Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dyn
   }
 
   // ----------------------
+  // Consultation
+  // ----------------------
+  /// Create a free consultation request
+  Future<http.Response> createConsultation({
+    required String name,
+    required String phoneNumber,
+    required String requirement,
+  }) {
+    final uri = Uri.parse('$baseUrl/api/users/consultation');
+    final body = jsonEncode({
+      'name': name,
+      'phoneNumber': phoneNumber,
+      'requirement': requirement,
+    });
+    return http.post(uri, headers: _jsonHeaders(), body: body);
+  }
+
+  // ----------------------
   // Wallet
   // ----------------------
   Future<http.Response> getUserSessionPayments(String userId) {

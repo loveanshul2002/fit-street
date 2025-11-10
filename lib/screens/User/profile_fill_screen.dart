@@ -10,7 +10,7 @@ import '../home/home_screen.dart';
 import '../../utils/role_storage.dart';
 import '../../state/auth_manager.dart';
 import 'package:provider/provider.dart';
-import '../../utils/profile_storage.dart' show getMobile, getGender, getAge, StoredGender, getWeight, getHeight, getGoal, getPhysicalLevel;
+import '../../utils/profile_storage.dart' show getMobile, getGender, getAge, StoredGender, getWeight, getHeight, getGoal, getPhysicalLevel, saveWeight, saveHeight, saveGoal, savePhysicalLevel;
 
 class SubTitle extends StatelessWidget {
   final String text;
@@ -78,6 +78,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
   final _mobileCtrl = TextEditingController();
   final _genderCtrl = TextEditingController();
   final _ageCtrl = TextEditingController();
+  final _weightCtrl = TextEditingController();
+  final _heightCtrl = TextEditingController();
+  final _goalCtrl = TextEditingController();
+  final _activityCtrl = TextEditingController();
   final _pincodeCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
@@ -141,6 +145,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
           final emgRel = data['emergencyPersonRelation']?.toString();
           final emgPhone = (data['emergencyPersonMobile'] ?? data['emergencyMobile'])?.toString();
           final dobRaw = (data['dob'] ?? data['dateOfBirth'])?.toString();
+          final weightVal = data['weight'];
+          final heightVal = data['height']?.toString();
+          final goalVal = data['goal']?.toString();
+          final physVal = data['physicalLevel']?.toString();
 
           // Normalize DOB into DD/MM/YYYY if possible
           String? dobText;
@@ -200,6 +208,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
             if (emgName != null && emgName.isNotEmpty) _emgName.text = emgName;
             if (emgRel != null && emgRel.isNotEmpty) _emgRelation.text = emgRel;
             if (emgPhone != null && emgPhone.isNotEmpty) _emgPhone.text = emgPhone;
+            if (weightVal != null) _weightCtrl.text = weightVal.toString();
+            if (heightVal != null && heightVal.isNotEmpty) _heightCtrl.text = heightVal;
+            if (goalVal != null && goalVal.isNotEmpty) _goalCtrl.text = goalVal;
+            if (physVal != null && physVal.isNotEmpty) _activityCtrl.text = physVal;
           });
         }
       }
@@ -213,6 +225,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
     final savedMobile = await getMobile();
     final g = await getGender();
     final a = await getAge();
+  final w = await getWeight();
+  final h = await getHeight();
+  final goal = await getGoal();
+  final phys = await getPhysicalLevel();
     // Email, if cached locally (greeting freshness)
     try {
       final email = await getUserEmail();
@@ -246,6 +262,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
       }
       _genderCtrl.text = genderLabel;
       _ageCtrl.text = a != null ? a.toString() : '';
+  if (w != null) _weightCtrl.text = w.toString();
+  if (h != null && h.isNotEmpty) _heightCtrl.text = h;
+  if (goal != null && goal.isNotEmpty) _goalCtrl.text = goal;
+  if (phys != null && phys.isNotEmpty) _activityCtrl.text = phys;
     });
   }
 
@@ -258,6 +278,10 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
   _mobileCtrl.dispose();
   _genderCtrl.dispose();
   _ageCtrl.dispose();
+  _weightCtrl.dispose();
+  _heightCtrl.dispose();
+  _goalCtrl.dispose();
+  _activityCtrl.dispose();
     _emailCtrl.dispose();
     _pincodeCtrl.dispose();
     _cityCtrl.dispose();
@@ -472,6 +496,22 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
 
     // Mark profile complete locally
     await saveProfileComplete(true);
+    // Persist newly entered extended fields locally if user typed them (basic screens may not have saved yet)
+    try {
+      if (_weightCtrl.text.trim().isNotEmpty) {
+        final parsed = int.tryParse(_weightCtrl.text.trim());
+        if (parsed != null) await saveWeight(parsed);
+      }
+      if (_heightCtrl.text.trim().isNotEmpty) {
+        await saveHeight(_heightCtrl.text.trim());
+      }
+      if (_goalCtrl.text.trim().isNotEmpty) {
+        await saveGoal(_goalCtrl.text.trim());
+      }
+      if (_activityCtrl.text.trim().isNotEmpty) {
+        await savePhysicalLevel(_activityCtrl.text.trim());
+      }
+    } catch (_) {}
 
     // Navigate to Home (clear stack)
     if (!mounted) return;
@@ -564,6 +604,15 @@ class _ProfileFillScreenState extends State<ProfileFillScreen> {
                     field('Age', _ageCtrl, hint: 'Age in years', readOnly: !widget.editableBasics,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)]),
+                    // Weight (kg)
+                    field('Weight (kg)', _weightCtrl, hint: 'e.g. 72', keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)]),
+                    // Height (cm or ft/in)
+                    field('Height', _heightCtrl, hint: 'e.g. 178 cm'),
+                    // Goal (summary, e.g. fat loss)
+                    field('Goal', _goalCtrl, hint: 'e.g. fat loss / muscle gain'),
+                    // Activity Level
+                    field('Activity Level', _activityCtrl, hint: 'e.g. sedentary / moderate / active'),
                                       const SizedBox(height: 6),
 
                             // ...existing code...

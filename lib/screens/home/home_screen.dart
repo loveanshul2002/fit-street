@@ -22,6 +22,7 @@ import '../bookings/booking_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../nutrition/nutrition_screen.dart';
 import '../yoga/yoga_screen.dart';
+import '../consultation/consultation.dart';
 
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
@@ -172,6 +173,9 @@ class _HomeScreenState extends State<HomeScreen> {
               : 'there';
     });
 
+  // Previously: show a modal dialog as a nudge. Replaced with a top banner on Home.
+  // _maybePromptProfileCompletion();
+
     // If logged in but no name yet, fetch profile to populate fullName
     try {
       final auth = context.read<AuthManager?>();
@@ -222,6 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {}
   }
+
 
   void refreshGreeting() => _loadProfileState();
 
@@ -713,6 +718,10 @@ content: const Text(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 12),
+              if (loggedIn && !_profileComplete) ...[
+                _profileIncompleteBanner(context),
+                const SizedBox(height: 12),
+              ],
               const Text(
                 '24×7 at your Doorstep',
                 style: TextStyle(color: Color(0xFFFF5C00), fontWeight: FontWeight.w900, fontSize: 20),
@@ -870,6 +879,55 @@ content: const Text(
   // _dietCard helper removed
 
   // ===== New UI helpers =====
+  Widget _profileIncompleteBanner(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.18), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6B46C1).withOpacity(0.25), // subtle purple glow like screenshot
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Your profile is incomplete. Please update your profile to get the best experience.',
+                style: TextStyle(color: Colors.white, height: 1.3),
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              onPressed: () async {
+                await _openProfileFill();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.12),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Update Profile', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   Widget _heroBanner(BuildContext context) {
     // Preserve original Figma aspect ratio (660×308) and cover the area without distortion
     return ClipRRect(
@@ -910,7 +968,9 @@ content: const Text(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
-  onPressed: _openSupport,
+  onPressed: () {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsultationScreen()));
+  },
         child: const Text(
           'BOOK YOUR FREE CONSULTATION',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
@@ -1097,9 +1157,9 @@ content: const Text(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 12),
-                Icon(i.icon, color: const Color(0xFFFF5503)),
+                Icon(i.icon, color: const Color(0xFFD4D4D4)),
                 const SizedBox(height: 6),
-                Text(i.label, style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12)),
+                Text(i.label, style: const TextStyle(color: Color(0xFFFF5503), fontSize: 12)),
               ],
             ),
           );

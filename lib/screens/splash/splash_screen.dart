@@ -1,7 +1,6 @@
 // lib/screens/splash/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../../config/app_colors.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../utils/page_transition.dart';
 import 'package:provider/provider.dart';
@@ -113,10 +112,9 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          image: DecorationImage(
+            image: AssetImage('assets/image/splash-bg.png'),
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(
@@ -145,40 +143,15 @@ class _SplashScreenState extends State<SplashScreen> {
                   duration: const Duration(milliseconds: 800),
                   child: Column(
                     children: const [
+                  
                       Text(
-                        "FitStreet",
+                        "Fitness Delivered At Your Doorstep",
                         style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              color: Colors.purpleAccent,
-                              blurRadius: 20,
-                              offset: Offset(0, 0),
-                            ),
-                            Shadow(
-                              color: Colors.pinkAccent,
-                              blurRadius: 40,
-                              offset: Offset(0, 0),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        "Fitness Delivered To Your Home",
-                        style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 25,
                           color: Colors.white70,
                           fontStyle: FontStyle.italic,
-                          shadows: [
-                            Shadow(
-                              color: Colors.pinkAccent,
-                              blurRadius: 10,
-                              offset: Offset(0, 0),
-                            ),
-                          ],
+                          fontWeight: FontWeight.bold,
+                       
                         ),
                         textAlign: TextAlign.center,
                       ),

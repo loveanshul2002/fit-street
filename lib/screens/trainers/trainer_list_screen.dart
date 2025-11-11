@@ -642,7 +642,7 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
+            image: AssetImage('assets/image/trainer-bg.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),

@@ -226,7 +226,7 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 			body: Container(
 				decoration: const BoxDecoration(
 					image: DecorationImage(
-						image: AssetImage('assets/image/bg.png'),
+						image: AssetImage('assets/image/couns-bg.png'),
 						fit: BoxFit.cover,
 						colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
 					),

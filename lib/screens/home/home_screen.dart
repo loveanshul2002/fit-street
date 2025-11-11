@@ -591,7 +591,7 @@ content: const Text(
       key: _scaffoldKey,
       extendBodyBehindAppBar: true,
       endDrawer: _buildEndDrawer(context),
-      backgroundColor: const Color(0xFF161616),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -711,7 +711,15 @@ content: const Text(
         ],
       ),
 
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/image/home-bg.png'),
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+          ),
+        ),
+        child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
@@ -737,6 +745,7 @@ content: const Text(
             ],
           ),
         ),
+      ),
       ),
 
       bottomNavigationBar: _bottomNav(context),
@@ -1060,7 +1069,7 @@ content: const Text(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF2A2A2A),
+          color: Colors.white.withOpacity(0.06),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: Colors.white.withOpacity(0.12)),
           boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 6))],

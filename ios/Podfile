@@ -28,7 +28,9 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # Link CocoaPods as static frameworks to avoid embedding dynamic frameworks that can
+  # conflict at install-time (e.g., duplicate CFBundleIdentifier in sub-bundles).
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -39,5 +41,14 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Ensure all pods build with at least iOS 12.0 to match the app setting and reduce warnings.
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      # Guarantee pod targets have a safe, unique bundle identifier to prevent
+      # inheriting the app's PRODUCT_BUNDLE_IDENTIFIER in Xcode 16+.
+      # This is ignored by static libs but helps if a pod insists on building a bundle.
+      config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'org.cocoapods.${PRODUCT_NAME:rfc1034identifier}'
+    end
   end
 end

@@ -67,7 +67,7 @@ PODS:
   - SDWebImage (5.21.3):
     - SDWebImage/Core (= 5.21.3)
   - SDWebImage/Core (5.21.3)
-  - SDWebImageWebPCoder (0.14.6):
+  - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - shared_preferences_foundation (0.0.1):
@@ -131,11 +131,11 @@ SPEC CHECKSUMS:
   Mantle: c5aa8794a29a022dfbbfc9799af95f477a69b62d
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
-  SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
-PODFILE CHECKSUM: 20e260c9bb3f61194c661a4ba028da86e4f3ed96
+PODFILE CHECKSUM: f0c23a77584ea99f8fd7d4ce6af473a07fa036a1
 
 COCOAPODS: 1.16.2

@@ -24,6 +24,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 	// Cache of fetched specialization proofs per-trainer
 	final Map<String, List<String>> _specCache = {};
 
+	// Track which trainers have expanded specializations
+	final Set<String> _expandedTrainers = {};
+
 	@override
 	void initState() {
 		super.initState();
@@ -206,19 +209,6 @@ class _NutritionScreenState extends State<NutritionScreen> {
 		}).toList();
 	}
 
-	Widget _specChip(String text) {
-		return Container(
-			padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-			margin: const EdgeInsets.only(right: 8, bottom: 8),
-			decoration: BoxDecoration(
-				color: Colors.white.withOpacity(0.12),
-				borderRadius: BorderRadius.circular(999),
-				border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
-			),
-			child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
-		);
-	}
-
 	@override
 	Widget build(BuildContext context) {
 		return Scaffold(
@@ -306,125 +296,315 @@ class _NutritionScreenState extends State<NutritionScreen> {
 																		final price1 = (t['oneSessionPrice'] ?? '').toString();
 																		final priceM = (t['monthlySessionPrice'] ?? '').toString();
 																		final id = (t['_id'] ?? t['id'] ?? '').toString();
-																		final initialSpecs = _extractSpecs(t);
+																		final mode = (t['mode'] ?? '').toString();
 
 																		return Padding(
 																			padding: const EdgeInsets.only(bottom: 14),
 																			child: GlassCard(
 																				child: Padding(
-																					padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+																						padding: const EdgeInsets.all(13),
 																					child: Column(
 																						crossAxisAlignment: CrossAxisAlignment.start,
 																						children: [
-																							Center(
+																							Row(
+																								crossAxisAlignment: CrossAxisAlignment.start,
+																								children: [
+																									// Profile Image
+																									Column(
+																										children: [
+																											Container(
+																												width: 120,
+																												height: 120,
+																												decoration: const BoxDecoration(shape: BoxShape.circle),
+																												clipBehavior: Clip.antiAlias,
+																												child: img.isNotEmpty
+																														? Image.network(
+																																img,
+																																fit: BoxFit.cover,
+																																errorBuilder: (_, __, ___) => Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
+																															)
+																														: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
+																											),
+																											const SizedBox(height: 4),
+																											// View Profile Button
+																											Container(
+																												decoration: BoxDecoration(
+																													borderRadius: BorderRadius.circular(12),
+																												),
+																												child: TextButton(
+																													onPressed: () {
+																														final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+																														Navigator.push(
+																															context,
+																															MaterialPageRoute(
+																																builder: (_) => TrainerProfileScreen(trainer: Map<String, String>.from(trainerForProfile)),
+																															),
+																														);
+																													},
+																													style: TextButton.styleFrom(
+																														padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+																														minimumSize: Size.zero,
+																													),
+																													child: const Text(
+																														'view profile',
+																														style: TextStyle(
+																															color: Color(0xFFFF6B35),
+																															fontSize: 16,
+																															fontWeight: FontWeight.w900,
+																															decoration: TextDecoration.underline,
+																															decorationColor: Color(0xFFFF6B35),
+																															decorationThickness: 2,
+																														),
+																													),
+																												),
+																											),
+																										],
+																									),
+																									const SizedBox(width: 16),
+																									// Trainer Details
+																									Expanded(
+																										child: Column(
+																											crossAxisAlignment: CrossAxisAlignment.start,
+																											children: [
+																												Row(
+																													children: [
+																														Expanded(
+																															child: Column(
+																																crossAxisAlignment: CrossAxisAlignment.start,
+																																children: [
+																																	Text(
+																																		name,
+																																		style: const TextStyle(
+																																			color: Color(0xFFFF6B35),
+																																			fontSize: 18,
+																																			fontWeight: FontWeight.bold,
+																																		),
+																																	),
+																																	if (code.isNotEmpty)
+																																		Text(
+																																			'($code)',
+																																			style: const TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 13,
+																																				fontWeight: FontWeight.bold,
+																																			),
+																																		),
+																																],
+																															),
+																														),
+																														// Gender Text
+																														Container(
+																															child: Text(
+																																() {
+																																	final gender = (t['gender'] ?? '').toString().toLowerCase();
+																																	switch (gender) {
+																																		case 'female':
+																																			return 'Female';
+																																		case 'male':
+																																			return 'Male';
+																																		case 'other':
+																																			return 'Other';
+																																		default:
+																																			return 'Other';
+																																	}
+																																}(),
+																																style: const TextStyle(
+																																	color: Colors.white,
+																																	fontSize: 14,
+																																	fontWeight: FontWeight.bold,
+																																),
+																															),
+																														),
+																													],
+																												),
+																												const SizedBox(height: 6),
+																												// Mode Pill
+																												if (mode.isNotEmpty)
+																													Container(
+																														padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+																														decoration: BoxDecoration(
+																															color: const Color(0xFFFF6B35),
+																															borderRadius: BorderRadius.circular(20),
+																														),
+																														child: Text(
+																															mode.toLowerCase() == 'both'
+																																	? 'online & offline session'
+																																	: '${mode.toLowerCase()} session',
+																															style: const TextStyle(
+																																color: Colors.white,
+																																fontWeight: FontWeight.bold,
+																																fontSize: 12,
+																															),
+																														),
+																													),
+																												const SizedBox(height: 8),
+																												// Specialization Tags
+																												Builder(builder: (context) {
+																													final specs = _extractSpecs(t);
+																													final cachedSpecs = _specCache[id] ?? [];
+																													final allSpecs = [...specs, ...cachedSpecs].where((s) => s.isNotEmpty).toSet().toList();
+																													
+																													if (allSpecs.isEmpty) return const SizedBox.shrink();
+																													
+																													final isExpanded = _expandedTrainers.contains(id);
+																													final displaySpecs = isExpanded ? allSpecs : allSpecs.take(3).toList();
+																													final hasMore = allSpecs.length > 3;
+																													final remainingCount = allSpecs.length - 3;
+																													
+																													return Wrap(
+																														spacing: 6,
+																														runSpacing: 4,
+																														children: [
+																															...displaySpecs.map((spec) {
+																																return Container(
+																																	padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																	decoration: BoxDecoration(
+																																		color: const Color(0xFFFF6B35),
+																																		borderRadius: BorderRadius.circular(12),
+																																		border: Border.all(color: Colors.white.withOpacity(0.3)),
+																																	),
+																																	child: Text(
+																																		spec,
+																																		style: const TextStyle(
+																																			color: Colors.white,
+																																			fontSize: 10,
+																																			fontWeight: FontWeight.w600,
+																																		),
+																																	),
+																																);
+																															}),
+																															if (hasMore && !isExpanded)
+																																GestureDetector(
+																																	onTap: () {
+																																		setState(() {
+																																			_expandedTrainers.add(id);
+																																		});
+																																	},
+																																	child: Container(
+																																		padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																		decoration: BoxDecoration(
+																																			color: Colors.white.withOpacity(0.2),
+																																			borderRadius: BorderRadius.circular(12),
+																																			border: Border.all(color: Colors.white.withOpacity(0.4)),
+																																		),
+																																		child: Text(
+																																			'+$remainingCount more',
+																																			style: const TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 10,
+																																				fontWeight: FontWeight.w600,
+																																			),
+																																		),
+																																	),
+																																),
+																															if (hasMore && isExpanded)
+																																GestureDetector(
+																																	onTap: () {
+																																		setState(() {
+																																			_expandedTrainers.remove(id);
+																																		});
+																																	},
+																																	child: Container(
+																																		padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																		decoration: BoxDecoration(
+																																			color: Colors.white.withOpacity(0.2),
+																																			borderRadius: BorderRadius.circular(12),
+																																			border: Border.all(color: Colors.white.withOpacity(0.4)),
+																																		),
+																																		child: const Text(
+																																			'show less',
+																																			style: TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 10,
+																																				fontWeight: FontWeight.w600,
+																																			),
+																																		),
+																																	),
+																																),
+																														],
+																													);
+																												}),
+																											],
+																										),
+																									),
+																								],
+																							),
+																							const SizedBox(height: 3),
+																							// White Info Box
+																							Container(
+																								width: double.infinity,
+																								padding: const EdgeInsets.all(12),
+																								decoration: BoxDecoration(
+																									color: Colors.white,
+																									borderRadius: BorderRadius.circular(15),
+																								),
 																								child: Column(
+																									crossAxisAlignment: CrossAxisAlignment.start,
 																									children: [
-																										Container(
-																											width: 96,
-																											height: 96,
-																											decoration: const BoxDecoration(shape: BoxShape.circle),
-																											clipBehavior: Clip.antiAlias,
-																											child: img.isNotEmpty
-																													? Image.network(
-																															img,
-																															fit: BoxFit.cover,
-																															errorBuilder: (_, __, ___) => Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
-																														)
-																													: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
+																										// Location
+																										Row(
+																											children: [
+																												Icon(Icons.place, color: Colors.orange[550], size: 19),
+																												const SizedBox(width: 4),
+																												Expanded(
+																													child: Text(
+																														[city, state, pincode].where((e) => e.trim().isNotEmpty).join(', '),
+																														style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+																														maxLines: 1,
+																														overflow: TextOverflow.ellipsis,
+																													),
+																												),
+																											],
 																										),
 																										const SizedBox(height: 8),
-																										TextButton(
-																											onPressed: () {
-																												final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-																												Navigator.push(
-																													context,
-																													MaterialPageRoute(
-																														builder: (_) => TrainerProfileScreen(trainer: Map<String, String>.from(trainerForProfile)),
+																										// Pricing
+																										Row(
+																											children: [
+																												Icon(Icons.currency_rupee_rounded, color: Colors.orange[550], size: 19),
+																												Expanded(
+																													child: Text(
+																														'${price1.isNotEmpty ? '$price1/ session' : ''}${price1.isNotEmpty && priceM.isNotEmpty ? ' and ' : ''}${priceM.isNotEmpty ? '$priceM monthly session' : ''}',
+																														style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
 																													),
-																												);
-																											},
-																											child: const Text('View Profile', style: TextStyle(decoration: TextDecoration.underline)),
+																												),
+																											],
 																										),
 																									],
 																								),
 																							),
-																							const SizedBox(height: 6),
-																							Text(
-																								code.isNotEmpty ? '$name ($code)' : name,
-																								style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-																							),
-																							const SizedBox(height: 8),
-																							Builder(
-																								builder: (_) {
-																									if (initialSpecs.isNotEmpty) {
-																										return Wrap(
-																											spacing: 8,
-																											runSpacing: 8,
-																											children: initialSpecs.map((s) => _specChip(s)).toList(),
-																										);
-																									}
-																									if (id.isEmpty) return const SizedBox.shrink();
-																									return FutureBuilder<List<String>>(
-																										future: _fetchSpecsFor(id),
-																										builder: (ctx, snap) {
-																											final specs = snap.data ?? const [];
-																											if (specs.isEmpty) return const SizedBox.shrink();
-																											return Wrap(
-																												spacing: 8,
-																												runSpacing: 8,
-																												children: specs.map((s) => _specChip(s)).toList(),
-																											);
-																										},
-																									);
-																								},
-																							),
-																							const SizedBox(height: 10),
-																							Row(
-																								crossAxisAlignment: CrossAxisAlignment.start,
-																								children: [
-																									const Icon(Icons.place, color: Colors.white70, size: 16),
-																									const SizedBox(width: 6),
-																									Expanded(
-																										child: Text(
-																											[city, state, pincode].where((e) => e.trim().isNotEmpty).join(', '),
-																											style: const TextStyle(color: Colors.white70),
-																										),
-																									),
-																								],
-																							),
-																							const SizedBox(height: 6),
-																							Row(
-																								children: [
-																									const Icon(Icons.currency_rupee, color: Colors.white70, size: 16),
-																									const SizedBox(width: 6),
-																									Expanded(
-																										child: Text(
-																											'${price1.isNotEmpty ? '₹ $price1/ session' : ''}${price1.isNotEmpty && priceM.isNotEmpty ? '  &  ' : ''}${priceM.isNotEmpty ? '₹ $priceM monthly session' : ''}',
-																											style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-																										),
-																									),
-																								],
-																							),
 																							const SizedBox(height: 12),
+																							// Book Session Button
 																							Align(
 																								alignment: Alignment.centerRight,
-																								child: ElevatedButton(
-																									style: ElevatedButton.styleFrom(
-																										backgroundColor: const Color(0xFF1E88E5),
-																										padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+																								child: Container(
+																									decoration: BoxDecoration(
+																										color: const Color(0xFFFF6B35),
+																										borderRadius: BorderRadius.circular(25),
 																									),
-																									onPressed: () {
-																										final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-																										Navigator.push(
-																											context,
-																											MaterialPageRoute(
-																												builder: (_) => TrainerProfileScreen(
-																													trainer: Map<String, String>.from(trainerForProfile),
+																									child: TextButton(
+																										onPressed: () {
+																											final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+																											Navigator.push(
+																												context,
+																												MaterialPageRoute(
+																													builder: (_) => TrainerProfileScreen(
+																														trainer: Map<String, String>.from(trainerForProfile),
+																													),
 																												),
+																											);
+																										},
+																										style: TextButton.styleFrom(
+																											padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+																										),
+																										child: const Text(
+																											'Book Session',
+																											style: TextStyle(
+																												color: Colors.white,
+																												fontWeight: FontWeight.bold,
+																												fontSize: 14,
 																											),
-																										);
-																									},
-																									child: const Text('Book Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+																										),
+																									),
 																								),
 																							),
 																						],

@@ -1,7 +1,7 @@
 // lib/screens/splash/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'dart:async';
-import '../onboarding/onboarding_screen.dart';
+//import '../onboarding/onboarding_screen.dart';
 import '../../utils/page_transition.dart';
 import 'package:provider/provider.dart';
 import '../../state/auth_manager.dart';
@@ -86,11 +86,12 @@ class _SplashScreenState extends State<SplashScreen> {
     // After polling (or immediate), read the final auth state
     final finalAuth = Provider.of<AuthManager>(context, listen: false);
     Widget destination;
-
-    if (!finalAuth.isLoggedIn) {
+// #TODO : uncomment onboarding and change it
+   // if (!finalAuth.isLoggedIn) {
       // user not logged in -> onboarding
-      destination = const OnboardingScreen();
-    } else {
+    //  destination = const OnboardingScreen();
+    //} else
+    {
       // logged in: route by role if available
       final role = (finalAuth.role ?? '').toLowerCase();
       if (role == 'trainer') {
@@ -143,8 +144,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   duration: const Duration(milliseconds: 800),
                   child: Column(
                     children: const [
-                  
-                      Text(
+                                    Text(
                         "Fitness Delivered At Your Doorstep",
                         style: TextStyle(
                           fontSize: 25,

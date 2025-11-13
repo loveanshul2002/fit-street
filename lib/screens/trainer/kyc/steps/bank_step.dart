@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../widgets/glass_card.dart';
 import '../utils/ui_helpers.dart';
-import '../utils/input_formatters.dart';
 
 class BankStep extends StatelessWidget {
   final GlobalKey<FormState> formKey;

@@ -792,6 +792,16 @@ class _TrainerListScreenState extends State<TrainerListScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // TODO : add trainer available shorted by nearest
+              //  Text(
+              // 														() {
+              // 													final list = _filtered;
+              // 													final suffix = _userPos != null ? '    sorted by nearest' : '';
+              // 													return ' Trainer{list.length == 1 ? '' : 's'} available $suffix';
+              // 												}(),
+              // 												style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+              // 											),
               // header count
               Builder(builder: (_) {
                 final list = _filtered;

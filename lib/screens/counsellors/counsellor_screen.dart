@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:ui' show ImageFilter;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../services/fitstreet_api.dart';
 import '../../widgets/glass_card.dart';
@@ -17,20 +19,130 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 	bool _loading = true;
 	String? _error;
 	final TextEditingController _searchCtrl = TextEditingController();
+	final TextEditingController _locationCtrl = TextEditingController();
 
 	List<Map<String, dynamic>> _counsellors = [];
 	final Map<String, List<String>> _specCache = {};
+
+	// Track which trainers have expanded specializations
+	final Set<String> _expandedTrainers = {};
+
+	// Filters similar to TrainerListScreen
+	String _gender = 'All';
+	String _experience = 'All';
+	String _mode = 'All';
+	String _fee = 'All';
+
+	// User location to compute distance
+	Position? _userPos;
+
+	// Overlay glass menu support
+	OverlayEntry? _activeMenu;
+	void _hideActiveMenu() {
+		_activeMenu?.remove();
+		_activeMenu = null;
+	}
+	void _showGlassMenu({
+		required GlobalKey anchorKey,
+		required List<String> options,
+		required void Function(String) onSelected,
+	}) {
+		_hideActiveMenu();
+		final ctx = anchorKey.currentContext;
+		if (ctx == null) return;
+		final box = ctx.findRenderObject() as RenderBox?;
+		if (box == null) return;
+		final size = box.size;
+		final offset = box.localToGlobal(Offset.zero);
+		final screen = MediaQuery.of(context).size;
+
+		const double menuWidth = 200;
+		final double horizontalPadding = 16;
+		final double top = offset.dy + size.height + 8;
+		double left = offset.dx;
+		if (left + menuWidth + horizontalPadding > screen.width) {
+			left = screen.width - menuWidth - horizontalPadding;
+			if (left < horizontalPadding) left = horizontalPadding;
+		}
+
+		_activeMenu = OverlayEntry(builder: (oc) {
+			return Stack(children: [
+				Positioned.fill(
+					child: GestureDetector(
+						behavior: HitTestBehavior.translucent,
+						onTap: _hideActiveMenu,
+						child: const SizedBox.expand(),
+					),
+				),
+				Positioned(
+					left: left,
+					top: top,
+					width: menuWidth,
+					child: Material(
+						color: Colors.transparent,
+						child: ClipRRect(
+							borderRadius: BorderRadius.circular(16),
+							child: BackdropFilter(
+								filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+								child: Container(
+									constraints: const BoxConstraints(maxHeight: 260),
+									decoration: BoxDecoration(
+										gradient: LinearGradient(
+											colors: [
+												Colors.white.withOpacity(0.14),
+												Colors.white.withOpacity(0.06),
+											],
+											begin: Alignment.topLeft,
+											end: Alignment.bottomRight,
+										),
+										borderRadius: BorderRadius.circular(16),
+										border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+										boxShadow: [
+											BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 18, offset: const Offset(0, 8)),
+										],
+									),
+									child: ListView.separated(
+										padding: const EdgeInsets.symmetric(vertical: 8),
+										shrinkWrap: true,
+										itemCount: options.length,
+										separatorBuilder: (_, __) => Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+										itemBuilder: (c, i) {
+											final o = options[i];
+											return InkWell(
+												onTap: () {
+													onSelected(o);
+													_hideActiveMenu();
+												},
+												child: Padding(
+													padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+													child: Text(o, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+												),
+											);
+										},
+									),
+								),
+							),
+						),
+					),
+				),
+			]);
+		});
+		Overlay.of(context).insert(_activeMenu!);
+	}
 
 	@override
 	void initState() {
 		super.initState();
 		_searchCtrl.addListener(() => setState(() {}));
+		_locationCtrl.addListener(() => setState(() {}));
 		_load();
 	}
 
 	@override
 	void dispose() {
 		_searchCtrl.dispose();
+		_locationCtrl.dispose();
+		_hideActiveMenu();
 		super.dispose();
 	}
 
@@ -91,6 +203,140 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 		return norms.any((s) => keys.any((k) => s.contains(k)));
 	}
 
+	String _expDisplay(String v) {
+		final s = v.trim().toLowerCase();
+		if (s.isEmpty) return '';
+		const buckets = ['0-6', '6m-1y', '1-3', '3-5', '5+'];
+		if (buckets.contains(s)) {
+			switch (s) {
+				case '0-6':
+					return '0-6 months';
+				case '6m-1y':
+					return '6 months - 1 year';
+				case '1-3':
+					return '1-3 years';
+				case '3-5':
+					return '3-5 years';
+				case '5+':
+					return '5+ years';
+				default:
+					return s;
+			}
+		}
+		final match = RegExp(r"(\d+\.?\d*)").firstMatch(s);
+		if (match != null) {
+			final val = double.tryParse(match.group(1) ?? '');
+			if (val != null) {
+				final isMonth = s.contains('month');
+				final years = isMonth ? (val / 12.0) : val;
+				if (years < 0.5) return '0-6 months';
+				if (years < 1.0) return '6 months - 1 year';
+				if (years < 3.0) return '1-3 years';
+				if (years < 5.0) return '3-5 years';
+				return '5+ years';
+			}
+		}
+		return v.isEmpty ? '' : v;
+	}
+
+	// --- Additional helpers for filters ---
+	num? _parseMoney(dynamic v) {
+		if (v == null) return null;
+		final s = v.toString();
+		if (s.trim().isEmpty) return null;
+		final digits = s.replaceAll(RegExp(r'[^0-9.]'), '');
+		if (digits.isEmpty) return null;
+		return num.tryParse(digits);
+	}
+
+	String _expBucket(String raw) {
+		final s = (raw).toString().trim().toLowerCase();
+		if (s.isEmpty) return '';
+		const buckets = ['0-6', '6m-1y', '1-3', '3-5', '5+'];
+		if (buckets.contains(s)) return s;
+		final match = RegExp(r"(\d+\.?\d*)").firstMatch(s);
+		if (match != null) {
+			final val = double.tryParse(match.group(1) ?? '');
+			if (val != null) {
+				final isMonth = s.contains('month');
+				final years = isMonth ? (val / 12.0) : val;
+				if (years < 0.5) return '0-6';
+				if (years < 1.0) return '6m-1y';
+				if (years < 3.0) return '1-3';
+				if (years < 5.0) return '3-5';
+				return '5+';
+			}
+		}
+		if (s.contains('5')) return '5+';
+		if (s.contains('3-5') || s.contains('3 to 5')) return '3-5';
+		if (s.contains('1-3') || s.contains('1 to 3')) return '1-3';
+		if (s.contains('6') && s.contains('month')) return '0-6';
+		return '';
+	}
+
+	bool _supportsChannel(String rawMode, String channel) {
+		final s = (rawMode).toString().trim().toLowerCase();
+		if (s.isEmpty) return false;
+		final hasOnline = s.contains('online');
+		final hasOffline = s.contains('offline');
+		final isBoth = s.contains('both') || (hasOnline && hasOffline) || s.contains('&');
+		switch (channel.toLowerCase()) {
+			case 'online':
+				return hasOnline || isBoth;
+			case 'offline':
+				return hasOffline || isBoth;
+			default:
+				return false;
+		}
+	}
+
+	Widget _buildFilterChip(String title, String current, List<String> options) {
+		final isBlue = title == 'Fee' || title == 'Mode' || title == 'Gender' || title == 'Experience';
+		final accentColor = isBlue ? const Color(0xFF2196F3) : const Color(0xFFFF6B35);
+		final chipKey = GlobalKey();
+		
+		return GestureDetector(
+			onTap: () {
+				_showGlassMenu(
+					anchorKey: chipKey,
+					options: options,
+					onSelected: (value) {
+						setState(() {
+							switch (title) {
+								case 'Gender': _gender = value; break;
+								case 'Experience': _experience = value; break;
+								case 'Mode': _mode = value; break;
+								case 'Fee': _fee = value; break;
+							}
+						});
+					},
+				);
+			},
+			child: Container(
+				key: chipKey,
+				padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+				decoration: BoxDecoration(
+					color: current == 'All'
+						? Colors.white.withOpacity(0.1)
+						: accentColor.withOpacity(0.2),
+					borderRadius: BorderRadius.circular(16),
+					border: Border.all(
+						color: current == 'All' ? Colors.white30 : accentColor,
+						width: 0.5,
+					),
+				),
+				child: Text(
+					current == 'All' ? title : current,
+					style: TextStyle(
+						color: current == 'All' ? Colors.white70 : accentColor,
+						fontSize: 12,
+						fontWeight: FontWeight.w500,
+					),
+				),
+			),
+		);
+	}
+
 	Future<List<String>> _fetchSpecsFor(String trainerId) async {
 		if (trainerId.isEmpty) return const [];
 		if (_specCache.containsKey(trainerId)) return _specCache[trainerId]!;
@@ -135,6 +381,16 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 			_error = null;
 		});
 		try {
+			// Try to obtain user's current position (ask permission if needed)
+			final hasService = await Geolocator.isLocationServiceEnabled();
+			LocationPermission perm = await Geolocator.checkPermission();
+			if (perm == LocationPermission.denied) {
+				perm = await Geolocator.requestPermission();
+			}
+			if (hasService && (perm == LocationPermission.always || perm == LocationPermission.whileInUse)) {
+				_userPos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+			}
+
 			final sp = await SharedPreferences.getInstance();
 			final token = sp.getString('fitstreet_token') ?? '';
 			final api = FitstreetApi('https://api.fitstreet.in', token: token);
@@ -158,12 +414,11 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 
 				// First pass: payload-based detection
 				final payloadMatches = eligible.where((t) => _isCounsellorSpecPresent(_extractSpecs(t))).toList();
-				if (mounted) setState(() => _counsellors = payloadMatches);
 
 				// Second pass: fetch proofs for the rest and merge
 				final unknown = eligible.where((t) => !_isCounsellorSpecPresent(_extractSpecs(t))).toList();
+				final List<Map<String, dynamic>> toAdd = [];
 				if (unknown.isNotEmpty) {
-					final List<Map<String, dynamic>> toAdd = [];
 					for (final t in unknown) {
 						final id = (t['_id'] ?? t['id'] ?? '').toString();
 						if (id.isEmpty) continue;
@@ -172,10 +427,33 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 							toAdd.add(t);
 						}
 					}
-					if (toAdd.isNotEmpty && mounted) {
-						setState(() => _counsellors = [..._counsellors, ...toAdd]);
-					}
 				}
+
+				// Combine results
+				List<Map<String, dynamic>> combined = [...payloadMatches, ...toAdd];
+
+				// compute distance (km) if coordinates available
+				if (_userPos != null) {
+					for (final t in combined) {
+						final lat = double.tryParse((t['latitude'] ?? t['lat'] ?? '').toString());
+						final lng = double.tryParse((t['longitude'] ?? t['lng'] ?? t['long'] ?? '').toString());
+						if (lat != null && lng != null) {
+							final dMeters = Geolocator.distanceBetween(_userPos!.latitude, _userPos!.longitude, lat, lng);
+							t['distanceKm'] = (dMeters / 1000.0);
+						}
+					}
+					// sort by nearest first; trainers with distance go first
+					combined.sort((a, b) {
+						final da = (a['distanceKm'] as num?)?.toDouble();
+						final db = (b['distanceKm'] as num?)?.toDouble();
+						if (da == null && db == null) return 0;
+						if (da == null) return 1;
+						if (db == null) return -1;
+						return da.compareTo(db);
+					});
+				}
+
+				if (mounted) setState(() => _counsellors = combined);
 			} else {
 				setState(() => _error = 'Server ${resp.statusCode}');
 			}
@@ -187,25 +465,125 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 	}
 
 	List<Map<String, dynamic>> get _filtered {
+		List<Map<String, dynamic>> result = List.from(_counsellors);
+
+		// Filter by search query
 		final q = _searchCtrl.text.trim().toLowerCase();
-		if (q.isEmpty) return _counsellors;
-		return _counsellors.where((t) {
-			final name = (t['fullName'] ?? t['name'] ?? '').toString().toLowerCase();
-			final code = (t['trainerUniqueId'] ?? '').toString().toLowerCase();
-			return name.contains(q) || code.contains(q);
-		}).toList();
+		if (q.isNotEmpty) {
+			result = result.where((t) {
+				final name = (t['fullName'] ?? t['name'] ?? '').toString().toLowerCase();
+				final code = (t['trainerUniqueId'] ?? '').toString().toLowerCase();
+				return name.contains(q) || code.contains(q);
+			}).toList();
+		}
+
+		// Filter by location if specified
+		if (_locationCtrl.text.trim().isNotEmpty) {
+			final locLower = _locationCtrl.text.trim().toLowerCase();
+			result = result.where((t) {
+				final city = (t['city'] ?? '').toString().toLowerCase();
+				final state = (t['state'] ?? '').toString().toLowerCase();
+				final country = (t['country'] ?? '').toString().toLowerCase();
+				final address = (t['address'] ?? '').toString().toLowerCase();
+				return city.contains(locLower) || state.contains(locLower) || 
+					   country.contains(locLower) || address.contains(locLower);
+			}).toList();
+		}
+
+		// Filter by Gender
+		if (_gender != 'All') {
+			result = result.where((t) {
+				final gender = (t['gender'] ?? '').toString().toLowerCase();
+				return gender == _gender.toLowerCase();
+			}).toList();
+		}
+
+		// Filter by Experience
+		if (_experience != 'All') {
+			result = result.where((t) {
+				final expStr = (t['experience'] ?? '').toString();
+				final expBucket = _expBucket(expStr);
+				return expBucket == _experience;
+			}).toList();
+		}
+
+		// Filter by Mode (online/offline)
+		if (_mode != 'All') {
+			result = result.where((t) {
+				final modeStr = (t['mode'] ?? '').toString();
+				final channel = _mode.toLowerCase();
+				return _supportsChannel(modeStr, channel);
+			}).toList();
+		}
+
+		// Filter by Fee range
+		if (_fee != 'All') {
+			result = result.where((t) {
+				final feeNum = _parseMoney((t['price'] ?? t['fee'] ?? '').toString());
+				if (feeNum == null) return false;
+				switch (_fee) {
+					case 'Under ₹500': return feeNum < 500;
+					case '₹500-₹1000': return feeNum >= 500 && feeNum <= 1000;
+					case '₹1000-₹2000': return feeNum >= 1000 && feeNum <= 2000;
+					case 'Above ₹2000': return feeNum > 2000;
+					default: return true;
+				}
+			}).toList();
+		}
+
+		return result;
 	}
 
-	Widget _specChip(String text) {
-		return Container(
-			padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-			margin: const EdgeInsets.only(right: 8, bottom: 8),
-			decoration: BoxDecoration(
-				color: Colors.white.withOpacity(0.12),
-				borderRadius: BorderRadius.circular(999),
-				border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+	Widget _filterChip(String label, String value, List<String> options, void Function(String) onChanged) {
+		final key = GlobalKey();
+		return GestureDetector(
+			onTap: () {
+				if (_activeMenu != null) {
+					_hideActiveMenu();
+				} else {
+					_showGlassMenu(anchorKey: key, options: options, onSelected: onChanged);
+				}
+			},
+			child: Container(
+				key: key,
+				decoration: const BoxDecoration(),
+				child: ClipRRect(
+					borderRadius: BorderRadius.circular(999),
+					child: BackdropFilter(
+						filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+						child: Container(
+							padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+							decoration: BoxDecoration(
+								gradient: LinearGradient(
+									colors: [
+										Colors.white.withOpacity(0.16),
+										Colors.white.withOpacity(0.06),
+									],
+									begin: Alignment.topLeft,
+									end: Alignment.bottomRight,
+								),
+								borderRadius: BorderRadius.circular(999),
+								border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+								boxShadow: [
+									BoxShadow(
+										color: Colors.black.withOpacity(0.15),
+										blurRadius: 12,
+										offset: const Offset(0, 6),
+									),
+								],
+							),
+							child: Row(
+								mainAxisSize: MainAxisSize.min,
+								children: [
+									Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+									const SizedBox(width: 6),
+									const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 18),
+								],
+							),
+						),
+					),
+				),
 			),
-			child: Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
 		);
 	}
 
@@ -244,41 +622,137 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 									child: Column(
 										crossAxisAlignment: CrossAxisAlignment.start,
 										children: [
-											// Search
-											Container(
-												height: 44,
-												padding: const EdgeInsets.symmetric(horizontal: 12),
-												decoration: BoxDecoration(
-													color: Colors.white.withOpacity(0.12),
-													borderRadius: BorderRadius.circular(12),
-													border: Border.all(color: Colors.white24),
-												),
-												child: Row(children: [
-													const Icon(Icons.search, color: Colors.white70, size: 20),
-													const SizedBox(width: 8),
+											// Search + location bar
+											Row(
+												children: [
 													Expanded(
-														child: TextField(
-															controller: _searchCtrl,
-															style: const TextStyle(color: Colors.white),
-															decoration: const InputDecoration(
-																hintText: 'Search by Name or Trainer Id',
-																hintStyle: TextStyle(color: Colors.white54),
-																border: InputBorder.none,
+														flex: 6,
+														child: Container(
+															height: 44,
+															padding: const EdgeInsets.symmetric(horizontal: 12),
+															decoration: BoxDecoration(
+																color: Colors.white.withOpacity(0.12),
+																borderRadius: BorderRadius.circular(12),
+																border: Border.all(color: Colors.white24),
 															),
+															child: Row(children: [
+																const Icon(Icons.search, color: Colors.white70, size: 20),
+																const SizedBox(width: 8),
+																Expanded(
+																	child: TextField(
+																		controller: _searchCtrl,
+																		style: const TextStyle(color: Colors.white),
+																		decoration: const InputDecoration(
+																			hintText: 'Search by Name or Trainer Id',
+																			hintStyle: TextStyle(color: Colors.white54),
+																			border: InputBorder.none,
+																		),
+																	),
+																),
+															]),
 														),
 													),
-												]),
+													const SizedBox(width: 12),
+													Expanded(
+														flex: 4,
+														child: Container(
+															height: 44,
+															padding: const EdgeInsets.symmetric(horizontal: 12),
+															decoration: BoxDecoration(
+																color: Colors.white.withOpacity(0.12),
+																borderRadius: BorderRadius.circular(12),
+																border: Border.all(color: Colors.white24),
+															),
+															child: Row(children: [
+																const Icon(Icons.location_on, color: Colors.white70, size: 20),
+																const SizedBox(width: 8),
+																Expanded(
+																	child: TextField(
+																		controller: _locationCtrl,
+																		style: const TextStyle(color: Colors.white),
+																		decoration: const InputDecoration(
+																			hintText: 'City/State/Pincode',
+																			hintStyle: TextStyle(color: Colors.white54),
+																			border: InputBorder.none,
+																		),
+																	),
+																),
+															]),
+														),
+													),
+												],
 											),
 											const SizedBox(height: 12),
+											// Filters row
+											SingleChildScrollView(
+												scrollDirection: Axis.horizontal,
+												child: Row(
+													children: [
+														_filterChip('Gender', _gender, const ['All','Female','Male','Other'], (v) => setState(() => _gender = v)),
+														const SizedBox(width: 8),
+														_filterChip('Experience', _experience, const ['All','0-6','6m-1y','1-3','3-5','5+'], (v) => setState(() => _experience = v)),
+														const SizedBox(width: 8),
+														_filterChip('Mode', _mode, const ['All','Online','Offline','Both'], (v) => setState(() => _mode = v)),
+														const SizedBox(width: 8),
+														_filterChip('Fee', _fee, const ['All','< ₹500','₹500-₹999','₹1000-₹1999','₹2000+'], (v) => setState(() => _fee = v)),
+														const SizedBox(width: 8),
+														// Reset
+														ClipRRect(
+															borderRadius: BorderRadius.circular(999),
+															child: BackdropFilter(
+																filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+																child: InkWell(
+																	onTap: () => setState(() {
+																		_gender = 'All';
+																		_experience = 'All';
+																		_mode = 'All';
+																		_fee = 'All';
+																		_locationCtrl.clear();
+																	}),
+																	child: Container(
+																		padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+																		decoration: BoxDecoration(
+																			gradient: LinearGradient(
+																				colors: [
+																					Colors.white.withOpacity(0.16),
+																					Colors.white.withOpacity(0.06),
+																				],
+																				begin: Alignment.topLeft,
+																				end: Alignment.bottomRight,
+																			),
+																			borderRadius: BorderRadius.circular(999),
+																			border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+																		),
+																		child: const Row(
+																			mainAxisSize: MainAxisSize.min,
+																			children: [
+																				Icon(Icons.refresh, color: Colors.white70, size: 18),
+																				SizedBox(width: 6),
+																				Text('Reset', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+																			],
+																		),
+																	),
+																),
+															),
+														),
+													],
+												),
+											),
+											const SizedBox(height: 12),
+
 											Text(
-												'${_filtered.length} Counsellor${_filtered.length == 1 ? '' : 's'} available',
+														() {
+													final list = _filtered;
+													final suffix = _userPos != null ? '    sorted by nearest' : '';
+													return ' psychiatrist${list.length == 1 ? '' : 's'} available $suffix';
+												}(),
 												style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
 											),
 											const SizedBox(height: 10),
 											Expanded(
 												child: _filtered.isEmpty
 														? const Center(
-																child: Text('No counsellors found right now', style: TextStyle(color: Colors.white70)),
+																child: Text('No psychiatrists found right now', style: TextStyle(color: Colors.white70)),
 															)
 														: RefreshIndicator(
 																onRefresh: _load,
@@ -292,129 +766,340 @@ class _CounsellorScreenState extends State<CounsellorScreen> {
 																		final city = (t['currentCity'] ?? t['city'] ?? '').toString();
 																		final state = (t['currentState'] ?? t['state'] ?? '').toString();
 																		final pincode = (t['currentPincode'] ?? t['pincode'] ?? '').toString();
+																		final mode = (t['mode'] ?? '').toString();
+																		final exp = _expDisplay((t['experience'] ?? '').toString());
+
+
 																		final img = (t['trainerImageURL'] ?? '').toString();
 																		final price1 = (t['oneSessionPrice'] ?? '').toString();
 																		final priceM = (t['monthlySessionPrice'] ?? '').toString();
-																		final id = (t['_id'] ?? t['id'] ?? '').toString();
-																		final initialSpecs = _extractSpecs(t);
+																		final distanceKm = (t['distanceKm'] as num?)?.toDouble();
+																		String? distText;
+																		if (distanceKm != null) {
+																			final rounded = distanceKm < 1
+																					? '${(distanceKm * 1000).toStringAsFixed(0)} m'
+																					: '${distanceKm.toStringAsFixed(distanceKm < 10 ? 1 : 0)} km';
+																			distText = '$rounded away';
+																		}
 
 																		return Padding(
 																			padding: const EdgeInsets.only(bottom: 14),
 																			child: GlassCard(
 																				child: Padding(
-																					padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+																					padding: const EdgeInsets.all(13),
 																					child: Column(
 																						crossAxisAlignment: CrossAxisAlignment.start,
 																						children: [
-																							Center(
-																								child: Column(
-																									children: [
-																										Container(
-																											width: 96,
-																											height: 96,
-																											decoration: const BoxDecoration(shape: BoxShape.circle),
-																											clipBehavior: Clip.antiAlias,
-																											child: img.isNotEmpty
-																													? Image.network(
+																							Row(
+																								crossAxisAlignment: CrossAxisAlignment.start,
+																								children: [
+																									// Profile Image with Specialization Badge
+																									Column(
+																										children: [
+																											Stack(
+																												children: [
+																													Container(
+																														width: 120,
+																														height: 120,
+																														decoration: const BoxDecoration(shape: BoxShape.circle),
+																														clipBehavior: Clip.antiAlias,
+																														child: img.isNotEmpty
+																																? Image.network(
 																															img,
 																															fit: BoxFit.cover,
 																															errorBuilder: (_, __, ___) => Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
 																														)
-																													: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
+																																: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
+																													),
+																												],
+																											),
+																											const SizedBox(height: 4),
+																											// View Profile Button - Now below the image with better visibility
+																											Container(
+																												decoration: BoxDecoration(
+																													borderRadius: BorderRadius.circular(12),
+																												),
+																												child: TextButton(
+																													onPressed: () {
+																														final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+																														Navigator.push(
+																															context,
+																															MaterialPageRoute(
+																																builder: (_) => TrainerProfileScreen(trainer: Map<String, String>.from(trainerForProfile)),
+																															),
+																														);
+																													},
+																													style: TextButton.styleFrom(
+																														padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+																														minimumSize: Size.zero,
+																													),
+																													child: const Text(
+																														'view profile',
+																														style: TextStyle(
+																															color: Color(0xFFFF6B35),
+																															fontSize: 16,
+																															fontWeight: FontWeight.w900,
+																															decoration: TextDecoration.underline,
+																															decorationColor: Color(0xFFFF6B35),
+																															decorationThickness: 2,
+																														),
+																													),
+																												),
+																											),
+																										],
+																									),
+																									const SizedBox(width: 16),
+																									// Trainer Details
+																									Expanded(
+																										child: Column(
+																											crossAxisAlignment: CrossAxisAlignment.start,
+																											children: [
+																												Row(
+																													children: [
+																														Expanded(
+																															child: Column(
+																																crossAxisAlignment: CrossAxisAlignment.start,
+																																children: [
+																																	Text(
+																																		name,
+																																		style: const TextStyle(
+																																			color: Color(0xFFFF6B35),
+																																			fontSize: 18,
+																																			fontWeight: FontWeight.bold,
+																																		),
+																																	),
+																																	if (code.isNotEmpty)
+																																		Text(
+																																			'($code)',
+																																			style: const TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 13,
+																																				fontWeight: FontWeight.bold,
+																																			),
+																																		),
+																																],
+																															),
+																														),
+																														// Gender Text
+																														Container(
+
+																															child: Text(
+																																		() {
+																																	final gender = (t['gender'] ?? '').toString().toLowerCase();
+																																	switch (gender) {
+																																		case 'female':
+																																			return 'Female';
+																																		case 'male':
+																																			return 'Male';
+																																		case 'other':
+																																			return 'Other';
+																																		default:
+																																			return 'Other';
+																																	}
+																																}(),
+																																style: const TextStyle(
+																																	color: Color(0xFFFFFFFF),
+																																	fontSize: 14,
+																																	fontWeight: FontWeight.bold,
+																																),
+																															),
+																														),
+																													],
+																												),
+																												const SizedBox(height: 6),
+																												// Mode Pill
+																												if (mode.isNotEmpty)
+																													Container(
+																														padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+																														decoration: BoxDecoration(
+																															color: const Color(0xFFFF6B35),
+																															borderRadius: BorderRadius.circular(20),
+																														),
+																														child: Text(
+																															mode.toLowerCase() == 'both'
+																																	? 'online & offline session'
+																																	: '${mode.toLowerCase()} session',
+																															style: const TextStyle(
+																																color: Colors.white,
+																																fontWeight: FontWeight.bold,
+																																fontSize: 12,
+																															),
+																														),
+																													),
+																												const SizedBox(height: 8),
+																												// Specialization Tags
+																												Builder(builder: (context) {
+																													final specs = _extractSpecs(t);
+																													final id = (t['_id'] ?? t['id'] ?? '').toString();
+																													final cachedSpecs = _specCache[id] ?? [];
+																													final allSpecs = [...specs, ...cachedSpecs].where((s) => s.isNotEmpty).toSet().toList();
+
+																													if (allSpecs.isEmpty) return const SizedBox.shrink();
+
+																													final isExpanded = _expandedTrainers.contains(id);
+																													final displaySpecs = isExpanded ? allSpecs : allSpecs.take(3).toList();
+																													final hasMore = allSpecs.length > 3;
+																													final remainingCount = allSpecs.length - 3;
+
+																													return Wrap(
+																														spacing: 6,
+																														runSpacing: 4,
+																														children: [
+																															...displaySpecs.map((spec) {
+																																return Container(
+																																	padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																	decoration: BoxDecoration(
+																																		color: Colors.orange[550],
+																																		borderRadius: BorderRadius.circular(12),
+																																		border: Border.all(color: Colors.white.withOpacity(0.3)),
+																																	),
+																																	child: Text(
+																																		spec,
+																																		style: const TextStyle(
+																																			color: Colors.white,
+																																			fontSize: 10,
+																																			fontWeight: FontWeight.w600,
+																																		),
+																																	),
+																																);
+																															}),
+																															if (hasMore && !isExpanded)
+																																GestureDetector(
+																																	onTap: () => setState(() => _expandedTrainers.add(id)),
+																																	child: Container(
+																																		padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																		decoration: BoxDecoration(
+																																			color: Colors.white.withOpacity(0.2),
+																																			borderRadius: BorderRadius.circular(12),
+																																			border: Border.all(color: Colors.white.withOpacity(0.4)),
+																																		),
+																																		child: Text(
+																																			'+$remainingCount more',
+																																			style: const TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 10,
+																																				fontWeight: FontWeight.w600,
+																																			),
+																																		),
+																																	),
+																																),
+																															if (isExpanded && hasMore)
+																																GestureDetector(
+																																	onTap: () => setState(() => _expandedTrainers.remove(id)),
+																																	child: Container(
+																																		padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+																																		decoration: BoxDecoration(
+																																			color: Colors.white.withOpacity(0.2),
+																																			borderRadius: BorderRadius.circular(12),
+																																			border: Border.all(color: Colors.white.withOpacity(0.4)),
+																																		),
+																																		child: const Text(
+																																			'show less',
+																																			style: TextStyle(
+																																				color: Colors.white,
+																																				fontSize: 10,
+																																				fontWeight: FontWeight.w600,
+																																			),
+																																		),
+																																	),
+																																),
+																														],
+																													);
+																												}),
+																											],
+																										),
+																									),
+																								],
+																							),
+																							const SizedBox(height: 3),
+																							// White Info Box
+																							Container(
+																								width: double.infinity,
+																								padding: const EdgeInsets.all(12),
+																								decoration: BoxDecoration(
+																									color: Colors.white,
+																									borderRadius: BorderRadius.circular(15),
+																								),
+																								child: Column(
+																									crossAxisAlignment: CrossAxisAlignment.start,
+																									children: [
+																										// Location with distance
+																										Row(
+																											children: [
+																												Icon(Icons.place, color: Colors.orange[550], size: 19),
+																												const SizedBox(width: 4),
+																												Expanded(
+																													child: Text(
+																														[city, state, pincode].where((e) => e.trim().isNotEmpty).join(', '),
+																														style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+																														maxLines: 1,
+																														overflow: TextOverflow.ellipsis,
+																													),
+																												),
+																												if (distText != null)
+																													Text(distText, style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),),
+																											],
 																										),
 																										const SizedBox(height: 8),
-																										TextButton(
-																											onPressed: () {
-																												final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-																												Navigator.push(
-																													context,
-																													MaterialPageRoute(
-																														builder: (_) => TrainerProfileScreen(trainer: Map<String, String>.from(trainerForProfile)),
+																										// Experience
+																										if (exp.isNotEmpty)
+																											Row(
+																												children: [
+																													Icon(Icons.workspace_premium, color: Colors.orange[550], size: 19),
+																													const SizedBox(width: 4),
+																													Text(
+																														exp,
+																														style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
 																													),
-																												);
-																											},
-																											child: const Text('View Profile', style: TextStyle(decoration: TextDecoration.underline)),
+																												],
+																											),
+																										const SizedBox(height: 8),
+																										// Pricing
+																										Row(
+																											children: [
+																												Icon(Icons.currency_rupee_rounded, color: Colors.orange[550], size: 19),
+																												Expanded(
+																													child: Text(
+																														'${price1.isNotEmpty ? '$price1/ session' : ''}${price1.isNotEmpty && priceM.isNotEmpty ? ' and ' : ''}${priceM.isNotEmpty ? '$priceM monthly session' : ''}',
+																														style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.bold),
+																													),
+																												),
+																											],
 																										),
 																									],
 																								),
 																							),
-																							const SizedBox(height: 6),
-																							Text(
-																								code.isNotEmpty ? '$name ($code)' : name,
-																								style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-																							),
-																							const SizedBox(height: 8),
-																							Builder(
-																								builder: (_) {
-																									if (initialSpecs.isNotEmpty) {
-																										return Wrap(
-																											spacing: 8,
-																											runSpacing: 8,
-																											children: initialSpecs.map((s) => _specChip(s)).toList(),
-																										);
-																									}
-																									if (id.isEmpty) return const SizedBox.shrink();
-																									return FutureBuilder<List<String>>(
-																										future: _fetchSpecsFor(id),
-																										builder: (ctx, snap) {
-																											final specs = snap.data ?? const [];
-																											if (specs.isEmpty) return const SizedBox.shrink();
-																											return Wrap(
-																												spacing: 8,
-																												runSpacing: 8,
-																												children: specs.map((s) => _specChip(s)).toList(),
-																											);
-																										},
-																									);
-																								},
-																							),
-																							const SizedBox(height: 10),
-																							Row(
-																								crossAxisAlignment: CrossAxisAlignment.start,
-																								children: [
-																									const Icon(Icons.place, color: Colors.white70, size: 16),
-																									const SizedBox(width: 6),
-																									Expanded(
-																										child: Text(
-																											[city, state, pincode].where((e) => e.trim().isNotEmpty).join(', '),
-																											style: const TextStyle(color: Colors.white70),
-																										),
-																									),
-																								],
-																							),
-																							const SizedBox(height: 6),
-																							Row(
-																								children: [
-																									const Icon(Icons.currency_rupee, color: Colors.white70, size: 16),
-																									const SizedBox(width: 6),
-																									Expanded(
-																										child: Text(
-																											'${price1.isNotEmpty ? '₹ $price1/ session' : ''}${price1.isNotEmpty && priceM.isNotEmpty ? '  &  ' : ''}${priceM.isNotEmpty ? '₹ $priceM monthly session' : ''}',
-																											style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-																										),
-																									),
-																								],
-																							),
 																							const SizedBox(height: 12),
+																							// Book Session Button
 																							Align(
 																								alignment: Alignment.centerRight,
-																								child: ElevatedButton(
-																									style: ElevatedButton.styleFrom(
-																										backgroundColor: const Color(0xFF1E88E5),
-																										padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+																								child: Container(
+																									decoration: BoxDecoration(
+																										color: const Color(0xFFFF6B35),
+																										borderRadius: BorderRadius.circular(70),
 																									),
-																									onPressed: () {
-																										final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-																										Navigator.push(
-																											context,
-																											MaterialPageRoute(
-																												builder: (_) => TrainerProfileScreen(
-																													trainer: Map<String, String>.from(trainerForProfile),
+																									child: TextButton(
+																										onPressed: () {
+																											final trainerForProfile = t.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
+																											Navigator.push(
+																												context,
+																												MaterialPageRoute(
+																													builder: (_) => TrainerProfileScreen(
+																														trainer: Map<String, String>.from(trainerForProfile),
+																													),
 																												),
+																											);
+																										},
+
+																										child: const Text(
+																											'Book Session',
+																											style: TextStyle(
+																												color: Colors.white,
+																												fontSize: 15,
+																												fontWeight: FontWeight.bold,
 																											),
-																										);
-																									},
-																									child: const Text('Book Session', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+																										),
+																									),
 																								),
 																							),
 																						],

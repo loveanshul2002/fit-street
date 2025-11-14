@@ -690,14 +690,8 @@ class _YogaScreenState extends State<YogaScreen> {
                       Text(
                         () {
                           final list = _filtered;
-                          final loc = _locationCtrl.text.trim();
-                          final city = list.isNotEmpty ? (list.first['city'] ?? list.first['currentCity'] ?? '') : '';
-                          final state = list.isNotEmpty ? (list.first['state'] ?? list.first['currentState'] ?? '') : '';
-                          final area = loc.isNotEmpty
-                              ? loc
-                              : [city, state].where((s) => s != null && s.toString().trim().isNotEmpty).join(', ');
-                          final suffix = _userPos != null ? '  •  sorted by nearest' : '';
-                          return '${list.length} Yoga trainer${list.length == 1 ? '' : 's'} available ${area.isNotEmpty ? 'in $area' : ''}$suffix';
+                          final suffix = _userPos != null ? '    sorted by nearest' : '';
+                          return ' Yoga trainer${list.length == 1 ? '' : 's'} available $suffix';
                         }(),
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                       ),

@@ -711,16 +711,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
 											),
 											const SizedBox(height: 10),
 											Text(
-												() {
+														() {
 													final list = _filtered;
-													final loc = _locationCtrl.text.trim();
-													final city = list.isNotEmpty ? (list.first['city'] ?? list.first['currentCity'] ?? '') : '';
-													final state = list.isNotEmpty ? (list.first['state'] ?? list.first['currentState'] ?? '') : '';
-													final area = loc.isNotEmpty
-															? loc
-															: [city, state].where((s) => s != null && s.toString().trim().isNotEmpty).join(', ');
-													final suffix = _userPos != null ? '  •  sorted by nearest' : '';
-													return '${list.length} Nutritionist${list.length == 1 ? '' : 's'} available ${area.isNotEmpty ? 'in $area' : ''}$suffix';
+													final suffix = _userPos != null ? '    sorted by nearest' : '';
+													return ' nutritionist${list.length == 1 ? '' : 's'} available $suffix';
 												}(),
 												style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
 											),
@@ -784,7 +778,7 @@ class _NutritionScreenState extends State<NutritionScreen> {
 																															)
 																														: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.cover),
 																											),
-																											const SizedBox(height: 4),
+																											const SizedBox(height: 0.1),
 																											// View Profile Button
 																											Container(
 																												decoration: BoxDecoration(
@@ -801,14 +795,14 @@ class _NutritionScreenState extends State<NutritionScreen> {
 																														);
 																													},
 																													style: TextButton.styleFrom(
-																														padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 8),
+																														padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
 																														minimumSize: Size.zero,
 																													),
 																													child: const Text(
 																														'view profile',
 																														style: TextStyle(
 																															color: Color(0xFFFF6B35),
-																															fontSize: 16,
+																															fontSize: 13,
 																															fontWeight: FontWeight.w900,
 																															decoration: TextDecoration.underline,
 																															decorationColor: Color(0xFFFF6B35),

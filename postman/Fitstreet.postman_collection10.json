@@ -846,6 +846,11 @@
 							"value": "upcoming",
 							"description": "default('upcoming') // 'completed' or 'rejected'",
 							"type": "text"
+						},
+						{
+							"key": "razorpayOrderId",
+							"value": "",
+							"type": "text"
 						}
 					]
 				},
@@ -1226,7 +1231,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"name\":\"\",\r\n    \"phoneNumber\":\"\",\r\n    \"requirement\":\"\"\r\n}",
+					"raw": "{\r\n    \"name\":\"\",\r\n    \"phoneNumber\":\"\",\r\n    \"requirement\":\"\"\r\n}\r\n",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -1261,6 +1266,82 @@
 						"api",
 						"users",
 						"consultations"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get User Quote",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/users/quote",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"quote"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Trainer Quote",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/trainers/quote",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"trainers",
+						"quote"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Razorpay create order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/razorpay/create-order",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"razorpay",
+						"create-order"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Razorpay Verify Order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/razorpay/verify-payment",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"razorpay",
+						"verify-payment"
 					]
 				}
 			},

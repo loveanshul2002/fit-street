@@ -1,5 +1,6 @@
 // lib/screens/home/home_screen.dart
 import 'dart:convert';
+import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -938,34 +939,7 @@ content: const Text(
     );
   }
   Widget _heroBanner(BuildContext context) {
-    // Preserve original Figma aspect ratio (660×308) and cover the area without distortion
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(45),
-      child: AspectRatio(
-        aspectRatio: 660 / 308,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background image fills while keeping proportions
-            Image.asset(
-              'assets/image/Frame 178.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-            ),
-            // Left-to-right orange overlay like the Figma Frame 179
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerLeft,
-                  colors: [Colors.transparent, Color(0xFFFF5C00)],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return const _CarouselBanner();
   }
 
   Widget _ctaButton(BuildContext context) {
@@ -1222,4 +1196,132 @@ class _BottomItem {
   final IconData icon;
   final String label;
   const _BottomItem(this.icon, this.label);
+}
+
+class _CarouselBanner extends StatefulWidget {
+  const _CarouselBanner({Key? key}) : super(key: key);
+
+  @override
+  State<_CarouselBanner> createState() => _CarouselBannerState();
+}
+
+class _CarouselBannerState extends State<_CarouselBanner> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+  Timer? _timer;
+
+  // Carousel data - add more images as needed
+  final List<String> _bannerImages = [
+    'assets/image/Frame 178.png',
+    'assets/image/yoga-bg.png',
+
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+    _startAutoSlide();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoSlide() {
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (_pageController.hasClients) {
+        int nextPage = (_currentIndex + 1) % _bannerImages.length;
+        _pageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(45),
+      child: AspectRatio(
+        aspectRatio: 660 / 308,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Carousel PageView
+            PageView.builder(
+              controller: _pageController,
+              itemCount: _bannerImages.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Background image fills while keeping proportions
+                    Image.asset(
+                      _bannerImages[index],
+                      fit: BoxFit.cover,
+                      alignment: Alignment.center,
+                    ),
+                    // Left-to-right orange overlay
+                    Container(
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [Colors.transparent, Color(0x88FF5C00)],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            // Carousel indicators
+            Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _bannerImages.length,
+                  (index) => GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: _currentIndex == index ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _currentIndex == index
+                            ? Colors.white
+                            : Colors.white.withOpacity(0.4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

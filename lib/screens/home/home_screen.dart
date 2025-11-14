@@ -5,6 +5,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // import '../../widgets/glass_card.dart';
@@ -47,6 +48,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // User avatar url for greeting pill
   String? _userImageUrl;
+  // Dynamic quote image (motivational banner) fetched from backend
+  String? _quoteImageUrl; // full URL from API
+  bool _loadingQuote = false;
+  // Carousel state
+  final PageController _carouselController = PageController();
+  int _carouselIndex = 0;
+  List<String> _carouselImages = ['assets/image/Frame 178.png'];
+  Timer? _carouselTimer;
   void _openSupportAndPoliciesSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -140,6 +149,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final auth = context.read<AuthManager?>();
       auth?.addListener(_onAuthChanged);
       _fetchNotificationsIfLoggedIn();
+  _fetchQuoteImage();
+  _startCarouselAutoPlay();
     });
   }
 
@@ -151,6 +162,10 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
     try {
       _hideNotificationOverlay();
+    } catch (_) {}
+    try {
+      _carouselTimer?.cancel();
+      _carouselController.dispose();
     } catch (_) {}
     super.dispose();
   }
@@ -230,6 +245,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   void refreshGreeting() => _loadProfileState();
+
+  // ===== Quote Image Fetch =====
+  Future<void> _fetchQuoteImage() async {
+    try {
+      setState(() => _loadingQuote = true);
+      final sp = await SharedPreferences.getInstance();
+      final token = sp.getString('fitstreet_token') ?? '';
+  final api = FitstreetApi('https://api.fitstreet.in', token: token);
+  // Always use the user quote endpoint regardless of role
+  final http.Response resp = await api.getUserQuote();
+      if (resp.statusCode == 200) {
+        try {
+          final decoded = jsonDecode(resp.body);
+          dynamic quoteObj;
+          // Accept several shapes
+          if (decoded is Map) {
+            final map = decoded;
+            quoteObj = map['quote'] ?? map['data'] ?? map; // handle {quote:{...}} or {data:{...}} or flat
+          } else if (decoded is List && decoded.isNotEmpty) {
+            quoteObj = decoded.first;
+          }
+
+          if (quoteObj is Map) {
+            final img = quoteObj['image'] ?? quoteObj['imageUrl'] ?? quoteObj['url'];
+            final updatedAt = quoteObj['updatedAt'] ?? quoteObj['updated_at'];
+            if (img is String && img.trim().isNotEmpty && mounted) {
+              // Add a cache-busting query param so daily updates reflect immediately
+              final ts = (updatedAt is String && updatedAt.isNotEmpty)
+                  ? DateTime.tryParse(updatedAt)?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch
+                  : DateTime.now().millisecondsSinceEpoch;
+              final sep = img.contains('?') ? '&' : '?';
+              final url = '${img.trim()}${sep}ts=$ts';
+              setState(() {
+                _quoteImageUrl = url;
+                _carouselImages = [url, 'assets/image/Frame 178.png'];
+              });
+            }
+          }
+        } catch (_) {}
+      }
+    } catch (_) {
+      // silent fail
+    } finally {
+      if (mounted) setState(() => _loadingQuote = false);
+    }
+  }
+
+  void _startCarouselAutoPlay() {
+    _carouselTimer?.cancel();
+    _carouselTimer = Timer.periodic(const Duration(seconds: 6), (_) {
+      if (!mounted) return;
+      if (_carouselImages.length < 2) return;
+      final next = (_carouselIndex + 1) % _carouselImages.length;
+      _carouselController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   // ignore: unused_element
   Future<void> _openProfileFill() async {
@@ -737,7 +812,8 @@ content: const Text(
 
               ),
               const SizedBox(height: 16),
-              _heroBanner(context),
+              // Carousel banner with backend quote image and fallback slide
+              _heroCarousel(context),
               const SizedBox(height: 16),
               _ctaButton(context),
               const SizedBox(height: 20),
@@ -938,8 +1014,147 @@ content: const Text(
       ),
     );
   }
-  Widget _heroBanner(BuildContext context) {
-    return const _CarouselBanner();
+  // _heroBanner removed (replaced by _quoteHeroBanner)
+
+  // New banner that prefers backend quote image
+  Widget _quoteHeroBanner(BuildContext context) {
+    // If loading show shimmer-ish placeholder; if image available show network; else fallback to existing asset design
+    final radius = BorderRadius.circular(45);
+    return ClipRRect(
+      borderRadius: radius,
+      child: AspectRatio(
+        aspectRatio: 660 / 308,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_quoteImageUrl != null && _quoteImageUrl!.startsWith('http'))
+              Image.network(
+                _quoteImageUrl!,
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                errorBuilder: (_, __, ___) => _fallbackHero(),
+              )
+            else if (_loadingQuote)
+              _loadingHero()
+            else
+              _fallbackHero(),
+            // Optional gradient overlay for legibility
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.black26, Colors.transparent],
+                ),
+              ),
+            ),
+            // Could add quote text overlay later; currently only image per requirement
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Carousel version of the hero banner
+  Widget _heroCarousel(BuildContext context) {
+    final radius = BorderRadius.circular(45);
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: radius,
+          child: AspectRatio(
+            aspectRatio: 660 / 340,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                PageView.builder(
+                  controller: _carouselController,
+                  itemCount: _carouselImages.length,
+                  onPageChanged: (i) => setState(() => _carouselIndex = i),
+                  itemBuilder: (ctx, i) {
+                    final src = _carouselImages[i];
+                    final isNet = src.startsWith('http');
+                    final imgWidget = isNet
+                        ? Image.network(
+                            src,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            errorBuilder: (_, __, ___) => _fallbackHero(),
+                          )
+                        : Image.asset(
+                            src,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                          );
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        imgWidget,
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Colors.black26, Colors.transparent],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Dots indicator
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_carouselImages.length, (i) {
+            final active = i == _carouselIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 8,
+              width: active ? 18 : 8,
+              decoration: BoxDecoration(
+                color: active ? const Color(0xFFFF5C00) : Colors.white30,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _fallbackHero() {
+    return Image.asset(
+      'assets/image/Frame 178.png',
+      fit: BoxFit.cover,
+      alignment: Alignment.center,
+    );
+  }
+
+  Widget _loadingHero() {
+    // Simple animated gradient placeholder
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.grey.shade800, Colors.grey.shade700, Colors.grey.shade800],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: SizedBox(
+          height: 38,
+          width: 38,
+          child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF5C00))),
+        ),
+      ),
+    );
   }
 
   Widget _ctaButton(BuildContext context) {
@@ -1196,132 +1411,4 @@ class _BottomItem {
   final IconData icon;
   final String label;
   const _BottomItem(this.icon, this.label);
-}
-
-class _CarouselBanner extends StatefulWidget {
-  const _CarouselBanner({Key? key}) : super(key: key);
-
-  @override
-  State<_CarouselBanner> createState() => _CarouselBannerState();
-}
-
-class _CarouselBannerState extends State<_CarouselBanner> {
-  late PageController _pageController;
-  int _currentIndex = 0;
-  Timer? _timer;
-
-  // Carousel data - add more images as needed
-  final List<String> _bannerImages = [
-    'assets/image/Frame 178.png',
-    'assets/image/yoga-bg.png',
-
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-    _startAutoSlide();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _startAutoSlide() {
-    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_pageController.hasClients) {
-        int nextPage = (_currentIndex + 1) % _bannerImages.length;
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(45),
-      child: AspectRatio(
-        aspectRatio: 660 / 308,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Carousel PageView
-            PageView.builder(
-              controller: _pageController,
-              itemCount: _bannerImages.length,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              itemBuilder: (context, index) {
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Background image fills while keeping proportions
-                    Image.asset(
-                      _bannerImages[index],
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                    ),
-                    // Left-to-right orange overlay
-                    Container(
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [Colors.transparent, Color(0x88FF5C00)],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            // Carousel indicators
-            Positioned(
-              bottom: 16,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _bannerImages.length,
-                  (index) => GestureDetector(
-                    onTap: () {
-                      _pageController.animateToPage(
-                        index,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: _currentIndex == index ? 24 : 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: _currentIndex == index
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

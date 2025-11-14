@@ -258,6 +258,21 @@ Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dyn
   }
 
   // ----------------------
+  // Quotes (User / Trainer motivational banner)
+  // ----------------------
+  /// Fetch the current logged in user's quote (image + metadata)
+  Future<http.Response> getUserQuote() {
+    final uri = Uri.parse('$baseUrl/api/users/quote');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  /// Fetch the current logged in trainer's quote (image + metadata)
+  Future<http.Response> getTrainerQuote() {
+    final uri = Uri.parse('$baseUrl/api/trainers/quote');
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
+  // ----------------------
   // Consultation
   // ----------------------
   /// Create a free consultation request

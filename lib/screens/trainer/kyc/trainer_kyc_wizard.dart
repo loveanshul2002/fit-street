@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../../widgets/glass_card.dart';
 import 'steps/identity_step.dart';
 import 'steps/bank_step.dart';
+import 'steps/payment_step.dart';
 import 'steps/professional_step.dart';
 import 'steps/consent_step.dart';
 import 'models/spec_row.dart';
@@ -33,9 +34,9 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   int _step = 0;
 
   // Form keys
-  final GlobalKey<FormState> f1 = GlobalKey<FormState>();
-  final GlobalKey<FormState> f2 = GlobalKey<FormState>();
-  final GlobalKey<FormState> f3 = GlobalKey<FormState>();
+  final GlobalKey<FormState> fIdentity = GlobalKey<FormState>();
+  final GlobalKey<FormState> fBank = GlobalKey<FormState>();
+  final GlobalKey<FormState> fProfessional = GlobalKey<FormState>();
 
   // ---------- Shared state ----------
   String? language;
@@ -218,10 +219,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   }
 
   Future<void> _next() async {
-    if (_step == 0) {
-      if (f1.currentState!.validate() &&
-          IdentityStep.validateAge(dob, _toast)
-          ) {
+    if (_step == 0) { // Identity
+      if (fIdentity.currentState!.validate() && IdentityStep.validateAge(dob, _toast)) {
         // Mandatory document checks before leaving Identity step
         if (selfiePath == null || selfiePath!.isEmpty) {
           _toast('Please upload your Selfie.');
@@ -236,39 +235,29 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           return;
         }
         final ok = await _saveStepIdentity();
-        if (ok) {
-          setState(() => _step = 1);
-          _page.jumpToPage(1);
-        }
+        if (ok) { setState(() => _step = 1); _page.jumpToPage(1); }
       }
       return;
     }
-
-    if (_step == 1) {
-      if (f2.currentState!.validate()) {
+    if (_step == 1) { // Payment step just moves forward when paid
+      if (!isPaid) { _toast('Please complete activation payment.'); return; }
+      setState(() => _step = 2); _page.jumpToPage(2); return;
+    }
+    if (_step == 2) { // Bank
+      if (fBank.currentState!.validate()) {
         final ok = await _saveStepBank();
-        if (ok) {
-          setState(() => _step = 2);
-          _page.jumpToPage(2);
-        }
+        if (ok) { setState(() => _step = 3); _page.jumpToPage(3); }
       }
       return;
     }
-
-    if (_step == 2) {
-      if (f3.currentState!.validate() &&
-          ProfessionalStep.validateProfessionalRows(
-              professionalRows, _toast)) {
+    if (_step == 3) { // Professional
+      if (fProfessional.currentState!.validate() && ProfessionalStep.validateProfessionalRows(professionalRows, _toast)) {
         final ok = await _saveStepProfessional();
-        if (ok) {
-          setState(() => _step = 3);
-          _page.jumpToPage(3);
-        }
+        if (ok) { setState(() => _step = 4); _page.jumpToPage(4); }
       }
       return;
     }
-
-    if (_step == 3) {
+    if (_step == 4) { // Consent
       // First: check required uploads
       if (selfiePath == null ||
           selfiePath!.isEmpty ||
@@ -294,7 +283,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         toast: _toast,
       );
 
-      if (consentOk) {
+  if (consentOk) {
         if (!mounted) return;
 
         // Call your KYC upload API here
@@ -310,28 +299,12 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   }
 
   void _back() {
-    // Custom back order:
-    // Consent(3) -> Professional(2)
-    // Professional(2) -> Bank(1)
-    // Bank(1) -> Identity(0)
-    // Identity(0) -> pop to Trainer Dashboard
-    if (_step == 3) {
-      setState(() => _step = 2);
-      _page.jumpToPage(2);
-      return;
-    }
-    if (_step == 2) {
-      setState(() => _step = 1);
-      _page.jumpToPage(1);
-      return;
-    }
-    if (_step == 1) {
-      setState(() => _step = 0);
-      _page.jumpToPage(0);
-      return;
-    }
-    // step 0: exit wizard
-    Navigator.pop(context);
+  // Back navigation for 5-step flow
+  if (_step == 4) { setState(() => _step = 3); _page.jumpToPage(3); return; }
+  if (_step == 3) { setState(() => _step = 2); _page.jumpToPage(2); return; }
+  if (_step == 2) { setState(() => _step = 1); _page.jumpToPage(1); return; }
+  if (_step == 1) { setState(() => _step = 0); _page.jumpToPage(0); return; }
+  Navigator.pop(context); // step 0 exit
   }
 
   @override
@@ -390,11 +363,13 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                           children: [
                             _stepPill(0, "Identity"),
                             const SizedBox(width: 8),
-                            _stepPill(1, "Bank"),
+                            _stepPill(1, "Payment"),
                             const SizedBox(width: 8),
-                            _stepPill(2, "Professional"),
+                            _stepPill(2, "Bank"),
                             const SizedBox(width: 8),
-                            _stepPill(3, "Consent"),
+                            _stepPill(3, "Professional"),
+                            const SizedBox(width: 8),
+                            _stepPill(4, "Consent"),
                           ],
                         ),
                       ),
@@ -407,7 +382,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       IdentityStep(
-                        formKey: f1,
+                        formKey: fIdentity,
                         language: language,
                         onLanguageChanged: (v) => setState(() => language = v),
                         fullName: fullName,
@@ -453,8 +428,19 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         readOnlyFullName: true,
                         readOnlyMobile: true,
                       ),
+                      PaymentStep(
+                        isPaid: isPaid,
+                        onPaidChanged: (v) async {if (!mounted) return; setState(() => isPaid = v);
+                          if (v) {
+                            try { final trainerId = await _getTrainerId(); if (trainerId != null && trainerId.isNotEmpty) { final api = await _api(); await api.updateTrainerProfileMultipart(trainerId, fields: {'isPaid': 'true'}); } } catch (e) { debugPrint('mark isPaid failed: $e'); }
+                          }
+                        },
+                        fullName: fullName.text,
+                        mobile: mobile.text,
+                        email: email.text,
+                      ),
                       BankStep(
-                        formKey: f2,
+                        formKey: fBank,
                         accName: accName,
                         ifsc: ifsc,
                         bankName: bankName,
@@ -462,7 +448,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         upi: upi,
                       ),
                       ProfessionalStep(
-                        formKey: f3,
+                        formKey: fProfessional,
                         experience: experience,
                         onExperienceChanged: (v) => setState(() => experience = v),
                         trainingLangs: trainingLangs,
@@ -497,22 +483,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         esignDate: esignDate,
                         onSignatureBytes: (bytes) => signaturePng = bytes,
                         isPaid: isPaid,
-                        onPaidChanged: (v) async {
-                          if (!mounted) return;
-                          setState(() => isPaid = v);
-                          if (v) {
-                            // persist isPaid to backend
-                            try {
-                              final trainerId = await _getTrainerId();
-                              if (trainerId != null && trainerId.isNotEmpty) {
-                                final api = await _api();
-                                await api.updateTrainerProfileMultipart(trainerId, fields: {'isPaid': 'true'});
-                              }
-                            } catch (e) {
-                              debugPrint('mark isPaid failed: $e');
-                            }
-                          }
-                        },
                       ),
                     ],
                   ),
@@ -540,7 +510,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                             ),
                             onPressed: _next,
                             child: Text(
-                              _step < 3 ? "Continue" : "Submit KYC",
+                              _step < 4 ? "Continue" : "Submit KYC",
                               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),

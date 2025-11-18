@@ -1,16 +1,12 @@
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../widgets/glass_card.dart';
 import '../utils/ui_helpers.dart';
 import '../widgets/policy_tile.dart';
 import '../../../legal/legal_page.dart';
 import '../widgets/signature_pad.dart';
 import '../utils/input_formatters.dart';
-import '../../../../services/fitstreet_api.dart';
-import '../../../../config/payment_config.dart';
+// payment removed from consent; Razorpay logic moved to PaymentStep
 
 class ConsentStep extends StatefulWidget {
   final bool noCriminalRecord, agreeHnS, ackTrainerAgreement, ackCancellationPolicy;
@@ -23,9 +19,8 @@ class ConsentStep extends StatefulWidget {
   final TextEditingController esignDate;
   final ValueChanged<Uint8List?> onSignatureBytes;
 
-  // Razorpay payment status
+  // Payment status passed in (readonly now)
   final bool isPaid;
-  final ValueChanged<bool>? onPaidChanged;
 
   const ConsentStep({
     super.key,
@@ -38,7 +33,6 @@ class ConsentStep extends StatefulWidget {
     required this.esignDate,
   required this.onSignatureBytes,
   required this.isPaid,
-  this.onPaidChanged,
   });
 
   /// VALIDATION: NOTE — e-sign matching / date checks removed.
@@ -94,141 +88,11 @@ class ConsentStep extends StatefulWidget {
 }
 
 class _ConsentStepState extends State<ConsentStep> {
-  // Razorpay
-  late final Razorpay _razorpay;
-  bool _processing = false;
-  static const int _activationFee = 1; // INR
-  String? _lastOrderId; // track last created order id
-  // final ImagePicker _picker = ImagePicker();
 
   @override
-  void initState() {
-    super.initState();
-  _razorpay = Razorpay();
-  _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
-  _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
-  _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
-  }
+  void initState() { super.initState(); }
 
-  @override
-  void dispose() {
-    _razorpay.clear();
-    super.dispose();
-  }
-
-  Future<FitstreetApi> _api() async {
-    final sp = await SharedPreferences.getInstance();
-    final token = sp.getString('fitstreet_token') ?? '';
-    return FitstreetApi('https://api.fitstreet.in', token: token);
-  }
-
-  Future<void> _startPayment() async {
-    if (_processing) return;
-    setState(() => _processing = true);
-    try {
-      final api = await _api();
-      // Create order (backend can decide multiplier)
-      final resp = await api.createRazorpayOrder({
-        // Razorpay orders expect amount in paise
-        'amount': _activationFee * 1,
-        'currency': 'INR',
-        'receipt': 'trainer-activation-${DateTime.now().millisecondsSinceEpoch}',
-        'notes': {'purpose': 'trainer_activation'},
-      });
-      if (resp.statusCode != 200 && resp.statusCode != 201) {
-        _toast('Failed to create payment order');
-        setState(() => _processing = false);
-        return;
-      }
-      final data = resp.body.isNotEmpty ? respToJson(resp.body) : {};
-      final orderId = (data['orderId'] ?? data['order_id'] ?? '').toString();
-      if (orderId.isEmpty) {
-        _toast('Order id missing');
-        setState(() => _processing = false);
-        return;
-      }
-      _lastOrderId = orderId;
-
-      // Prefill from local cache if available
-      final sp = await SharedPreferences.getInstance();
-      final name = sp.getString('fitstreet_trainer_name') ?? '';
-      final email = sp.getString('fitstreet_trainer_email') ?? '';
-      final contact = sp.getString('fitstreet_trainer_mobile') ?? '';
-
-      final options = {
-        'key': razorpayKeyId,
-        'amount': _activationFee * 1, // paise for SDK
-        'currency': 'INR',
-        'name': 'FitStreet',
-        'description': 'Trainer Activation Fee',
-        'image': 'https://fitstreet.in/assets/fitstreet-bull-logo.png',
-        'order_id': orderId,
-        'prefill': {'name': name, 'email': email, 'contact': contact},
-        'theme': {'color': '#FF5503'},
-      };
-      _razorpay.open(options);
-    } catch (e) {
-      _toast('Payment init failed: $e');
-      setState(() => _processing = false);
-    }
-  }
-
-  Map<String, dynamic> respToJson(String s) {
-    try { return (s.isNotEmpty) ? (jsonDecode(s) as Map<String, dynamic>) : {}; } catch (_) { return {}; }
-  }
-
-  void _onPaymentSuccess(PaymentSuccessResponse r) async {
-    try {
-      final api = await _api();
-      final payload = <String, dynamic>{
-        // Common snake_case expected by most Node examples
-        'razorpay_order_id': r.orderId,
-        'razorpay_payment_id': r.paymentId,
-        'razorpay_signature': r.signature,
-
-        // Also send camelCase aliases to be safe
-        'razorpayOrderId': r.orderId,
-        'razorpayPaymentId': r.paymentId,
-        'razorpaySignature': r.signature,
-
-        // Some backends call it orderCreationId
-        'orderCreationId': r.orderId,
-        'order_id': r.orderId,
-        'orderId': r.orderId,
-        'paymentId': r.paymentId,
-        'signature': r.signature,
-
-        // Optional context
-        if (_lastOrderId != null) 'clientOrderId': _lastOrderId,
-        'amountPaise': _activationFee * 100,
-        'currency': 'INR',
-      };
-      final verify = await api.verifyRazorpayPayment(payload);
-      debugPrint('Razorpay verify -> ${verify.statusCode}: ${verify.body}');
-      if (verify.statusCode == 200 || verify.statusCode == 201) {
-        widget.onPaidChanged?.call(true);
-        _toast('Payment successful');
-      } else {
-        final msg = verify.body.isNotEmpty ? verify.body : 'Payment verification failed';
-        _toast(msg);
-      }
-    } catch (e) {
-      _toast('Verify failed: $e');
-    } finally {
-      if (mounted) setState(() => _processing = false);
-    }
-  }
-
-  void _onPaymentError(PaymentFailureResponse r) {
-    _toast('Payment failed');
-    setState(() => _processing = false);
-  }
-
-  void _onExternalWallet(ExternalWalletResponse r) {
-    // Optional
-  }
-
-  void _toast(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  // local toast removed (payment UI stripped); rely on parent wizard to show errors.
 
   @override
   Widget build(BuildContext context) {
@@ -293,31 +157,17 @@ class _ConsentStepState extends State<ConsentStep> {
 
               const SizedBox(height: 16),
 
-              // ---------------- Razorpay Payment UI ----------------
-      const SubTitle("Payment (Activation fee)"),
-      const Text("Pay the one-time activation fee securely via Razorpay.", style: TextStyle(color: Colors.white70)),
-              const SizedBox(height: 12),
-              Center(
-                child: Column(
-                  children: [
-        const _Bullet('Dashboard access unlocked after payment'),
-        const _Bullet('Client booking system'),
-        const _Bullet('Start earning instantly'),
-        const SizedBox(height: 8),
-                    if (!widget.isPaid)
-                      ElevatedButton.icon(
-                        onPressed: _processing ? null : _startPayment,
-                        icon: const Icon(Icons.credit_card),
-                        label: Text(_processing ? 'Processing…' : 'Pay ₹$_activationFee Securely'),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                      )
-                    else
-                      const Text('Payment completed ✔', style: TextStyle(color: Colors.greenAccent)),
-                  ],
+              // Payment step removed; display payment status only
+              if (widget.isPaid)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Text('Activation payment confirmed ✔', style: TextStyle(color: Colors.greenAccent)),
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Text('Activation payment pending (complete in previous step).', style: TextStyle(color: Colors.orangeAccent)),
                 ),
-              ),
-
-              const SizedBox(height: 16),
 
               const SubTitle("E-Sign (Handwritten) — optional"),
               SignaturePad(
@@ -338,20 +188,4 @@ class _ConsentStepState extends State<ConsentStep> {
     );
   }
 }
-class _Bullet extends StatelessWidget {
-  final String text;
-  const _Bullet(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        children: [
-          const Text("• ", style: TextStyle(color: Colors.white70)),
-          Expanded(child: Text(text, style: const TextStyle(color: Colors.white70)))
-        ],
-      ),
-    );
-  }
-}
+// Bullet widget removed with payment UI

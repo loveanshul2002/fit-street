@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../../../../widgets/glass_card.dart';
 import '../utils/ui_helpers.dart';
 import '../widgets/policy_tile.dart';
+import '../../../legal/legal_page.dart';
 import '../widgets/signature_pad.dart';
 import '../utils/input_formatters.dart';
 
 class ConsentStep extends StatefulWidget {
-  final bool noCriminalRecord, agreeHnS, ackTrainerAgreement, ackCancellationPolicy, ackPayoutPolicy, ackPrivacyPolicy;
+  final bool noCriminalRecord, agreeHnS, ackTrainerAgreement, ackCancellationPolicy;
   final void Function({
   bool? noCrime, bool? hns, bool? agr, bool? cancel, bool? payout, bool? privacy
   }) onChange;
@@ -29,8 +30,6 @@ class ConsentStep extends StatefulWidget {
     required this.agreeHnS,
     required this.ackTrainerAgreement,
     required this.ackCancellationPolicy,
-    required this.ackPayoutPolicy,
-    required this.ackPrivacyPolicy,
     required this.onChange,
     required this.esignName,
     required this.esignDate,
@@ -50,8 +49,6 @@ class ConsentStep extends StatefulWidget {
     required bool agreeHnS,
     required bool ackTrainerAgreement,
     required bool ackCancellationPolicy,
-    required bool ackPayoutPolicy,
-    required bool ackPrivacyPolicy,
     required String? paymentScreenshotPath,
     required void Function(String) toast,
   }) {
@@ -62,7 +59,7 @@ class ConsentStep extends StatefulWidget {
     }
 
     // 2) Policy acknowledgements
-    if (!ackTrainerAgreement || !ackCancellationPolicy || !ackPayoutPolicy || !ackPrivacyPolicy) {
+    if (!ackTrainerAgreement || !ackCancellationPolicy) {
       toast("Please open & acknowledge all policies.");
       return false;
     }
@@ -94,7 +91,6 @@ class ConsentStep extends StatefulWidget {
 }
 
 class _ConsentStepState extends State<ConsentStep> {
-  Uint8List? _sigBytes;
   String? _paymentScreenshotPath;
   final ImagePicker _picker = ImagePicker();
 
@@ -154,28 +150,36 @@ class _ConsentStepState extends State<ConsentStep> {
               const SizedBox(height: 12),
               const SubTitle("Policies Acknowledgement"),
               PolicyTile(
-                title: "Trainer Agreement",
-                body: "Your trainer agreement: conduct, service standards, safety, liability, and termination.",
+                title: "Terms and Conditions Agreement",
+                body: "Read Agreement",
                 value: widget.ackTrainerAgreement,
                 onChanged: (v)=> widget.onChange(agr: v),
+                onRead: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LegalPage(
+                        title: 'Terms & Conditions',
+                        assetHtmlPath: 'terms', // placeholder (not used in current implementation)
+                      ),
+                    ),
+                  );
+                },
               ),
               PolicyTile(
-                title: "Cancellation & No-Show Policy",
-                body: "Window, penalties, what counts as no-show.",
+                title: "Refund and Cancellation Policy",
+                body: "Read Agreement",
                 value: widget.ackCancellationPolicy,
                 onChanged: (v)=> widget.onChange(cancel: v),
-              ),
-              PolicyTile(
-                title: "Payout & Fee Deduction Policy",
-                body: "Payout schedule, platform fees, refunds, chargebacks.",
-                value: widget.ackPayoutPolicy,
-                onChanged: (v)=> widget.onChange(payout: v),
-              ),
-              PolicyTile(
-                title: "Data & Privacy Policy",
-                body: "Data we collect, usage, retention, sharing, rights.",
-                value: widget.ackPrivacyPolicy,
-                onChanged: (v)=> widget.onChange(privacy: v),
+                onRead: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LegalPage(
+                        title: 'Refund & Cancellation Policy',
+                        assetHtmlPath: 'refund',
+                      ),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 16),
@@ -283,7 +287,6 @@ class _ConsentStepState extends State<ConsentStep> {
               const SubTitle("E-Sign (Handwritten) — optional"),
               SignaturePad(
                 onBytes: (bytes){
-                  _sigBytes = bytes;
                   widget.onSignatureBytes(bytes);
                 },
               ),

@@ -98,6 +98,40 @@ class FitstreetApi {
     return http.get(uri, headers: _jsonHeaders());
   }
 
+  /// Get nearby trainers with filters.
+  /// Corresponds to GET /api/trainers/nearby with optional query params.
+  /// Required: city
+  /// Optional filters: lat, lng, specialization, page, limit, gender, experience, mode, fee, name
+  Future<http.Response> getNearbyTrainers({
+    required String city,
+    String? lat,
+    String? lng,
+    String? specialization,
+    int page = 1,
+    int limit = 10,
+    String? gender,
+    String? experience,
+    String? mode,
+    String? fee,
+    String? name,
+  }) {
+    final params = <String, String>{
+      'city': city,
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (lat != null && lat.isNotEmpty) 'lat': lat,
+      if (lng != null && lng.isNotEmpty) 'lng': lng,
+      if (specialization != null && specialization.isNotEmpty) 'specialization': specialization,
+      if (gender != null && gender.isNotEmpty) 'gender': gender,
+      if (experience != null && experience.isNotEmpty) 'experience': experience,
+      if (mode != null && mode.isNotEmpty) 'mode': mode,
+      if (fee != null && fee.isNotEmpty) 'fee': fee,
+      if (name != null && name.isNotEmpty) 'name': name,
+    };
+    final uri = Uri.parse('$baseUrl/api/trainers/nearby').replace(queryParameters: params);
+    return http.get(uri, headers: _jsonHeaders());
+  }
+
   /// Slot availability endpoints (alternate endpoint names)
   Future<http.Response> getSlotAvailabilityDetails(String trainerId) {
     final uri = Uri.parse('$baseUrl/api/trainers/slotAvailabilityDetails/$trainerId');
@@ -316,6 +350,25 @@ Future<http.Response> updateTrainerPreferences(String trainerId, Map<String, dyn
   Future<http.Response> requestWithdrawal(String trainerId, num amount) {
     final uri = Uri.parse('$baseUrl/api/wallet/requestWithdrawal/$trainerId');
     final body = jsonEncode({'amount': amount});
+    return http.post(uri, headers: _jsonHeaders(), body: body);
+  }
+
+  // ----------------------
+  // Razorpay
+  // ----------------------
+  /// Create a Razorpay order. Provide required fields in [payload]
+  /// Example keys: amount (paise), currency (INR), receipt, notes{}
+  Future<http.Response> createRazorpayOrder(Map<String, dynamic> payload) {
+    final uri = Uri.parse('$baseUrl/api/razorpay/create-order');
+    final body = jsonEncode(payload);
+    return http.post(uri, headers: _jsonHeaders(), body: body);
+  }
+
+  /// Verify a Razorpay payment. Provide verification fields in [payload]
+  /// Example keys: razorpayOrderId, razorpayPaymentId, razorpaySignature
+  Future<http.Response> verifyRazorpayPayment(Map<String, dynamic> payload) {
+    final uri = Uri.parse('$baseUrl/api/razorpay/verify-payment');
+    final body = jsonEncode(payload);
     return http.post(uri, headers: _jsonHeaders(), body: body);
   }
 }

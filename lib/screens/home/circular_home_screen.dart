@@ -1,5 +1,5 @@
 // circular_home_screen.dart
-import 'dart:convert';
+/*import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/fitstreet_api.dart';
 import '../trainers/trainer_profile_screen.dart';
-import '../trainers/trainer_list_screen.dart';
+import '../trainers/get_all_trainer.dart';
 
 class CircularHomeScreen extends StatefulWidget {
   final bool embedded; // if true, render only the chart body (no Scaffold/bg)
@@ -686,3 +686,4 @@ class _OuterPoint {
   final Map<String, dynamic> trainer;
   _OuterPoint(this.label, this.trainer);
 }
+*/

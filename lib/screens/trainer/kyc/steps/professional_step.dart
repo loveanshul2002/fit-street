@@ -8,6 +8,94 @@ import '../../../../widgets/glass_card.dart';
 import '../models/spec_row.dart';
 import '../utils/ui_helpers.dart';
 
+// Grouped Specializations
+const Map<String, List<String>> kGroupedSpecializations = {
+  'Fitness Training': [
+    'Strength Training',
+    'HIIT',
+    'CrossFit',
+    'Functional Training',
+    'Cardio',
+    'Aerobics',
+    'Zumba',
+    'Strength and Conditioning',
+    'Endurance Training',
+    'Circuit Training',
+    'Dance Fitness',
+  ],
+  'Body Transformation': [
+    'Weight Loss',
+    'Weight Gain',
+    'Bodybuilding',
+    'Muscle Gain Expert',
+    'Body Transformation',
+    'Female Fitness',
+    'Physique Enhancement Specialist',
+  ],
+  'Health & Rehabilitation': [
+    'Rehabilitation Trainer',
+    'Pain Management',
+    'Injury Prevention',
+    'Posture Correction',
+    'Lifestyle Disorders',
+    'Stretching Specialist',
+    'Mobility & Flexibility Coach',
+    'Physical Therapist Support',
+  ],
+  'Yoga & Meditation': [
+    'Yoga',
+    'Hatha Yoga',
+    'Vinyasa Yoga',
+    'Prenatal Yoga',
+    'Postnatal Yoga',
+    'Recreational Yoga',
+    'Meditation',
+    'Breathwork & Pranayama',
+    'Sound Healing',
+    'Mindfulness Trainer',
+  ],
+  'Specialized Fitness': [
+    'Pilates Instructor',
+    'Calisthenics Coach',
+    'Core Strength Trainer',
+    'Balance & Stability Training',
+    'Sports Performance Coach',
+  ],
+  'Nutrition & Diet Planning': [
+    'Nutrition',
+    'Sports Nutritionist',
+    // 'Clinical Nutritionist',
+    'Weight Management Expert',
+    'Diet Planning Specialist',
+    'Holistic Nutrition Coach',
+  ],
+  'Mental Health & Counseling': [
+    'Counselors',
+    'Mental Counselor',
+    'Psychologist',
+    'Depression Support',
+    'Stress Management',
+    'Art Therapy',
+    'Suicide Prevention',
+    'Psychological First Aid',
+    'Solution-Focused Brief Therapy',
+    'Career Counseling',
+    'Neuro-Linguistic Programming',
+    'Relationship Therapist',
+    'Martial Discord',
+    'Reproductive Health Counselor',
+  ],
+  'Sports & Athletics': [
+    'Cricket Coach',
+    'Boxing Coach',
+    'Martial Arts Instructor',
+    'Football Trainer',
+    'Tennis Coach',
+    'Badminton Coach',
+    'Athletic Performance Trainer',
+  ],
+};
+
 class ProfessionalStep extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final String? experience;
@@ -242,38 +330,25 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
-                  dropdownColor: Colors.black87,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: glassInput().copyWith(labelText: "Specialisation"),
-                  value: r.specialization,
-                  onChanged: (v) => setState(() => r.specialization = v),
-                  items: const [
-                    DropdownMenuItem(value: "Strength", child: Text("Strength")),
-                    DropdownMenuItem(value: "HIIT", child: Text("HIIT")),
-                    DropdownMenuItem(value: "Yoga", child: Text("Yoga")),
-                    DropdownMenuItem(value: "Pilates", child: Text("Pilates")),
-                    DropdownMenuItem(value: "Rehab", child: Text("Rehab")),
-                    DropdownMenuItem(value: "Zumba", child: Text("Zumba")),
-                    DropdownMenuItem(value: "Prenatal Yoga", child: Text("Prenatal Yoga")),
-                    DropdownMenuItem(value: "Postnatal Yoga", child: Text("Postnatal Yoga")),
-                    DropdownMenuItem(value: "Recreational Yoga", child: Text("Recreational Yoga")),
-                    DropdownMenuItem(value: "Nutrition", child: Text("Nutrition")),
-                    DropdownMenuItem(value: "Counselors", child: Text("Counselors")),
-                 //   DropdownMenuItem(value: "Cardio", child: Text("Cardio")),
-                //    DropdownMenuItem(value: "CrossFit", child: Text("CrossFit")),
-                 //   DropdownMenuItem(value: "Aerobics", child: Text("Aerobics")),
-                 //   DropdownMenuItem(value: "Bodybuilding", child: Text("Bodybuilding")),
-                 //   DropdownMenuItem(value: "Weight Loss", child: Text("Weight Loss")),
-                 //   DropdownMenuItem(value: "Weight Gain", child: Text("Weight Gain")),
-                 //   DropdownMenuItem(value: "Yoga Therapy", child: Text("Yoga Therapy")),
-                   // DropdownMenuItem(value: "Functional Training", child: Text("Functional Training")),
-                  //  DropdownMenuItem(value: "Martial Arts", child: Text("Martial Arts")),
-                //    DropdownMenuItem(value: "Dance Fitness", child: Text("Dance Fitness")),
-                   // DropdownMenuItem(value: "Sports Conditioning", child: Text("Sports Conditioning")),
-                 //   DropdownMenuItem(value: "Martial Arts", child: Text("Martial Arts")),
-                  ],
-                  validator: (v) => v == null ? "Choose" : null,
+                child: FormField<String>(
+                  validator: (_) => (r.specialization == null || r.specialization!.trim().isEmpty) ? "Choose" : null,
+                  builder: (formState) => InkWell(
+                    onTap: () => _openSpecializationPicker(row: r, formState: formState),
+                    child: InputDecorator(
+                      decoration: glassInput().copyWith(
+                        labelText: "Specialisation",
+                        errorText: formState.errorText,
+                      ),
+                      child: Text(
+                        (r.specialization == null || r.specialization!.isEmpty) ? "Tap to select" : r.specialization!,
+                        style: TextStyle(
+                          color: (r.specialization == null || r.specialization!.isEmpty)
+                              ? Colors.white70
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
@@ -354,6 +429,98 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openSpecializationPicker({required SpecRow row, required FormFieldState<String> formState}) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Select Specialisation', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final entry in kGroupedSpecializations.entries)
+                        Theme(
+                          data: Theme.of(ctx).copyWith(dividerColor: Colors.white24),
+                          child: ExpansionTile(
+                            initiallyExpanded: false,
+                            title: Text(entry.key, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                            childrenPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final spec in entry.value)
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.pop(ctx);
+                                        setState(() {
+                                          row.specialization = spec;
+                                        });
+                                        formState.didChange(spec);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: Colors.white24),
+                                        ),
+                                        child: Text(spec, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 12)),
+                                      ),
+                                    ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        row.specialization = null;
+                      });
+                      formState.didChange(null);
+                    },
+                    child: const Text('Clear', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

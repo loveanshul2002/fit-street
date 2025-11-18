@@ -4,7 +4,8 @@ class PolicyTile extends StatelessWidget {
   final String title, body;
   final bool value;
   final ValueChanged<bool> onChanged;
-  const PolicyTile({super.key, required this.title, required this.body, required this.value, required this.onChanged});
+  final VoidCallback? onRead; // optional navigation/open callback
+  const PolicyTile({super.key, required this.title, required this.body, required this.value, required this.onChanged, this.onRead});
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +23,19 @@ class PolicyTile extends StatelessWidget {
           title: Text(title, style: const TextStyle(color: Colors.white)),
           children: [
             Padding(
-                padding: const EdgeInsets.fromLTRB(12,0,12,8),
-                child: Text(body, style: const TextStyle(color: Colors.white70))),
+              padding: const EdgeInsets.fromLTRB(12,0,12,8),
+              child: GestureDetector(
+                onTap: onRead,
+                behavior: HitTestBehavior.opaque,
+                child: Text(
+                  body,
+                  style: TextStyle(
+                    color: onRead != null ? Colors.lightBlueAccent : Colors.white70,
+                    decoration: onRead != null ? TextDecoration.underline : TextDecoration.none,
+                  ),
+                ),
+              ),
+            ),
             CheckboxListTile(
                 value: value, onChanged: (v)=> onChanged(v ?? false),
                 checkColor: Colors.white, activeColor: Colors.white.withOpacity(0.25),

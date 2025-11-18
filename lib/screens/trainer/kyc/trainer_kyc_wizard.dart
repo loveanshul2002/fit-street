@@ -61,11 +61,10 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   final TextEditingController emgRelation = TextEditingController();
   final TextEditingController emgMobile = TextEditingController();
 
-  final TextEditingController pan = TextEditingController();
   final TextEditingController aadhaar = TextEditingController();
 
   // ✅ Added paths here
-  String? selfiePath, panPhotoPath, aadhaarPhotofrontPath, aadhaarPhotobackPath;
+  String? selfiePath,  aadhaarPhotofrontPath, aadhaarPhotobackPath;
 
   // ---------- Bank ----------
   final TextEditingController accName = TextEditingController();
@@ -91,8 +90,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   bool agreeHnS = false;
   bool ackTrainerAgreement = false;
   bool ackCancellationPolicy = false;
-  bool ackPayoutPolicy = false;
-  bool ackPrivacyPolicy = false;
+
 
   final TextEditingController esignName = TextEditingController();
   final TextEditingController esignDate = TextEditingController();
@@ -103,6 +101,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   // Uploading flag
   bool _uploading = false;
+  bool _savingPartial = false; // flag for step-wise save
 
   final ImagePicker _picker = ImagePicker();
 
@@ -168,7 +167,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
     emgName.dispose();
     emgRelation.dispose();
     emgMobile.dispose();
-    pan.dispose();
     aadhaar.dispose();
     accName.dispose();
     ifsc.dispose();
@@ -218,18 +216,37 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   Future<void> _next() async {
     if (_step == 0) {
       if (f1.currentState!.validate() &&
-          IdentityStep.validateAge(dob, _toast) &&
-          IdentityStep.validateIDs(pan, aadhaar, _toast)) {
-  setState(() => _step = 1);
-  _page.jumpToPage(1);
+          IdentityStep.validateAge(dob, _toast)
+          ) {
+        // Mandatory document checks before leaving Identity step
+        if (selfiePath == null || selfiePath!.isEmpty) {
+          _toast('Please upload your Selfie.');
+          return;
+        }
+        if (aadhaarPhotofrontPath == null || aadhaarPhotofrontPath!.isEmpty) {
+          _toast('Please upload Aadhaar front image.');
+          return;
+        }
+        if (aadhaarPhotobackPath == null || aadhaarPhotobackPath!.isEmpty) {
+          _toast('Please upload Aadhaar back image.');
+          return;
+        }
+        final ok = await _saveStepIdentity();
+        if (ok) {
+          setState(() => _step = 1);
+          _page.jumpToPage(1);
+        }
       }
       return;
     }
 
     if (_step == 1) {
       if (f2.currentState!.validate()) {
-  setState(() => _step = 2);
-  _page.jumpToPage(2);
+        final ok = await _saveStepBank();
+        if (ok) {
+          setState(() => _step = 2);
+          _page.jumpToPage(2);
+        }
       }
       return;
     }
@@ -238,8 +255,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       if (f3.currentState!.validate() &&
           ProfessionalStep.validateProfessionalRows(
               professionalRows, _toast)) {
-  setState(() => _step = 3);
-  _page.jumpToPage(3);
+        final ok = await _saveStepProfessional();
+        if (ok) {
+          setState(() => _step = 3);
+          _page.jumpToPage(3);
+        }
       }
       return;
     }
@@ -248,13 +268,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       // First: check required uploads
       if (selfiePath == null ||
           selfiePath!.isEmpty ||
-          panPhotoPath == null ||
-          panPhotoPath!.isEmpty ||
           aadhaarPhotofrontPath == null ||
           aadhaarPhotofrontPath!.isEmpty ||
           aadhaarPhotobackPath == null ||
           aadhaarPhotobackPath!.isEmpty) {
-        _toast("Please upload Selfie, PAN, Aadhaar front and back.");
+        _toast("Please upload Selfie, Aadhaar front and back.");
         return;
       }
 
@@ -268,8 +286,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         agreeHnS: agreeHnS,
         ackTrainerAgreement: ackTrainerAgreement,
         ackCancellationPolicy: ackCancellationPolicy,
-        ackPayoutPolicy: ackPayoutPolicy,
-        ackPrivacyPolicy: ackPrivacyPolicy,
         paymentScreenshotPath: paymentScreenshotPath,
         toast: _toast,
       );
@@ -421,13 +437,10 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         emgName: emgName,
                         emgRelation: emgRelation,
                         emgMobile: emgMobile,
-                        pan: pan,
                         aadhaar: aadhaar,
-                        panPhotoPath: panPhotoPath,
                         aadhaarPhotofrontPath: aadhaarPhotofrontPath,
                         aadhaarPhotobackPath: aadhaarPhotobackPath,
                         selfiePath: selfiePath,
-                        pickPanPhoto: (p) => setState(() => panPhotoPath = p),
                         pickAadhaarPhotofront: (p) => setState(() => aadhaarPhotofrontPath = p),
                         pickAadhaarPhotoback: (p) => setState(() => aadhaarPhotobackPath = p),
                         pickSelfie: (p) => setState(() => selfiePath = p),
@@ -461,8 +474,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         agreeHnS: agreeHnS,
                         ackTrainerAgreement: ackTrainerAgreement,
                         ackCancellationPolicy: ackCancellationPolicy,
-                        ackPayoutPolicy: ackPayoutPolicy,
-                        ackPrivacyPolicy: ackPrivacyPolicy,
                         onChange: ({
                           bool? noCrime,
                           bool? hns,
@@ -476,8 +487,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                             if (hns != null) agreeHnS = hns;
                             if (agr != null) ackTrainerAgreement = agr;
                             if (cancel != null) ackCancellationPolicy = cancel;
-                            if (payout != null) ackPayoutPolicy = payout;
-                            if (privacy != null) ackPrivacyPolicy = privacy;
                           });
                         },
                         esignName: esignName,
@@ -731,9 +740,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (emgRelation.text
             .trim()
             .isNotEmpty) 'emergencyPersonRelation': emgRelation.text.trim(),
-        if (pan.text
-            .trim()
-            .isNotEmpty) 'panCard': pan.text.trim(),
+
         if (aadhaar.text
             .trim()
             .isNotEmpty) 'aadhaarCard': aadhaar.text.replaceAll(' ', '').trim(),
@@ -773,10 +780,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (selfiePath != null && selfiePath!.isNotEmpty) {
           final f = File(selfiePath!);
           if (await f.exists()) files['trainerImageURL'] = f;
-        }
-        if (panPhotoPath != null && panPhotoPath!.isNotEmpty) {
-          final f = File(panPhotoPath!);
-          if (await f.exists()) files['panFrontImageURL'] = f;
         }
         if (aadhaarPhotofrontPath != null &&
             aadhaarPhotofrontPath!.isNotEmpty) {
@@ -904,6 +907,193 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       return false;
     } finally {
       if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  // --------------------
+  // Partial step save helpers
+  // --------------------
+  Future<String?> _getTrainerId() async {
+    try {
+      final auth = context.read<AuthManager>();
+      final id = await auth.getApiTrainerId();
+      if (id != null && id.isNotEmpty) return id;
+    } catch (_) {}
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+  }
+
+  Future<FitstreetApi> _api() async {
+    final token = (await SharedPreferences.getInstance()).getString('fitstreet_token') ?? '';
+    return FitstreetApi('https://api.fitstreet.in', token: token);
+  }
+
+  Future<bool> _saveStepIdentity() async {
+    if (_savingPartial) return false;
+    setState(() => _savingPartial = true);
+    try {
+      final trainerId = await _getTrainerId();
+      if (trainerId == null || trainerId.isEmpty) {
+        _toast('Trainer id missing.');
+        return false;
+      }
+      // Enforce mandatory images for identity save
+      if (selfiePath == null || selfiePath!.isEmpty ||
+          aadhaarPhotofrontPath == null || aadhaarPhotofrontPath!.isEmpty ||
+          aadhaarPhotobackPath == null || aadhaarPhotobackPath!.isEmpty) {
+        _toast('Selfie, Aadhaar front and back are required.');
+        return false;
+      }
+      // Convert DOB
+      String? dobIso;
+      final txt = dob.text.trim();
+      if (txt.isNotEmpty && RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(txt)) {
+        final parts = txt.split('/');
+        dobIso = "${parts[2]}-${parts[1].padLeft(2,'0')}-${parts[0].padLeft(2,'0')}";
+      } else if (txt.isNotEmpty) {
+        dobIso = txt;
+      }
+      final fields = <String, dynamic>{
+        if (fullName.text.trim().isNotEmpty) 'fullName': fullName.text.trim(),
+        if (mobile.text.trim().isNotEmpty) 'mobileNumber': mobile.text.trim(),
+        if (email.text.trim().isNotEmpty) 'email': email.text.trim(),
+        if (dobIso != null && dobIso.isNotEmpty) 'dob': dobIso,
+        if (gender.value != null && (gender.value ?? '').isNotEmpty) 'gender': gender.value,
+        if (pincode.text.trim().isNotEmpty) 'pincode': pincode.text.trim(),
+        if (city.text.trim().isNotEmpty && city.text.trim() != '—') 'city': city.text.trim(),
+        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'state': stateCtrl.text.trim(),
+        'isAddressSame': sameAsPermanent ? 'true' : 'false',
+        if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty) 'currentPincode': currentPincode.text.trim(),
+        if (!sameAsPermanent && currentCity.text.trim().isNotEmpty && currentCity.text.trim() != '—') 'currentCity': currentCity.text.trim(),
+        if (!sameAsPermanent && currentState.text.trim().isNotEmpty && currentState.text.trim() != '—') 'currentState': currentState.text.trim(),
+        if (sameAsPermanent && pincode.text.trim().isNotEmpty) 'currentPincode': pincode.text.trim(),
+        if (sameAsPermanent && city.text.trim().isNotEmpty && city.text.trim() != '—') 'currentCity': city.text.trim(),
+        if (sameAsPermanent && stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'currentState': stateCtrl.text.trim(),
+        if (addrPermanent.text.trim().isNotEmpty) 'address': addrPermanent.text.trim(),
+        if (!sameAsPermanent && addrCurrent.text.trim().isNotEmpty) 'currentAddress': addrCurrent.text.trim(),
+        if (sameAsPermanent && addrPermanent.text.trim().isNotEmpty) 'currentAddress': addrPermanent.text.trim(),
+        if (emgName.text.trim().isNotEmpty) 'emergencyPersonName': emgName.text.trim(),
+        if (emgMobile.text.trim().isNotEmpty) 'emergencyPersonMobile': emgMobile.text.trim(),
+        if (emgRelation.text.trim().isNotEmpty) 'emergencyPersonRelation': emgRelation.text.trim(),
+        if (aadhaar.text.trim().isNotEmpty) 'aadhaarCard': aadhaar.text.replaceAll(' ','').trim(),
+      };
+      final files = <String, File>{};
+      if (selfiePath != null && selfiePath!.isNotEmpty) {
+        final f = File(selfiePath!); if (await f.exists()) files['trainerImageURL'] = f;
+      }
+      if (aadhaarPhotofrontPath != null && aadhaarPhotofrontPath!.isNotEmpty) {
+        final f = File(aadhaarPhotofrontPath!); if (await f.exists()) files['aadhaarFrontImageURL'] = f;
+      }
+      if (aadhaarPhotobackPath != null && aadhaarPhotobackPath!.isNotEmpty) {
+        final f = File(aadhaarPhotobackPath!); if (await f.exists()) files['aadhaarBackImageURL'] = f;
+      }
+      final api = await _api();
+      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: files.isEmpty ? null : files);
+      final resp = await http.Response.fromStream(streamed);
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        _toast('Identity saved');
+        return true;
+      }
+      _toast('Save failed (${resp.statusCode})');
+      return false;
+    } catch (e) {
+      _toast('Error saving identity: $e');
+      return false;
+    } finally {
+      if (mounted) setState(() => _savingPartial = false);
+    }
+  }
+
+  Future<bool> _saveStepBank() async {
+    if (_savingPartial) return false;
+    setState(() => _savingPartial = true);
+    try {
+      final trainerId = await _getTrainerId();
+      if (trainerId == null || trainerId.isEmpty) {
+        _toast('Trainer id missing.');
+        return false;
+      }
+      final fields = <String, dynamic>{
+        if (accName.text.trim().isNotEmpty) 'accountNumber': accName.text.trim(),
+        if (ifsc.text.trim().isNotEmpty) 'ifscCode': ifsc.text.trim(),
+        if (bankName.text.trim().isNotEmpty) 'bankName': bankName.text.trim(),
+        if (branch.text.trim().isNotEmpty) 'branch': branch.text.trim(),
+        if (upi.text.trim().isNotEmpty) 'upiId': upi.text.trim(),
+      };
+      final api = await _api();
+      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: null);
+      final resp = await http.Response.fromStream(streamed);
+      if (resp.statusCode == 200 || resp.statusCode == 201) {
+        _toast('Bank details saved');
+        return true;
+      }
+      _toast('Save failed (${resp.statusCode})');
+      return false;
+    } catch (e) {
+      _toast('Error saving bank: $e');
+      return false;
+    } finally {
+      if (mounted) setState(() => _savingPartial = false);
+    }
+  }
+
+  Future<bool> _saveStepProfessional() async {
+    if (_savingPartial) return false;
+    setState(() => _savingPartial = true);
+    try {
+      final trainerId = await _getTrainerId();
+      if (trainerId == null || trainerId.isEmpty) {
+        _toast('Trainer id missing.');
+        return false;
+      }
+      // languages
+      final langs = trainingLangs.where((l) => l.toLowerCase() != 'other').map((s)=>s.trim()).where((s)=>s.isNotEmpty).toList();
+      if (trainingLangs.any((l)=> l.toLowerCase()=='other') && otherLangCtrl.text.trim().isNotEmpty) {
+        langs.addAll(otherLangCtrl.text.split(RegExp(r'[,;]')).map((s)=>s.trim()).where((s)=>s.isNotEmpty));
+      }
+      final fields = <String, dynamic>{
+        if (experience != null && experience!.isNotEmpty) 'experience': experience,
+        if (langs.isNotEmpty) 'languages': langs.toSet().join(','),
+        if (oneSessionPrice != null && oneSessionPrice!.isNotEmpty) 'oneSessionPrice': oneSessionPrice,
+        if (monthlySessionPrice != null && monthlySessionPrice!.isNotEmpty) 'monthlySessionPrice': monthlySessionPrice,
+        // keep defaults
+        'isAvailable': 'true',
+        'mode': 'offline',
+      };
+      final api = await _api();
+      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: null);
+      final resp = await http.Response.fromStream(streamed);
+      if (!(resp.statusCode == 200 || resp.statusCode == 201)) {
+        _toast('Save failed (${resp.statusCode})');
+        return false;
+      }
+      // upload specialization proofs (rows) without waiting for all (simple sequential)
+      for (final row in professionalRows) {
+        final spec = row.specialization?.trim();
+        if (spec == null || spec.isEmpty) continue;
+        final certPath = row.certificatePhotoPath;
+        final certName = row.certificateName.text.trim();
+        try {
+          if (certPath != null && certPath.isNotEmpty) {
+            final f = File(certPath); if (await f.exists()) {
+              await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty? null: certName);
+            } else {
+              await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty? null: certName);
+            }
+          } else {
+            await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty? null: certName);
+          }
+        } catch (e) {
+          debugPrint('Spec proof failed for $spec: $e');
+        }
+      }
+      _toast('Professional details saved');
+      return true;
+    } catch (e) {
+      _toast('Error saving professional: $e');
+      return false;
+    } finally {
+      if (mounted) setState(() => _savingPartial = false);
     }
   }
 }

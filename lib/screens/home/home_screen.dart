@@ -19,12 +19,13 @@ import '../../utils/user_role.dart';
 import '../../services/fitstreet_api.dart';
 
 // screens referenced from the home screen
-import '../trainers/trainer_list_screen.dart';
+import '../trainers/get_all_trainer.dart';
 import '../bookings/booking_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../nutrition/nutrition_screen.dart';
 import '../yoga/yoga_screen.dart';
 import '../consultation/consultation.dart';
+import '../trainers/find_trainers_screen.dart';
 
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
@@ -35,7 +36,6 @@ import '../legal/legal_page.dart';
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
-// import 'featured_trainers_section.dart'; // removed in Figma redesign
 //import 'circular_home_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -1198,7 +1198,7 @@ content: const Text(
             fontWeight: FontWeight.w900,
             shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen())),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FindTrainersScreen())),
         ),
         _serviceCard(
           title: 'Yoga Trainers',
@@ -1339,7 +1339,7 @@ content: const Text(
                   Navigator.pushNamed(context, '/wallet/user');
                   break;
                 case 'Search':
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerListScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FindTrainersScreen()));
                   break;
                 case 'Notification':
                   _toggleNotificationList();

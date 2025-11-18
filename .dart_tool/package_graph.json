@@ -29,6 +29,7 @@
         "path",
         "path_provider",
         "provider",
+        "razorpay_flutter",
         "shared_preferences",
         "signature",
         "syncfusion_flutter_charts",
@@ -135,6 +136,15 @@
         "async",
         "http_parser",
         "meta"
+      ]
+    },
+    {
+      "name": "razorpay_flutter",
+      "version": "1.4.0",
+      "dependencies": [
+        "eventify",
+        "flutter",
+        "fluttertoast"
       ]
     },
     {
@@ -608,6 +618,20 @@
         "string_scanner",
         "typed_data"
       ]
+    },
+    {
+      "name": "fluttertoast",
+      "version": "8.2.14",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "web"
+      ]
+    },
+    {
+      "name": "eventify",
+      "version": "1.0.1",
+      "dependencies": []
     },
     {
       "name": "shared_preferences_windows",

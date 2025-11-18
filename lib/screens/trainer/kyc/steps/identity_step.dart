@@ -40,17 +40,14 @@ class IdentityStep extends StatelessWidget {
   final TextEditingController emgRelation;
   final TextEditingController emgMobile;
 
-  final TextEditingController pan;
   final TextEditingController aadhaar;
 
   // image props (passed from parent wizard)
-  final String? panPhotoPath;
   final String? aadhaarPhotofrontPath;
   final String? aadhaarPhotobackPath;
   final String? selfiePath;
 
   // callbacks to set / clear paths in parent
-  final void Function(String) pickPanPhoto;
   final void Function(String) pickAadhaarPhotofront;
   final void Function(String) pickAadhaarPhotoback;
   final void Function(String) pickSelfie;
@@ -87,9 +84,7 @@ class IdentityStep extends StatelessWidget {
     required this.emgName,
     required this.emgRelation,
     required this.emgMobile,
-    required this.pan,
     required this.aadhaar,
-    required this.pickPanPhoto,
     required this.pickAadhaarPhotofront,
     required this.pickAadhaarPhotoback,
     required this.pickSelfie,
@@ -97,7 +92,6 @@ class IdentityStep extends StatelessWidget {
     required this.onCurrentPincodeChanged,
     this.readOnlyFullName = false,
     this.readOnlyMobile = false,
-    this.panPhotoPath,
     this.aadhaarPhotofrontPath,
     this.aadhaarPhotobackPath,
     this.selfiePath,
@@ -116,12 +110,7 @@ class IdentityStep extends StatelessWidget {
     return true;
   }
 
-  static bool validateIDs(TextEditingController pan, TextEditingController aadhaar, void Function(String) toast) {
-    if (!RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(pan.text.trim())) { toast("Invalid PAN format (AAAAA9999A)"); return false; }
-    final aad = aadhaar.text.replaceAll(" ", "");
-    if (!RegExp(r'^\d{12}$').hasMatch(aad)) { toast("Aadhaar must be 12 digits"); return false; }
-    return true;
-  }
+
 
   // helper: pick from gallery and save to temp, then call parent callback with path
   Future<void> _pickImageAndSend(BuildContext ctx, Future<void> Function(String) sendCallback) async {
@@ -337,9 +326,6 @@ class IdentityStep extends StatelessWidget {
                     validator: (v) => RegExp(r'^\d{10}$').hasMatch(v ?? "") ? null : "Enter 10-digit number"),
 
                 const SubTitle("Govt ID Proof"),
-                field("PAN (AAAAA9999A)", pan,
-                    inputFormatters: [UpperCaseTextFormatter(), LengthLimitingTextInputFormatter(10)],
-                    validator: (v) => RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch(v ?? "") ? null : "Invalid PAN format"),
 
                 field("Aadhaar (XXXX XXXX XXXX)", aadhaar, keyboardType: TextInputType.number,
                     inputFormatters: [AadhaarFormatter(), FilteringTextInputFormatter.allow(RegExp(r'[\d ]')), LengthLimitingTextInputFormatter(14)],
@@ -347,15 +333,9 @@ class IdentityStep extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // Images: PAN front, Aadhaar front/back, selfie
+                // Images:  Aadhaar front/back, selfie
                 // Each tap opens gallery picker and calls parent's callback with path (or empty string to clear)
-                _imageRow(
-                  "PAN Photo (clear, readable)",
-                  panPhotoPath,
-                      () => _pickImageAndSend(context, (path) async => pickPanPhoto(path)),
-                      () => pickPanPhoto(''),
-                  required: true,
-                ),
+
 
                 _imageRow(
                   "Aadhaar Photo (front)",

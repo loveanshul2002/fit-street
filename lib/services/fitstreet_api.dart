@@ -72,6 +72,14 @@ class FitstreetApi {
     return http.Response.fromStream(await response);
   }
 
+  /// Create a session booking after Razorpay payment (no screenshot required).
+  /// Fields expected: selectedSession, selectedTime, selectedDate, price, mode, status, trainerId, userId, razorpayOrderId
+  Future<http.Response> bookSessionRazorpay(Map<String, dynamic> data) {
+    final uri = Uri.parse('$baseUrl/api/session-bookings');
+    final body = jsonEncode(data);
+    return http.post(uri, headers: _jsonHeaders(), body: body);
+  }
+
 
   // ----------------------
   // Trainer endpoints

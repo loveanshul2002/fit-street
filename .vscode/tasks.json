@@ -48,6 +48,15 @@
 				"analyze"
 			],
 			"group": "build"
+		},
+		{
+			"label": "flutter analyze quick",
+			"type": "shell",
+			"command": "flutter",
+			"args": [
+				"analyze"
+			],
+			"group": "build"
 		}
 	]
 }

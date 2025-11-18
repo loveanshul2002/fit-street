@@ -90,6 +90,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   bool agreeHnS = false;
   bool ackTrainerAgreement = false;
   bool ackCancellationPolicy = false;
+  bool isPaid = false;
 
 
   final TextEditingController esignName = TextEditingController();
@@ -141,6 +142,9 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
             oneSessionPrice = data['oneSessionPrice'].toString();
           if (data['monthlySessionPrice'] != null)
             monthlySessionPrice = data['monthlySessionPrice'].toString();
+          if (data['isPaid'] == true || (data['isPaid']?.toString() == 'true')) {
+            isPaid = true;
+          }
         }
       }
     } catch (e) {
@@ -286,7 +290,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         agreeHnS: agreeHnS,
         ackTrainerAgreement: ackTrainerAgreement,
         ackCancellationPolicy: ackCancellationPolicy,
-        paymentScreenshotPath: paymentScreenshotPath,
+  isPaid: isPaid,
         toast: _toast,
       );
 
@@ -492,8 +496,23 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         esignName: esignName,
                         esignDate: esignDate,
                         onSignatureBytes: (bytes) => signaturePng = bytes,
-                        initialPaymentScreenshotPath: paymentScreenshotPath,
-                        onPaymentScreenshotSelected: (p) => setState(() => paymentScreenshotPath = p),
+                        isPaid: isPaid,
+                        onPaidChanged: (v) async {
+                          if (!mounted) return;
+                          setState(() => isPaid = v);
+                          if (v) {
+                            // persist isPaid to backend
+                            try {
+                              final trainerId = await _getTrainerId();
+                              if (trainerId != null && trainerId.isNotEmpty) {
+                                final api = await _api();
+                                await api.updateTrainerProfileMultipart(trainerId, fields: {'isPaid': 'true'});
+                              }
+                            } catch (e) {
+                              debugPrint('mark isPaid failed: $e');
+                            }
+                          }
+                        },
                       ),
                     ],
                   ),

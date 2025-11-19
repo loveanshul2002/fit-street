@@ -75,22 +75,30 @@ Future<void> showAvailabilityEditor({
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(
-                  child: OutlinedButton(onPressed: () {
-                    setState(() {
-                      tempSelected.clear();
-                      for (final k in tempAvail.keys) {
-                        tempAvail[k]!.clear();
-                      }
-                    });
-                    Navigator.pop(ctx2);
-                  }, child: const Text("Clear"), style: OutlinedButton.styleFrom(foregroundColor: Colors.white)),
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        tempSelected.clear();
+                        for (final k in tempAvail.keys) {
+                          tempAvail[k]!.clear();
+                        }
+                      });
+                      Navigator.pop(ctx2);
+                    },
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.white),
+                    child: const Text("Clear"),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(onPressed: () {
-                    onSave(tempAvail, tempSelected);
-                    Navigator.pop(ctx2);
-                  }, child: const Text("Save"), style: ElevatedButton.styleFrom(backgroundColor: Colors.white12)),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      onSave(tempAvail, tempSelected);
+                      Navigator.pop(ctx2);
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
+                    child: const Text("Save"),
+                  ),
                 ),
               ])
             ]),

@@ -651,6 +651,7 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
     final langs = (widget.trainer['languages'] ?? '').toString();
   final trainerId = (widget.trainer['_id'] ?? widget.trainer['id'] ?? '').toString();
   final initialSpecs = _extractSpecs(widget.trainer);
+  final bio = (widget.trainer['bioData'] ?? widget.trainer['bio'] ?? widget.trainer['biodata'] ?? '').toString();
 
     return GlassCard(
       child: Padding(
@@ -725,6 +726,11 @@ class _TrainerProfileScreenState extends State<TrainerProfileScreen> {
             ),
           ]),
           const SizedBox(height: 12),
+          if (bio.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(bio, style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 12),
+          ],
           // Specializations (chips) – mirror Trainer List behavior
           Builder(builder: (_) {
             if (initialSpecs.isNotEmpty) {

@@ -319,9 +319,9 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+  color: Color.fromARGB((0.04 * 255).round(), 255, 255, 255),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+  border: Border.all(color: Color.fromARGB((0.12 * 255).round(), 255, 255, 255)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -405,7 +405,7 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           image: DecorationImage(
-                            image: FileImage(File(r.certificatePhotoPath!)),
+                            image: _providerFor(r.certificatePhotoPath!),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -430,6 +430,14 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
         ],
       ),
     );
+  }
+
+  ImageProvider _providerFor(String path) {
+    final lower = path.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return NetworkImage(path);
+    }
+    return FileImage(File(path));
   }
 
   void _openSpecializationPicker({required SpecRow row, required FormFieldState<String> formState}) {
@@ -487,7 +495,7 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withOpacity(0.12),
+                                          color: Color.fromARGB((0.12 * 255).round(), 255, 255, 255),
                                           borderRadius: BorderRadius.circular(16),
                                           border: Border.all(color: Colors.white24),
                                         ),
@@ -529,8 +537,8 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
     return ChoiceChip(
       label: Text(label, style: const TextStyle(color: Colors.white)),
       selected: selected,
-      selectedColor: Colors.white.withOpacity(0.25),
-      backgroundColor: Colors.white.withOpacity(0.12),
+  selectedColor: Color.fromARGB((0.25 * 255).round(), 255, 255, 255),
+  backgroundColor: Color.fromARGB((0.12 * 255).round(), 255, 255, 255),
       onSelected: (_) {
         setState(() {
           if (selected) {
@@ -540,7 +548,7 @@ class _ProfessionalStepState extends State<ProfessionalStep> {
           }
         });
       },
-      shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))),
+  shape: StadiumBorder(side: BorderSide(color: Color.fromARGB((0.3 * 255).round(), 255, 255, 255))),
     );
   }
 }

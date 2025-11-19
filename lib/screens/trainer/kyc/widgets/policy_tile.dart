@@ -11,10 +11,12 @@ class PolicyTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.25))),
+    decoration: BoxDecoration(
+      // was Colors.white.withOpacity(0.10)
+      color: Color.fromARGB((0.10 * 255).round(), 255, 255, 255),
+      borderRadius: BorderRadius.circular(12),
+      // was Colors.white.withOpacity(0.25)
+      border: Border.all(color: Color.fromARGB((0.25 * 255).round(), 255, 255, 255))),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
@@ -36,11 +38,14 @@ class PolicyTile extends StatelessWidget {
                 ),
               ),
             ),
-            CheckboxListTile(
-                value: value, onChanged: (v)=> onChanged(v ?? false),
-                checkColor: Colors.white, activeColor: Colors.white.withOpacity(0.25),
-                title: const Text("I have read and agree", style: TextStyle(color: Colors.white)),
-                controlAffinity: ListTileControlAffinity.leading),
+      CheckboxListTile(
+        value: value,
+        onChanged: (v)=> onChanged(v ?? false),
+        checkColor: Colors.white,
+        // was Colors.white.withOpacity(0.25)
+        activeColor: Color.fromARGB((0.25 * 255).round(), 255, 255, 255),
+        title: const Text("I have read and agree", style: TextStyle(color: Colors.white)),
+        controlAffinity: ListTileControlAffinity.leading),
           ],
         ),
       ),

@@ -21,6 +21,7 @@ class IdentityStep extends StatelessWidget {
 
   final TextEditingController mobile;
   final TextEditingController email;
+  final TextEditingController bioData;
 
   final TextEditingController pincode; // permanent pincode
   final TextEditingController city; // permanent city
@@ -71,6 +72,7 @@ class IdentityStep extends StatelessWidget {
     required this.gender,
     required this.mobile,
     required this.email,
+  required this.bioData,
     required this.pincode,
     required this.city,
     required this.stateCtrl,
@@ -154,7 +156,10 @@ class IdentityStep extends StatelessWidget {
                   height: 64,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(6),
-                    image: DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover),
+                    image: DecorationImage(
+                      image: _providerFor(path),
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -169,6 +174,14 @@ class IdentityStep extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ImageProvider _providerFor(String path) {
+    final lower = path.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
+      return NetworkImage(path);
+    }
+    return FileImage(File(path));
   }
 
   @override
@@ -218,10 +231,12 @@ class IdentityStep extends StatelessWidget {
                       return ChoiceChip(
                         label: Text(g, style: const TextStyle(color: Colors.white)),
                         selected: sel,
-                        selectedColor: Colors.white.withOpacity(0.25),
-                        backgroundColor: Colors.white.withOpacity(0.12),
-                        onSelected: (_) => gender.value = g,
-                        shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))),
+                        selectedColor: Color.fromARGB((0.25 * 255).round(), 255, 255, 255),
+                        backgroundColor: Color.fromARGB((0.12 * 255).round(), 255, 255, 255),
+                        onSelected: (_) {
+                          gender.value = g;
+                        },
+                        shape: StadiumBorder(side: BorderSide(color: Color.fromARGB((0.3 * 255).round(), 255, 255, 255))),
                       );
                     }).toList(),
                   ),
@@ -242,6 +257,14 @@ class IdentityStep extends StatelessWidget {
                       return RegExp(r".+@.+\..+").hasMatch(v) ? null : "Invalid email";
                     }),
 
+                // Bio Data
+                field("Bio (about you)", bioData, maxLines: 4,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null; // optional
+                      if (v.length < 10) return "Bio is too short";
+                      return null;
+                    }),
+
                 const SizedBox(height: 10),
                 const SubTitle("Address"),
 
@@ -249,8 +272,9 @@ class IdentityStep extends StatelessWidget {
                 field("Pincode", pincode, keyboardType: TextInputType.number, maxLength: 6,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
                     onChanged: (v) {
-                      if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) onPincodeChanged(v);
-                      else {
+                      if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) {
+                        onPincodeChanged(v);
+                      } else {
                         city.clear();
                         stateCtrl.clear();
                       }
@@ -289,8 +313,9 @@ class IdentityStep extends StatelessWidget {
                   field("Current Pincode", currentPincode, keyboardType: TextInputType.number, maxLength: 6,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)],
                       onChanged: (v) {
-                        if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) onCurrentPincodeChanged(v);
-                        else {
+                        if (v.length == 6 && RegExp(r'^\d{6}$').hasMatch(v)) {
+                          onCurrentPincodeChanged(v);
+                        } else {
                           currentCity.clear();
                           currentState.clear();
                         }

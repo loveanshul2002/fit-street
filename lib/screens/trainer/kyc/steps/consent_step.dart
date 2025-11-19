@@ -90,7 +90,14 @@ class ConsentStep extends StatefulWidget {
 class _ConsentStepState extends State<ConsentStep> {
 
   @override
-  void initState() { super.initState(); }
+  void initState() {
+    super.initState();
+    if (widget.esignDate.text.trim().isEmpty) {
+      final now = DateTime.now();
+      final today = '${now.day.toString().padLeft(2,'0')}/${now.month.toString().padLeft(2,'0')}/${now.year}';
+      widget.esignDate.text = today;
+    }
+  }
 
   // local toast removed (payment UI stripped); rely on parent wizard to show errors.
 
@@ -109,14 +116,14 @@ class _ConsentStepState extends State<ConsentStep> {
               CheckboxListTile(
                   value: widget.noCriminalRecord,
                   onChanged: (v)=> widget.onChange(noCrime: v ?? false),
-                  checkColor: Colors.white, activeColor: Colors.white.withOpacity(0.25),
+                  checkColor: Colors.white, activeColor: Color.fromARGB((0.25 * 255).round(), 255, 255, 255),
                   title: const Text("I confirm that I have no criminal record.", style: TextStyle(color: Colors.white)),
                   controlAffinity: ListTileControlAffinity.leading),
 
               CheckboxListTile(
                   value: widget.agreeHnS,
                   onChanged: (v)=> widget.onChange(hns: v ?? false),
-                  checkColor: Colors.white, activeColor: Colors.white.withOpacity(0.25),
+                  checkColor: Colors.white, activeColor: Color.fromARGB((0.25 * 255).round(), 255, 255, 255),
                   title: const Text("I agree to platform Health & Safety rules.", style: TextStyle(color: Colors.white)),
                   controlAffinity: ListTileControlAffinity.leading),
 
@@ -176,7 +183,17 @@ class _ConsentStepState extends State<ConsentStep> {
                 },
               ),
               const SizedBox(height: 12),
-              field("Date (DD/MM/YYYY)", widget.esignDate, keyboardType: TextInputType.number, inputFormatters: dateDDMMYYYYFormatters(), validator: (v){ if (!notEmpty(v)) return "Enter date"; return RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(v!.trim()) ? null : "Use DD/MM/YYYY"; }, ),
+              field(
+                "Date (DD/MM/YYYY)",
+                widget.esignDate,
+                readOnly: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: dateDDMMYYYYFormatters(),
+                validator: (v){
+                  if (!notEmpty(v)) return "Enter date"; // should never happen after auto-fill
+                  return RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(v!.trim()) ? null : "Use DD/MM/YYYY";
+                },
+              ),
 
               const SizedBox(height: 8),
               const Text("By submitting, you agree that the above information is true and you consent to the policies.",

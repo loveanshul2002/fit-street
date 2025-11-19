@@ -56,9 +56,11 @@ class Header extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     constraints: const BoxConstraints(maxWidth: 140),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
+                      // was Colors.white.withOpacity(0.08)
+                      color: Color.fromARGB((0.08 * 255).round(), 255, 255, 255),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.75),
+                      // was Colors.white.withOpacity(0.25)
+                      border: Border.all(color: Color.fromARGB((0.25 * 255).round(), 255, 255, 255), width: 0.75),
                     ),
                     child: Text(
                       'ID: ${trainerUniqueId!}',

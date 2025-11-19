@@ -45,6 +45,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
 
   // Editable
   final _emailCtrl = TextEditingController();
+  final _bioCtrl = TextEditingController();
   final _pincodectrl = TextEditingController();
   final _addressCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
@@ -122,6 +123,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   @override
   void dispose() {
     _emailCtrl.dispose();
+  _bioCtrl.dispose();
     _pincodectrl.dispose();
     _addressCtrl.dispose();
     _cityCtrl.dispose();
@@ -225,6 +227,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
 
           // editable
           _emailCtrl.text = (data['email'] ?? '').toString();
+          _bioCtrl.text = (data['bioData'] ?? data['bio'] ?? data['biodata'] ?? '').toString();
           _emgNameCtrl.text = (data['emergencyPersonName'] ?? '').toString();
           _emgRelCtrl.text = (data['emergencyPersonRelation'] ?? '').toString();
           _emgMobileCtrl.text = (data['emergencyPersonMobile'] ?? '').toString();
@@ -324,6 +327,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
 
       final fields = <String, dynamic>{
         'email': _emailCtrl.text.trim(),
+  if (_bioCtrl.text.trim().isNotEmpty) 'bioData': _bioCtrl.text.trim(),
         // include both variants to be safe; backend may expect either
         if (pinToSend != null && pinToSend.isNotEmpty) 'pincode': pinToSend,
         if (pinToSend != null && pinToSend.isNotEmpty) 'currentPincode': pinToSend,
@@ -530,6 +534,9 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                           const SizedBox(height: 8),
                           _ro('Name', _name),
                           _ro('Mobile', _mobile),
+
+                          // Bio (editable after KYC)
+                          field('Bio (about you)', _bioCtrl, readOnly: !_isKycCompleted, maxLines: 4),
 
                           // Editable current address fields
                           field('Current Address', _addressCtrl, readOnly: false),

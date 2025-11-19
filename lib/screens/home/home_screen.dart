@@ -1282,14 +1282,14 @@ content: const Text(
             Positioned(
               left: 0,
               right: 0,
-              bottom: 64,
+              bottom: 60,
               child: Center(
                 child: Text(
                   title,
                   style: titleStyle ?? const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
                     shadows: [Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
                   ),
                   textAlign: TextAlign.center,
@@ -1306,7 +1306,6 @@ content: const Text(
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF5C00),
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: const [BoxShadow(color: Color(0x66FF5C00), blurRadius: 10, offset: Offset(0, 7))],
                   ),
                   child: const Text('Book Now', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
@@ -1357,7 +1356,7 @@ content: const Text(
                 const SizedBox(height: 12),
                 Icon(i.icon, color: const Color(0xFFD4D4D4)),
                 const SizedBox(height: 6),
-                Text(i.label, style: const TextStyle(color: Color(0xFFFF5503), fontSize: 12)),
+                Text(i.label, style: const TextStyle(color: Color(0xFFFF5503), fontSize: 11)),
               ],
             ),
           );

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 InputDecoration glassInput() => InputDecoration(
-  filled: true, fillColor: Colors.white.withOpacity(0.10),
+  filled: true, fillColor: Color.fromARGB((0.10 * 255).round(), 255, 255, 255),
   enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: BorderSide(color: Colors.white.withOpacity(0.25))),
+      borderSide: BorderSide(color: Color.fromARGB((0.25 * 255).round(), 255, 255, 255))),
   focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: Colors.white)),
@@ -22,6 +22,7 @@ Widget field(
       bool readOnly = false,
       List<TextInputFormatter>? inputFormatters,
       int? maxLength,
+  int? maxLines,
       void Function(String)? onChanged,
     }) {
   return Padding(
@@ -29,8 +30,9 @@ Widget field(
     child: TextFormField(
       controller: c, readOnly: readOnly,
       style: const TextStyle(color: Colors.white),
-      validator: validator, keyboardType: keyboardType,
-      inputFormatters: inputFormatters, maxLength: maxLength, onChanged: onChanged,
+  validator: validator, keyboardType: keyboardType,
+  inputFormatters: inputFormatters, maxLength: maxLength, onChanged: onChanged,
+  maxLines: maxLines,
       decoration: glassInput().copyWith(
           labelText: label, labelStyle: const TextStyle(color: Colors.white70), counterText: ""),
     ),

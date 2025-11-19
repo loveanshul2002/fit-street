@@ -105,6 +105,7 @@ class _PaymentStepState extends State<PaymentStep> {
       final verify = await api.verifyRazorpayPayment(payload);
       if (verify.statusCode == 200 || verify.statusCode == 201) {
         widget.onPaidChanged(true);
+        if (!mounted) return; // guard context use after async
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment successful')));
       } else {
         _fail('Verification failed');
@@ -127,7 +128,8 @@ class _PaymentStepState extends State<PaymentStep> {
   void _fail(String msg) {
     if (!mounted) return;
     setState(() { _processing = false; _error = msg; });
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  if (!mounted) return; // guard context use
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -147,7 +149,7 @@ class _PaymentStepState extends State<PaymentStep> {
                 onPressed: _processing ? null : _startPayment,
                 icon: const Icon(Icons.lock_open),
                 label: Text(_processing ? 'Processing…' : 'Pay ₹$_activationFeeRupees Securely'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
+                style: ElevatedButton.styleFrom(backgroundColor: Color.fromARGB((0.12 * 255).round(), 255, 255, 255)),
               ),
               const SizedBox(height: 8),
               const Text('Includes dashboard access & booking system.', style: TextStyle(color: Colors.white54, fontSize: 12)),

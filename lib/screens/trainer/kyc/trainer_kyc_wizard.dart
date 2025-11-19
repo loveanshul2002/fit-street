@@ -46,6 +46,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   final TextEditingController mobile = TextEditingController();
   final TextEditingController email = TextEditingController();
+  final TextEditingController bioData = TextEditingController();
 
   final TextEditingController pincode = TextEditingController();
   final TextEditingController city = TextEditingController();
@@ -125,29 +126,164 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         sp.getString('fitstreet_user_mobile') ??
         '';
     email.text = sp.getString('fitstreet_trainer_email') ?? '';
+  bioData.text = sp.getString('fitstreet_trainer_bio') ?? '';
+  
 
     try {
+      if (!mounted) return; // guard context usage across async gap
       final auth = context.read<AuthManager>();
       final id = await auth.getApiTrainerId();
       if (id != null && id.isNotEmpty) {
         final res = await auth.fetchTrainerProfile(id);
+        if (!mounted) return;
         if (res['success'] == true && res['body'] is Map) {
           final data = res['body']['data'] ?? res['body'];
           if (data['fullName'] != null) fullName.text = data['fullName'];
           if (data['mobileNumber'] != null) mobile.text = data['mobileNumber'];
           if (data['email'] != null) email.text = data['email'];
           if (data['gender'] != null) gender.value = data['gender'];
+          if (data['bioData'] != null) bioData.text = data['bioData'];
+
+          // DOB -> UI format DD/MM/YYYY if possible
+          final dobRaw = data['dob'];
+          if (dobRaw is String && dobRaw.isNotEmpty) {
+            try {
+              // Handle YYYY-MM-DD or ISO
+              DateTime? parsed;
+              if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dobRaw)) {
+                parsed = DateTime.tryParse(dobRaw);
+              } else if (RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(dobRaw)) {
+                // already in UI format
+                parsed = null;
+                dob.text = dobRaw;
+              }
+              if (parsed != null) {
+                dob.text = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+              }
+            } catch (_) {}
+          }
+
+          // Address (permanent)
+          if (data['pincode'] != null) pincode.text = (data['pincode'] ?? '').toString();
+          if (data['city'] != null && data['city'].toString().isNotEmpty) city.text = data['city'];
+          if (data['state'] != null && data['state'].toString().isNotEmpty) stateCtrl.text = data['state'];
+          if (data['address'] != null && data['address'].toString().isNotEmpty) addrPermanent.text = data['address'];
+
+          // Address (current) and parity
+          final same = (data['isAddressSame'] == true) || (data['isAddressSame']?.toString() == 'true');
+          sameAsPermanent = same;
+          final currentPin = (data['currentPincode'] ?? '').toString();
+          final currentCityVal = (data['currentCity'] ?? '').toString();
+          final currentStateVal = (data['currentState'] ?? '').toString();
+          final currentAddr = (data['currentAddress'] ?? '').toString();
+          if (!same) {
+            if (currentPin.isNotEmpty) currentPincode.text = currentPin;
+            if (currentCityVal.isNotEmpty) currentCity.text = currentCityVal;
+            if (currentStateVal.isNotEmpty) currentState.text = currentStateVal;
+            if (currentAddr.isNotEmpty) addrCurrent.text = currentAddr;
+          } else {
+            // mirror permanent
+            currentPincode.text = pincode.text;
+            currentCity.text = city.text;
+            currentState.text = stateCtrl.text;
+            addrCurrent.text = addrPermanent.text;
+          }
+
+          // Emergency details
+          if (data['emergencyPersonName'] != null) emgName.text = data['emergencyPersonName'];
+          if (data['emergencyPersonMobile'] != null) emgMobile.text = data['emergencyPersonMobile'];
+          if (data['emergencyPersonRelation'] != null) emgRelation.text = data['emergencyPersonRelation'];
+
+          // IDs and photos
+          if (data['aadhaarCard'] != null) aadhaar.text = data['aadhaarCard'].toString();
+          // Support remote image URLs as paths to preview in steps
+          if (data['trainerImageURL'] != null && data['trainerImageURL'].toString().isNotEmpty) {
+            selfiePath = data['trainerImageURL'].toString();
+          }
+          if (data['aadhaarFrontImageURL'] != null && data['aadhaarFrontImageURL'].toString().isNotEmpty) {
+            aadhaarPhotofrontPath = data['aadhaarFrontImageURL'].toString();
+          }
+          if (data['aadhaarBackImageURL'] != null && data['aadhaarBackImageURL'].toString().isNotEmpty) {
+            aadhaarPhotobackPath = data['aadhaarBackImageURL'].toString();
+          }
+
+          // Bank details
+          if (data['accountNumber'] != null) accName.text = data['accountNumber'].toString();
+          if (data['ifscCode'] != null) ifsc.text = data['ifscCode'].toString();
+          if (data['bankName'] != null) bankName.text = data['bankName'].toString();
+          if (data['branch'] != null) branch.text = data['branch'].toString();
+          if (data['upiId'] != null) upi.text = data['upiId'].toString();
+
+          // Experience
+          if (data['experience'] != null) experience = data['experience'].toString();
+
+          // Languages: CSV -> trainingLangs + otherLangCtrl
+          if (data['languages'] != null && data['languages'].toString().isNotEmpty) {
+            final raw = data['languages'].toString();
+            final tokens = raw.split(RegExp(r'[,;]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+            final known = <String>{'English','Hindi'};
+            final others = <String>[];
+            trainingLangs.clear();
+            for (final t in tokens) {
+              if (known.contains(t)) {
+                trainingLangs.add(t);
+              } else {
+                others.add(t);
+              }
+            }
+            if (others.isNotEmpty) {
+              trainingLangs.add('Other');
+              otherLangCtrl.text = others.join(', ');
+            } else {
+              otherLangCtrl.clear();
+            }
+          }
 
           // If backend returns pricing, prefill them
-          if (data['oneSessionPrice'] != null)
+          if (data['oneSessionPrice'] != null) {
             oneSessionPrice = data['oneSessionPrice'].toString();
-          if (data['monthlySessionPrice'] != null)
+          }
+          if (data['monthlySessionPrice'] != null) {
             monthlySessionPrice = data['monthlySessionPrice'].toString();
+          }
           if (data['isPaid'] == true || (data['isPaid']?.toString() == 'true')) {
             isPaid = true;
           }
+
+
+          // Prefill professional rows from any specialization/proof data if available
+          try {
+            final List<dynamic>? proofs = (data['specializationProofs'] is List)
+                ? (data['specializationProofs'] as List)
+                : (data['specializations'] is List ? data['specializations'] as List : null);
+            if (proofs != null && proofs.isNotEmpty) {
+              // dispose existing controllers to avoid leaks
+              for (final r in professionalRows) {
+                try { r.certificateName.dispose(); } catch (_) {}
+              }
+              professionalRows.clear();
+              for (final item in proofs) {
+                if (item is Map) {
+                  final spec = (item['specialization'] ?? item['spec'] ?? '').toString();
+                  if (spec.isEmpty) continue;
+                  final name = (item['certificateName'] ?? '').toString();
+                  final photo = (item['certificateImageURL'] ?? item['photoURL'] ?? '').toString();
+                  final row = SpecRow();
+                  row.specialization = spec;
+                  if (name.isNotEmpty) row.certificateName.text = name;
+                  if (photo.isNotEmpty) row.certificatePhotoPath = photo; // URL supported in UI
+                  professionalRows.add(row);
+                }
+              }
+              if (professionalRows.isEmpty) professionalRows.add(SpecRow());
+            }
+          } catch (e) {
+            debugPrint('Prefill specializations parse error: $e');
+          }
         }
       }
+      // Reflect all loaded values in UI-dependent widgets like PaymentStep
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('loadSavedProfile failed: $e');
     }
@@ -161,6 +297,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
     gender.dispose();
     mobile.dispose();
     email.dispose();
+  bioData.dispose();
     pincode.dispose();
     city.dispose();
     stateCtrl.dispose();
@@ -187,8 +324,10 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
     super.dispose();
   }
 
-  void _toast(String msg) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   // ignore: unused_element
   Future<String?> _captureSelfie() async {
@@ -283,14 +422,13 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         toast: _toast,
       );
 
-  if (consentOk) {
+      if (consentOk) {
         if (!mounted) return;
-
-        // Call your KYC upload API here
+        // Perform upload; check mounted again after async gap before using context
         final ok = await _uploadKyc();
         if (!ok) return;
-
-        _toast("KYC submitted! We’ll verify it shortly.");
+        if (!mounted) return;
+        _toast("KYC submitted! Well verify it shortly.");
         Navigator.pop(context, true);
       }
 
@@ -341,7 +479,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Container(color: Colors.black.withOpacity(0.15)),
+            child: Container(color: Color.fromARGB((0.15 * 255).round(), 0, 0, 0)),
           ),
         ),
       ),
@@ -349,7 +487,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         fit: StackFit.expand,
         children: [
           Image.asset('assets/image/bg.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.35)),
+          Container(color: Color.fromARGB((0.35 * 255).round(), 0, 0, 0)),
           SafeArea(
             child: Column(
               children: [
@@ -390,6 +528,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         gender: gender,
                         mobile: mobile,
                         email: email,
+                        bioData: bioData,
                         pincode: pincode,
                         city: city,
                         stateCtrl: stateCtrl,
@@ -496,7 +635,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
-                              side: BorderSide(color: Colors.white.withOpacity(0.6)),
+                              side: BorderSide(color: Color.fromARGB((0.6 * 255).round(), 255, 255, 255)),
                             ),
                             onPressed: _back,
                             child: Text(_step == 0 ? "Exit" : "Back"),
@@ -506,7 +645,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                         Expanded(
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundColor: Color.fromARGB((0.2 * 255).round(), 255, 255, 255),
                             ),
                             onPressed: _next,
                             child: Text(
@@ -532,11 +671,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color:
-          active ? Colors.white.withOpacity(0.25) : Colors.white.withOpacity(
-              0.12),
+      color: active
+        ? Color.fromARGB((0.25 * 255).round(), 255, 255, 255)
+        : Color.fromARGB((0.12 * 255).round(), 255, 255, 255),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.25)),
+      border: Border.all(color: Color.fromARGB((0.25 * 255).round(), 255, 255, 255)),
         ),
         alignment: Alignment.center,
         child: Text(label,
@@ -687,6 +826,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (mobile.text
             .trim()
             .isNotEmpty) 'mobileNumber': mobile.text.trim(),
+  if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
         if (dobIso != null && dobIso.isNotEmpty) 'dob': dobIso,
         if (email.text
             .trim()
@@ -882,10 +1022,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       } else {
         String msg = 'Failed to submit KYC (${resp.statusCode})';
         try {
-          if (body is Map)
-            msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg)
-                .toString();
-          else if (resp.body.isNotEmpty) msg = resp.body;
+          if (body is Map) {
+            msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg).toString();
+          } else if (resp.body.isNotEmpty) {
+            msg = resp.body;
+          }
         } catch (_) {}
         _toast(msg);
         return false;
@@ -945,6 +1086,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       final fields = <String, dynamic>{
         if (fullName.text.trim().isNotEmpty) 'fullName': fullName.text.trim(),
         if (mobile.text.trim().isNotEmpty) 'mobileNumber': mobile.text.trim(),
+  if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
         if (email.text.trim().isNotEmpty) 'email': email.text.trim(),
         if (dobIso != null && dobIso.isNotEmpty) 'dob': dobIso,
         if (gender.value != null && (gender.value ?? '').isNotEmpty) 'gender': gender.value,

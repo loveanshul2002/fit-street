@@ -82,6 +82,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   // **Parent-owned professional rows**
   final List<SpecRow> professionalRows = [SpecRow()];
+  // Track existing proof ids from server
+  final Set<String> _loadedProofIds = {};
 
   // NEW: pricing fields (kept as strings that will be sent to backend)
   String? oneSessionPrice;
@@ -117,6 +119,73 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         2, '0')}/${now.year}";
     if (professionalRows.isEmpty) professionalRows.add(SpecRow());
     _loadSavedProfile();
+  }
+
+  // Fetch specialization proofs and populate professionalRows. Optionally pass embedded map from getTrainer.
+  Future<void> _prefillSpecializationsFromServer(String trainerId, {Map? embedded}) async {
+    try {
+      _loadedProofIds.clear();
+      List<dynamic>? list;
+
+      // Prefer dedicated endpoint
+      try {
+        final api = await _api();
+        final resp = await api.getSpecializationProofs(trainerId);
+        dynamic body;
+        try { body = jsonDecode(resp.body); } catch (_) { body = null; }
+        if (body is Map) {
+          final data = body['data'] ?? body['proofs'] ?? body['items'] ?? body['list'];
+          if (data is List) list = data;
+        } else if (body is List) {
+          list = body;
+        }
+      } catch (e) {
+        debugPrint('getSpecializationProofs failed: $e');
+      }
+
+      // Fallback to embedded
+    if (list == null || list.isEmpty) {
+        try {
+      final proofs = (embedded != null && embedded['specializationProofs'] is List)
+        ? embedded['specializationProofs'] as List
+        : (embedded != null && embedded['specializations'] is List)
+          ? embedded['specializations'] as List
+                  : null;
+          if (proofs != null) list = proofs;
+        } catch (_) {}
+      }
+
+    if (list == null || list.isEmpty) return;
+
+      // dispose existing controllers
+      for (final r in professionalRows) {
+        try { r.certificateName.dispose(); } catch (_) {}
+      }
+      professionalRows.clear();
+
+  for (final item in list) {
+        if (item is! Map) continue;
+        final spec = (item['specialization'] ?? item['spec'] ?? '').toString();
+        if (spec.isEmpty) continue;
+        final name = (item['certificateName'] ?? '').toString();
+        final photo = (item['certificateImageURL'] ?? item['photoURL'] ?? '').toString();
+        final pid = (item['_id'] ?? item['id'])?.toString();
+
+        final row = SpecRow();
+        row.specialization = spec;
+        if (name.isNotEmpty) row.certificateName.text = name;
+        if (photo.isNotEmpty) row.certificatePhotoPath = photo;
+        if (pid != null && pid.isNotEmpty) {
+          row.proofId = pid;
+          _loadedProofIds.add(pid);
+        }
+        professionalRows.add(row);
+      }
+
+      if (professionalRows.isEmpty) professionalRows.add(SpecRow());
+    } catch (e) {
+      debugPrint('Prefill specializations failed: $e');
+    }
   }
 
   Future<void> _loadSavedProfile() async {
@@ -251,35 +320,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           }
 
 
-          // Prefill professional rows from any specialization/proof data if available
-          try {
-            final List<dynamic>? proofs = (data['specializationProofs'] is List)
-                ? (data['specializationProofs'] as List)
-                : (data['specializations'] is List ? data['specializations'] as List : null);
-            if (proofs != null && proofs.isNotEmpty) {
-              // dispose existing controllers to avoid leaks
-              for (final r in professionalRows) {
-                try { r.certificateName.dispose(); } catch (_) {}
-              }
-              professionalRows.clear();
-              for (final item in proofs) {
-                if (item is Map) {
-                  final spec = (item['specialization'] ?? item['spec'] ?? '').toString();
-                  if (spec.isEmpty) continue;
-                  final name = (item['certificateName'] ?? '').toString();
-                  final photo = (item['certificateImageURL'] ?? item['photoURL'] ?? '').toString();
-                  final row = SpecRow();
-                  row.specialization = spec;
-                  if (name.isNotEmpty) row.certificateName.text = name;
-                  if (photo.isNotEmpty) row.certificatePhotoPath = photo; // URL supported in UI
-                  professionalRows.add(row);
-                }
-              }
-              if (professionalRows.isEmpty) professionalRows.add(SpecRow());
-            }
-          } catch (e) {
-            debugPrint('Prefill specializations parse error: $e');
-          }
+          // Prefill specialization proofs using dedicated endpoint; fallback to embedded
+          await _prefillSpecializationsFromServer(id, embedded: data);
         }
       }
       // Reflect all loaded values in UI-dependent widgets like PaymentStep
@@ -964,56 +1006,51 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           debugPrint('fetchTrainerProfile after KYC failed: $e');
         }
 
-        // Now upload specialization proofs (only those rows that have an image)
-        // Now upload specialization proofs (only those rows that have an image OR spec only)
+        // Sync specialization proofs to avoid duplicates
         try {
+          // Delete removed ones first
+          final currentIds = professionalRows.map((r) => r.proofId).whereType<String>().toSet();
+          final toDelete = _loadedProofIds.difference(currentIds);
+          for (final idToDelete in toDelete) {
+            try { await fitApi.deleteSpecializationProof(trainerId, idToDelete); } catch (_) {}
+          }
+
+          // Create or replace per row
           for (final row in professionalRows) {
             final spec = row.specialization?.trim();
-            if (spec == null || spec.isEmpty) {
-              debugPrint('Skipping specialization row (empty specialization).');
-              continue;
-            }
-
+            if (spec == null || spec.isEmpty) continue;
             final certPath = row.certificatePhotoPath;
             final certName = row.certificateName.text.trim();
-            if (certPath != null && certPath.isNotEmpty) {
-              final f = File(certPath);
-              if (await f.exists()) {
-                debugPrint('Uploading specialization proof (multipart) for "$spec" with file $certPath');
-                try {
-                  final proofResp = await fitApi.createSpecializationProof(
-                    trainerId,
-                    spec,
-                    f,
-                    certificateName: certName.isEmpty ? null : certName,
-                  );
-                  debugPrint('Specialization proof (multipart) -> status: ${proofResp.statusCode}, body: ${proofResp.body}');
-                } catch (e) {
-                  debugPrint('Error uploading specialization proof (multipart) for $spec: $e');
-                }
-              } else {
-                debugPrint('Spec photo file missing for "$spec": $certPath — will try create minimal entry.');
-                // fallback to minimal create without image
-                try {
-                  final proofResp = await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
-                  debugPrint('Specialization proof (minimal fallback) -> status: ${proofResp.statusCode}, body: ${proofResp.body}');
-                } catch (e) {
-                  debugPrint('Error creating minimal specialization proof fallback for $spec: $e');
+            final isUrl = (certPath != null) && (certPath.toLowerCase().startsWith('http://') || certPath.toLowerCase().startsWith('https://'));
+
+            if (row.proofId != null) {
+              if (certPath != null && certPath.isNotEmpty && !isUrl) {
+                try { await fitApi.deleteSpecializationProof(trainerId, row.proofId!); } catch (_) {}
+                final f = File(certPath);
+                if (await f.exists()) {
+                  await fitApi.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                } else {
+                  await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
                 }
               }
             } else {
-              // No photo: create minimal entry with certificateName null if empty
-              debugPrint('Creating minimal specialization proof for "$spec" (no photo).');
-              try {
-                final proofResp = await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
-                debugPrint('Specialization proof (minimal) -> status: ${proofResp.statusCode}, body: ${proofResp.body}');
-              } catch (e) {
-                debugPrint('Error creating minimal specialization proof for $spec: $e');
+              if (certPath != null && certPath.isNotEmpty && !isUrl) {
+                final f = File(certPath);
+                if (await f.exists()) {
+                  await fitApi.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                } else {
+                  await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                }
+              } else {
+                await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
               }
             }
           }
+
+          // Refresh local proof snapshot
+          await _prefillSpecializationsFromServer(trainerId);
         } catch (e) {
-          debugPrint('Error while uploading specialization proofs: $e');
+          debugPrint('Error while syncing specialization proofs: $e');
         }
 
 
@@ -1198,24 +1235,52 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         _toast('Save failed (${resp.statusCode})');
         return false;
       }
-      // upload specialization proofs (rows) without waiting for all (simple sequential)
+      // Sync specialization proofs with server
+      // Delete removed ones
+      final currentIds = professionalRows.map((r) => r.proofId).whereType<String>().toSet();
+      final toDelete = _loadedProofIds.difference(currentIds);
+      for (final idToDelete in toDelete) {
+        try { await api.deleteSpecializationProof(trainerId, idToDelete); } catch (_) {}
+      }
+
+      // Create or replace
       for (final row in professionalRows) {
         final spec = row.specialization?.trim();
         if (spec == null || spec.isEmpty) continue;
         final certPath = row.certificatePhotoPath;
         final certName = row.certificateName.text.trim();
+        final isUrl = (certPath != null) && (certPath.toLowerCase().startsWith('http://') || certPath.toLowerCase().startsWith('https://'));
+
         try {
-          if (certPath != null && certPath.isNotEmpty) {
-            final f = File(certPath); if (await f.exists()) {
-              await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty? null: certName);
-            } else {
-              await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty? null: certName);
-            }
+          if (row.proofId != null) {
+            if (certPath != null && certPath.isNotEmpty && !isUrl) {
+              try { await api.deleteSpecializationProof(trainerId, row.proofId!); } catch (_) {}
+              final f = File(certPath);
+              if (await f.exists()) {
+                final res = await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+              } else {
+                final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+              }
+            } // else no change
           } else {
-            await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty? null: certName);
+            if (certPath != null && certPath.isNotEmpty && !isUrl) {
+              final f = File(certPath);
+              if (await f.exists()) {
+                final res = await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+              } else {
+                final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+              }
+            } else {
+              final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+              try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+            }
           }
         } catch (e) {
-          debugPrint('Spec proof failed for $spec: $e');
+          debugPrint('Spec proof sync failed for $spec: $e');
         }
       }
       _toast('Professional details saved');

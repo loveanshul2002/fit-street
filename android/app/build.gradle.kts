@@ -18,8 +18,8 @@ android {
         applicationId = "com.anshul.newfitstreet"
         minSdk = 21
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+        versionCode = 3
+        versionName = "3.1.0"
     }
 
     // ✅ Use Java 17 for compilation

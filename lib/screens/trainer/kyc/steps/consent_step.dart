@@ -90,14 +90,7 @@ class ConsentStep extends StatefulWidget {
 class _ConsentStepState extends State<ConsentStep> {
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.esignDate.text.trim().isEmpty) {
-      final now = DateTime.now();
-      final today = '${now.day.toString().padLeft(2,'0')}/${now.month.toString().padLeft(2,'0')}/${now.year}';
-      widget.esignDate.text = today;
-    }
-  }
+  void initState() { super.initState(); }
 
   // local toast removed (payment UI stripped); rely on parent wizard to show errors.
 
@@ -183,17 +176,7 @@ class _ConsentStepState extends State<ConsentStep> {
                 },
               ),
               const SizedBox(height: 12),
-              field(
-                "Date (DD/MM/YYYY)",
-                widget.esignDate,
-                readOnly: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: dateDDMMYYYYFormatters(),
-                validator: (v){
-                  if (!notEmpty(v)) return "Enter date"; // should never happen after auto-fill
-                  return RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(v!.trim()) ? null : "Use DD/MM/YYYY";
-                },
-              ),
+              field("Date (DD/MM/YYYY)", widget.esignDate, keyboardType: TextInputType.number, inputFormatters: dateDDMMYYYYFormatters(), validator: (v){ if (!notEmpty(v)) return "Enter date"; return RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(v!.trim()) ? null : "Use DD/MM/YYYY"; }, ),
 
               const SizedBox(height: 8),
               const Text("By submitting, you agree that the above information is true and you consent to the policies.",

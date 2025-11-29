@@ -286,7 +286,7 @@ If you do not agree, you must not use the Platform.
 PART A — Terms for Trainers / Counsellors / Psychologists
 1. Registration & Membership
 1.1 Trainers must complete digital registration and pay a one-time, non-refundable onboarding fee of ₹1499 (or as updated).
-1.2 Registration includes a FitStreet T-shirt, ID card, digital profile access, and visibility to potential clients.
+1.2 Registration includes digital profile access and visibility to potential clients.
 1.3 FitStreet may approve, reject, or revoke registrations at its sole discretion and without obligation to disclose reasons.
 2. Independent Contractor Status
 2.1 Trainers act as independent professionals, not employees or agents of FitStreet.

@@ -19,24 +19,27 @@ import '../../utils/user_role.dart';
 import '../../services/fitstreet_api.dart';
 
 // screens referenced from the home screen
-import '../trainers/get_all_trainer.dart';
 import '../bookings/booking_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../nutrition/nutrition_screen.dart';
 import '../yoga/yoga_screen.dart';
 import '../consultation/consultation.dart';
-import '../trainers/find_trainers_screen.dart';
+// keep only one import of find_trainers_screen
+// import '../../constants/specializations.dart'; // available if needed for specializations on Home
 
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
 import '../User/user_auth_screen.dart';
 import '../legal/legal_page.dart';
+import '../trainers/find_trainers_screen.dart';
 
 // NEW: use the styled login screen
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
 //import 'circular_home_screen.dart';
+
+// kGroupedSpecializations is now provided by constants/specializations.dart
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,9 +51,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // User avatar url for greeting pill
   String? _userImageUrl;
-  // Dynamic quote image (motivational banner) fetched from backend
-  String? _quoteImageUrl; // full URL from API
-  bool _loadingQuote = false;
+  // Motivational banner images for carousel (first network if available)
   // Carousel state
   final PageController _carouselController = PageController();
   int _carouselIndex = 0;
@@ -248,8 +249,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ===== Quote Image Fetch =====
   Future<void> _fetchQuoteImage() async {
-    try {
-      setState(() => _loadingQuote = true);
+  try {
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
   final api = FitstreetApi('https://api.fitstreet.in', token: token);
@@ -278,7 +278,6 @@ class _HomeScreenState extends State<HomeScreen> {
               final sep = img.contains('?') ? '&' : '?';
               final url = '${img.trim()}${sep}ts=$ts';
               setState(() {
-                _quoteImageUrl = url;
                 _carouselImages = [url, 'assets/image/Frame 178.png'];
               });
             }
@@ -287,8 +286,6 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (_) {
       // silent fail
-    } finally {
-      if (mounted) setState(() => _loadingQuote = false);
     }
   }
 
@@ -385,6 +382,157 @@ content: const Text(
         ),
       ),
     );
+  }
+
+  Future<void> _confirmAndDeleteUser(BuildContext ctx) async {
+    final confirm = await showDialog<bool>(
+      context: ctx,
+      builder: (dCtx) {
+        final TextEditingController ctrl = TextEditingController();
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AlertDialog(
+              backgroundColor: Colors.white.withOpacity(0.12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              ),
+              title: const Text('Delete Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'This will permanently delete your account and all data. This action cannot be undone.\n\nType DELETE to confirm.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: ctrl,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Type DELETE',
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      filled: true,
+                      fillColor: Colors.white10,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dCtx, false),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (ctrl.text.trim().toUpperCase() == 'DELETE') {
+                      Navigator.pop(dCtx, true);
+                    }
+                  },
+                  child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (confirm == true) {
+      await _deleteUserAccount(ctx);
+    }
+  }
+
+  Future<void> _deleteUserAccount(BuildContext ctx) async {
+    final auth = ctx.read<AuthManager?>();
+    String? userId = auth?.userId;
+    try {
+      if (userId == null || userId.isEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        userId = sp.getString('fitstreet_user_db_id') ?? sp.getString('fitstreet_user_id');
+      }
+    } catch (_) {}
+
+    final sp = await SharedPreferences.getInstance();
+    final token = sp.getString('fitstreet_token') ?? '';
+
+    if (userId == null || userId.isEmpty || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User not logged in properly')));
+      }
+      return;
+    }
+
+    final url = Uri.parse('https://api.fitstreet.in/api/users/$userId');
+
+    // Show loader
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      Navigator.pop(context); // close loader
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully')));
+        }
+
+        // Clear user-related keys
+        try {
+          await sp.remove('fitstreet_token');
+          await sp.remove('fitstreet_role');
+          await sp.remove('fitstreet_user_id');
+          await sp.remove('fitstreet_user_db_id');
+          await sp.remove('fitstreet_user_name');
+          await sp.remove('fitstreet_user_email');
+          await sp.remove('fitstreet_profile_complete');
+          await sp.remove('mobile');
+        } catch (_) {}
+
+        try {
+          await auth?.logout();
+        } catch (_) {}
+
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      } else {
+        String msg = 'Failed to delete account (${response.statusCode})';
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map && (parsed['message'] != null || parsed['error'] != null)) {
+            msg = (parsed['message'] ?? parsed['error']).toString();
+          } else if (parsed is String && parsed.isNotEmpty) {
+            msg = parsed;
+          }
+        } catch (_) {}
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        }
+      }
+    } catch (e) {
+      try { Navigator.pop(context); } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      }
+    }
   }
 
   Future<void> _confirmAndLogout(BuildContext ctx) async {
@@ -818,14 +966,14 @@ content: const Text(
               _ctaButton(context),
               const SizedBox(height: 20),
               _servicesGrid(context),
-              const SizedBox(height: 90),
+              SizedBox(height: loggedIn ? 90 : 24),
             ],
           ),
         ),
       ),
       ),
 
-      bottomNavigationBar: _bottomNav(context),
+  bottomNavigationBar: loggedIn ? _bottomNav(context) : null,
     );
   }
 
@@ -915,6 +1063,14 @@ content: const Text(
                           onTap: () {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+                          },
+                        ),
+                        _drawerItem(
+                          icon: Icons.delete,
+                          label: 'Account Delete',
+                          onTap: () async {
+                            Navigator.pop(context);
+                            await _confirmAndDeleteUser(context);
                           },
                         ),
                         const Divider(height: 16, color: Colors.white24),
@@ -1016,44 +1172,7 @@ content: const Text(
   }
   // _heroBanner removed (replaced by _quoteHeroBanner)
 
-  // New banner that prefers backend quote image
-  Widget _quoteHeroBanner(BuildContext context) {
-    // If loading show shimmer-ish placeholder; if image available show network; else fallback to existing asset design
-    final radius = BorderRadius.circular(45);
-    return ClipRRect(
-      borderRadius: radius,
-      child: AspectRatio(
-        aspectRatio: 660 / 308,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_quoteImageUrl != null && _quoteImageUrl!.startsWith('http'))
-              Image.network(
-                _quoteImageUrl!,
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-                errorBuilder: (_, __, ___) => _fallbackHero(),
-              )
-            else if (_loadingQuote)
-              _loadingHero()
-            else
-              _fallbackHero(),
-            // Optional gradient overlay for legibility
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.black26, Colors.transparent],
-                ),
-              ),
-            ),
-            // Could add quote text overlay later; currently only image per requirement
-          ],
-        ),
-      ),
-    );
-  }
+  // _quoteHeroBanner removed; using _heroCarousel instead
 
   // Carousel version of the hero banner
   Widget _heroCarousel(BuildContext context) {
@@ -1137,25 +1256,7 @@ content: const Text(
     );
   }
 
-  Widget _loadingHero() {
-    // Simple animated gradient placeholder
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey.shade800, Colors.grey.shade700, Colors.grey.shade800],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: const Center(
-        child: SizedBox(
-          height: 38,
-          width: 38,
-          child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF5C00))),
-        ),
-      ),
-    );
-  }
+  // _loadingHero removed (not needed)
 
   Widget _ctaButton(BuildContext context) {
     return SizedBox(
@@ -1242,6 +1343,34 @@ content: const Text(
           ),
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
         ),
+        _serviceCard(
+          title: 'Sports Trainers',
+          image: 'assets/image/Frame 30-5.png',
+          alignment: Alignment.center,
+          imageHeight: 130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.01,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+        ),
+        _serviceCard(
+          title: 'Physiotherapists',
+          image: 'assets/image/Frame 30-6.png',
+          alignment: Alignment.center,
+          imageHeight: 130,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            height: 0.01,
+            fontWeight: FontWeight.w900,
+            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+          ),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+        ),
       ],
     );
   }
@@ -1282,14 +1411,14 @@ content: const Text(
             Positioned(
               left: 0,
               right: 0,
-              bottom: 60,
+              bottom: 64,
               child: Center(
                 child: Text(
                   title,
                   style: titleStyle ?? const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
                     shadows: [Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
                   ),
                   textAlign: TextAlign.center,
@@ -1306,6 +1435,7 @@ content: const Text(
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF5C00),
                     borderRadius: BorderRadius.circular(30),
+                    boxShadow: const [BoxShadow(color: Color(0x66FF5C00), blurRadius: 10, offset: Offset(0, 7))],
                   ),
                   child: const Text('Book Now', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
@@ -1318,16 +1448,18 @@ content: const Text(
   }
 
   Widget _bottomNav(BuildContext context) {
+   
     final List<_BottomItem> items = [
-      _BottomItem(Icons.home, 'Home'),
-      _BottomItem(Icons.account_balance_wallet_outlined, 'Wallet'),
-      _BottomItem(Icons.search, 'Search'),
-      _BottomItem(Icons.notifications_none, 'Notification'),
-      _BottomItem(Icons.person_outline, 'Account'),
-    ];
+            _BottomItem(Icons.home, 'Home'),
+            _BottomItem(Icons.account_balance_wallet_outlined, 'Wallet'),
+            _BottomItem(Icons.notifications_none, 'Notification'),
+            _BottomItem(Icons.person_outline, 'Account'),
+          ];
+  
+
     return Container(
       height: 84,
-      decoration: const BoxDecoration(color: Color(0xFF020202)),
+      decoration: const BoxDecoration(color: Color(0xFF000000)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: items.map((i) {
@@ -1336,9 +1468,6 @@ content: const Text(
               switch (i.label) {
                 case 'Wallet':
                   Navigator.pushNamed(context, '/wallet/user');
-                  break;
-                case 'Search':
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FindTrainersScreen()));
                   break;
                 case 'Notification':
                   _toggleNotificationList();
@@ -1354,9 +1483,9 @@ content: const Text(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 12),
-                Icon(i.icon, color: const Color(0xFFD4D4D4)),
+                Icon(i.icon, color: const Color(0xFFFF5503)),
                 const SizedBox(height: 6),
-                Text(i.label, style: const TextStyle(color: Color(0xFFFF5503), fontSize: 11)),
+                Text(i.label, style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12)),
               ],
             ),
           );

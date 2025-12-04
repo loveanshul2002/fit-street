@@ -71,9 +71,12 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Fit Street needs permission to save photos to your library (for exporting progress images).</string>
 
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Fit Street uses your location to show nearby trainers and location-based features.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Fit Street uses your location to provide personalized fitness activity features and nearby services.</string>
 
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Fit Street requires access to your location even when the app is not in use for background activity tracking and improved fitness insights.</string>
+	
 	<!-- App queries (allow checking for installed apps before opening URLs) -->
 	<key>LSApplicationQueriesSchemes</key>
 	<array>

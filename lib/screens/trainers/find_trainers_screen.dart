@@ -9,94 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/fitstreet_api.dart';
 import '../../widgets/glass_card.dart';
 import '../trainers/trainer_profile_screen.dart';
+import '../../constants/specializations.dart';
 
-// Grouped specializations as provided
-const Map<String, List<String>> kGroupedSpecializations = {
-  'Fitness Training': [
-    'Strength Training',
-    'HIIT',
-    'CrossFit',
-    'Functional Training',
-    'Cardio',
-    'Aerobics',
-    'Zumba',
-    'Strength and Conditioning',
-    'Endurance Training',
-    'Circuit Training',
-    'Dance Fitness',
-  ],
-  'Body Transformation': [
-    'Weight Loss',
-    'Weight Gain',
-    'Bodybuilding',
-    'Muscle Gain Expert',
-    'Body Transformation',
-    'Female Fitness',
-    'Physique Enhancement Specialist',
-  ],
-  'Health & Rehabilitation': [
-    'Rehabilitation Trainer',
-    'Pain Management',
-    'Injury Prevention',
-    'Posture Correction',
-    'Lifestyle Disorders',
-    'Stretching Specialist',
-    'Mobility & Flexibility Coach',
-    'Physical Therapist Support',
-  ],
-  'Yoga & Meditation': [
-    'Yoga',
-    'Hatha Yoga',
-    'Vinyasa Yoga',
-    'Prenatal Yoga',
-    'Postnatal Yoga',
-    'Recreational Yoga',
-    'Meditation',
-    'Breathwork & Pranayama',
-    'Sound Healing',
-    'Mindfulness Trainer',
-  ],
-  'Specialized Fitness': [
-    'Pilates Instructor',
-    'Calisthenics Coach',
-    'Core Strength Trainer',
-    'Balance & Stability Training',
-    'Sports Performance Coach',
-  ],
-  'Nutrition & Diet Planning': [
-    'Nutrition',
-    'Sports Nutritionist',
-    //'Clinical Nutritionist',
-    'Weight Management Expert',
-    'Diet Planning Specialist',
-    'Holistic Nutrition Coach',
-  ],
-  'Mental Health & Counseling': [
-    'Counselors',
-    'Mental Counselor',
-    'Psychologist',
-    'Depression Support',
-    'Stress Management',
-    'Art Therapy',
-    'Suicide Prevention',
-    'Psychological First Aid',
-    'Solution-Focused Brief Therapy',
-    'Career Counseling',
-    'Neuro-Linguistic Programming',
-    'Relationship Therapist',
-    'Martial Discord',
-    'Reproductive Health Counselor',
-  ],
-  'Sports & Athletics': [
-    'Cricket Coach',
-    'Boxing Coach',
-    'Martial Arts Instructor',
-    'Football Trainer',
-    'Tennis Coach',
-    'Badminton Coach',
-    'Athletic Performance Trainer',
-  ],
-};
+// kGroupedSpecializations imported from constants/specializations.dart
 
 /// FindTrainersScreen
 /// A Flutter port of the Angular FindTrainers component provided.
@@ -128,10 +43,15 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
 
   // Location
   Position? _userPos;
-  String locationCity = '';
+  // Removed city cache; location used only if typed.
 
   // Data
   List<Map<String, dynamic>> _trainers = [];
+  int _page = 1;
+  final int _limit = 20;
+  bool _loadingMore = false;
+  bool _allLoaded = false;
+  int _totalCount = 0;
 
   // Logged in user info (derived from shared prefs)
   // auth flags no longer used in this screen after redirecting to profile
@@ -163,6 +83,9 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
     '5000+',
   ];
 
+  // Specialization groups filtered by category (Angular parity)
+  Map<String, List<String>> _groupedSpecs = kGroupedSpecializations;
+
   @override
   void initState() {
     super.initState();
@@ -173,6 +96,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
     if (widget.initialCategory?.trim().isNotEmpty == true) {
       _speciality = widget.initialCategory!.trim();
     }
+  _groupedSpecs = _getFilteredGroupedSpecializations(widget.initialCategory ?? '');
     _boot();
   }
 
@@ -199,10 +123,9 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
       }
       if (hasService && (perm == LocationPermission.always || perm == LocationPermission.whileInUse)) {
         _userPos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-        await _reverseGeocodeCity(_userPos!.latitude, _userPos!.longitude);
       }
 
-      await _getTrainers();
+  await _refreshAndFetch();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -210,49 +133,57 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
     }
   }
 
-  Future<void> _reverseGeocodeCity(double lat, double lng) async {
-    try {
-      final uri = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng');
-      final res = await http.get(uri, headers: const {
-        'User-Agent': 'fitstreet-mobile/1.0 (Flutter)'
-      });
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final addr = body['address'] ?? {};
-        final city = (addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['state_district'] ?? addr['state'] ?? '')
-            .toString();
-        if (city.isNotEmpty) {
-          locationCity = city;
-          // don't overwrite user-entered location text; use as default only
-          if (_locationCtrl.text.trim().isEmpty) {
-            // keep input empty but use city for API call
-          }
-        }
-      }
-    } catch (_) {}
-  }
+  // Reverse geocoding removed.
 
   // Fetch trainers from backend with filters
   Future<void> _getTrainers() async {
-    setState(() => _loading = true);
+    if (_loadingMore) return;
+    setState(() {
+      _loading = _page == 1 ? true : false;
+      _loadingMore = true;
+    });
     try {
   final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
 
-      final city = _locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : (locationCity.isNotEmpty ? locationCity : 'Ghaziabad');
+  // City from typed location only; empty broadens results
+  final city = _locationCtrl.text.trim();
       final name = _nameCtrl.text.trim().isNotEmpty ? _nameCtrl.text.trim() : null;
+      // Map fee buckets to backend-expected values
+      final String? feeParam = (() {
+        switch (_fee) {
+          case '0-500':
+            return '0-500';
+          case '500-1000':
+            return 'Above 500';
+          case '1000-2000':
+            return 'Above 1000';
+          case '2000-5000':
+            return 'Above 2000';
+          case '5000+':
+            return 'Above 5000';
+          default:
+            return null;
+        }
+      })();
+      // If no explicit specialization picked, use initialCategory (Angular parity)
+      final String? specializationParam = _speciality.isNotEmpty
+          ? _speciality
+          : (widget.initialCategory != null && widget.initialCategory!.trim().isNotEmpty
+              ? widget.initialCategory!.trim()
+              : null);
       final resp = await api.getNearbyTrainers(
         city: city,
         lat: _userPos?.latitude.toString(),
         lng: _userPos?.longitude.toString(),
-        specialization: _speciality.isNotEmpty ? _speciality : null,
-        page: 1,
-        limit: 100,
+        specialization: specializationParam,
+        page: _page,
+        limit: _limit,
         gender: _gender.isNotEmpty ? _gender : null,
         experience: _experience.isNotEmpty ? _experience : null,
         mode: _mode.isNotEmpty ? _mode : null,
-        fee: _fee.isNotEmpty ? _fee : null,
+        fee: feeParam,
         name: name,
       );
 
@@ -267,6 +198,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
           } else {
             list = (body['items'] as List?) ?? [];
           }
+          _totalCount = (body['totalCount'] as int?) ?? _totalCount;
         } else if (body is List) {
           list = body;
         } else {
@@ -278,8 +210,14 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
             .cast<Map<String, dynamic>>()
             .toList();
 
-        // compute distance if we have user position
-        if (_userPos != null) {
+        // Prefer server-provided distance ("distance" in km); otherwise compute locally if we have user position
+        final hasServerDistance = mapped.any((t) => t['distance'] != null);
+        if (hasServerDistance) {
+          for (final t in mapped) {
+            final serverDist = t['distance'];
+            if (serverDist is num) t['distanceKm'] = serverDist.toDouble();
+          }
+        } else if (_userPos != null) {
           for (final t in mapped) {
             final lat = double.tryParse((t['latitude'] ?? t['lat'] ?? '').toString());
             final lng = double.tryParse((t['longitude'] ?? t['lng'] ?? t['long'] ?? '').toString());
@@ -288,25 +226,52 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
               t['distanceKm'] = (dMeters / 1000.0);
             }
           }
-          mapped.sort((a, b) {
-            final da = (a['distanceKm'] as num?)?.toDouble();
-            final db = (b['distanceKm'] as num?)?.toDouble();
-            if (da == null && db == null) return 0;
-            if (da == null) return 1;
-            if (db == null) return -1;
-            return da.compareTo(db);
+        }
+        // Sort by distance if available (nulls last)
+        mapped.sort((a, b) {
+          final da = (a['distanceKm'] as num?)?.toDouble();
+          final db = (b['distanceKm'] as num?)?.toDouble();
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return da.compareTo(db);
+        });
+
+        if (mounted) {
+          setState(() {
+            if (_page == 1) {
+              _trainers = mapped;
+            } else {
+              _trainers = [..._trainers, ...mapped];
+            }
+            if (mapped.length < _limit) {
+              _allLoaded = true;
+            }
           });
         }
-
-        if (mounted) setState(() => _trainers = mapped);
       } else {
         if (mounted) setState(() => _error = 'Failed to fetch (${resp.statusCode})');
       }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _loadingMore = false; });
     }
+  }
+
+  Future<void> _refreshAndFetch() async {
+    setState(() {
+      _page = 1;
+      _allLoaded = false;
+      _trainers = [];
+    });
+    await _getTrainers();
+  }
+
+  void _loadMore() {
+    if (_allLoaded || _loadingMore) return;
+    setState(() { _page += 1; });
+    _getTrainers();
   }
 
   // UI helpers
@@ -412,11 +377,11 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white24),
+                                border: Border.all(color: Colors.black),
                               ),
                               height: 44,
                               child: Row(children: [
-                                const Icon(Icons.location_on, color: Colors.white70, size: 20),
+                                const Icon(Icons.location_on, color: Colors.orange, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: TextField(
@@ -427,7 +392,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                       hintStyle: TextStyle(color: Colors.white54),
                                       border: InputBorder.none,
                                     ),
-                                    onChanged: (_) => _getTrainers(),
+                                    onChanged: (_) => _refreshAndFetch(),
                                   ),
                                 ),
                               ]),
@@ -441,11 +406,11 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white24),
+                                border: Border.all(color: Colors.black),
                               ),
                               height: 44,
                               child: Row(children: [
-                                const Icon(Icons.search, color: Colors.white70, size: 20),
+                                const Icon(Icons.search, color: Colors.orange, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: TextField(
@@ -456,7 +421,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                       hintStyle: TextStyle(color: Colors.white54),
                                       border: InputBorder.none,
                                     ),
-                                    onSubmitted: (_) => _getTrainers(),
+                                    onSubmitted: (_) => _refreshAndFetch(),
                                   ),
                                 ),
                               ]),
@@ -474,35 +439,36 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                             _DropdownFilter<String>(
                               label: _gender.isEmpty ? 'Gender' : _gender,
                               items: const ['', 'Male', 'Female'],
-                              onSelected: (v) => setState(() { _gender = v ?? ''; _getTrainers(); }),
+                              onSelected: (v) => setState(() { _gender = v ?? ''; _refreshAndFetch(); }),
                             ),
                             const SizedBox(width: 8),
                             _DropdownFilter<String>(
                               label: _experience.isEmpty ? 'Experience' : _experience,
                               items: _experienceOptions,
-                              onSelected: (v) => setState(() { _experience = v ?? ''; _getTrainers(); }),
+                              onSelected: (v) => setState(() { _experience = v ?? ''; _refreshAndFetch(); }),
                             ),
                             const SizedBox(width: 8),
                             _DropdownFilter<String>(
                               label: _mode.isEmpty ? 'Mode' : _mode,
                               items: const ['', 'Online', 'Offline', 'Both'],
-                              onSelected: (v) => setState(() { _mode = v ?? ''; _getTrainers(); }),
+                              onSelected: (v) => setState(() { _mode = v ?? ''; _refreshAndFetch(); }),
                             ),
                             const SizedBox(width: 8),
                             _DropdownFilter<String>(
                               label: _fee.isEmpty ? 'Fee' : _fee,
                               items: _feeOptions,
-                              onSelected: (v) => setState(() { _fee = v ?? ''; _getTrainers(); }),
+                              onSelected: (v) => setState(() { _fee = v ?? ''; _refreshAndFetch(); }),
                             ),
                             const SizedBox(width: 8),
                             // Speciality: grouped picker
                             _SpecializationFilterButton(
                               label: _speciality.isEmpty ? 'Speciality' : _speciality,
+                              groups: _groupedSpecs,
                               onSelected: (spec) {
                                 setState(() {
                                   _speciality = spec;
                                 });
-                                _getTrainers();
+                                _refreshAndFetch();
                               },
                             ),
                             const SizedBox(width: 8),
@@ -522,7 +488,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                       _nameCtrl.clear();
                                       _locationCtrl.clear();
                                     });
-                                    _getTrainers();
+                                    _refreshAndFetch();
                                   },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -549,7 +515,7 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                       const SizedBox(height: 12),
 
                       Text(
-                        '${_filtered.length} Trainers available in ${_locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : (locationCity.isNotEmpty ? locationCity : 'your area')}',
+                        '${_totalCount > 0 ? _totalCount : _filtered.length} Trainers available in ${_locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : 'your area'}',
                         style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 10),
@@ -561,8 +527,32 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                 onRefresh: _getTrainers,
                                 child: ListView.builder(
                                   physics: const AlwaysScrollableScrollPhysics(),
-                                  itemCount: _filtered.length,
+                                  itemCount: _filtered.length + (!_allLoaded ? 1 : 0),
                                   itemBuilder: (context, index) {
+                                    // Footer: Load More at the end
+                                    final isFooter = index == _filtered.length && !_allLoaded;
+                                    if (isFooter) {
+                                      return Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        child: Center(
+                                          child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFFFF6B35),
+                                              shape: const StadiumBorder(),
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                            ),
+                                            onPressed: _loadingMore ? null : _loadMore,
+                                            child: _loadingMore
+                                                ? const SizedBox(
+                                                    height: 20,
+                                                    width: 20,
+                                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                                  )
+                                                : const Text('Load More', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                      );
+                                    }
                                     final t = _filtered[index];
                                     final name = (t['fullName'] ?? t['name'] ?? '').toString();
                                     final code = (t['trainerUniqueId'] ?? '').toString();
@@ -577,11 +567,11 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                     final pincode = (t['currentPincode'] ?? t['pincode'] ?? '').toString();
                                     String? distText;
                                     if (distanceKm != null) {
-                                      final rounded = distanceKm < 1
-                                          ? (distanceKm * 1000).round().toString() + ' m'
-                                          : distanceKm.toStringAsFixed(distanceKm < 10 ? 1 : 0) + ' km';
-                                      distText = '$rounded away';
+                                      distText = distanceKm < 1
+                                          ? '${(distanceKm * 1000).round()} m away'
+                                          : '${distanceKm.toStringAsFixed(distanceKm < 10 ? 1 : 0)} km away';
                                     }
+
 
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 14),
@@ -914,12 +904,49 @@ class _FindTrainersScreenState extends State<FindTrainersScreen> {
                                 ),
                               ),
                       ),
+                      // Removed separate Load More outside the list; now shown as footer item
                     ],
                   ),
                 ),
               ),
       ),
     );
+  }
+
+  // Mirror Angular getFilteredGroupedSpecializations
+  Map<String, List<String>> _getFilteredGroupedSpecializations(String category) {
+    final all = kGroupedSpecializations;
+    switch (category) {
+      case 'Trainer':
+        return {
+          'Fitness Training': all['Fitness Training'] ?? [],
+          'Body Transformation': all['Body Transformation'] ?? [],
+          'Health & Rehabilitation': all['Health & Rehabilitation'] ?? [],
+          'Specialized Fitness': all['Specialized Fitness'] ?? [],
+        };
+      case 'Yoga':
+        return {
+          'Yoga & Meditation': all['Yoga & Meditation'] ?? [],
+        };
+      case 'Nutrition':
+        return {
+          'Nutrition & Diet Planning': all['Nutrition & Diet Planning'] ?? [],
+        };
+      case 'Counselor':
+        return {
+          'Mental Health & Counseling': all['Mental Health & Counseling'] ?? [],
+        };
+      case 'Sports':
+        return {
+          'Sports & Athletics': all['Sports & Athletics'] ?? [],
+        };
+      case 'Physiotherapist':
+        return {
+          'Health & Rehabilitation': all['Health & Rehabilitation'] ?? [],
+        };
+      default:
+        return all;
+    }
   }
 }
 
@@ -989,9 +1016,10 @@ class _DropdownFilter<T> extends StatelessWidget {
 /// Button that opens a bottom sheet with grouped specializations to pick one
 class _SpecializationFilterButton extends StatelessWidget {
   final String label;
+  final Map<String, List<String>> groups;
   final ValueChanged<String> onSelected;
 
-  const _SpecializationFilterButton({required this.label, required this.onSelected});
+  const _SpecializationFilterButton({required this.label, required this.groups, required this.onSelected});
 
   @override
   Widget build(BuildContext context) {
@@ -1063,7 +1091,7 @@ class _SpecializationFilterButton extends StatelessWidget {
                 Expanded(
                   child: ListView(
                     children: [
-                      for (final entry in kGroupedSpecializations.entries)
+                      for (final entry in groups.entries)
                         Theme(
                           data: Theme.of(ctx).copyWith(dividerColor: Colors.white24),
                           child: ExpansionTile(

@@ -154,6 +154,21 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     });
   }
 
+  Future<String?> getUserId() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString('fitstreet_user_id');
+  }
+
+  Future<String?> getToken() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getString('fitstreet_token');
+  }
+
+  Future<void> clearUserData() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.clear(); // wipes all login details
+  }
+
   Future<void> _initLocalState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -277,6 +292,112 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     } catch (e) {
       if (mounted) setState(() => isAvailable = !val);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Network error: ${e.toString()}")));
+    }
+  }
+  Future<void> _deleteAccount(BuildContext context) async {
+    final auth = context.read<AuthManager?>();
+    // Prefer canonical DB id from AuthManager
+    String? trainerId;
+    try {
+      trainerId = auth?.trainerId;
+      if (trainerId == null || trainerId.isEmpty) trainerId = await auth?.getApiTrainerId();
+    } catch (_) {
+      trainerId = null;
+    }
+
+    // Fallback to SharedPreferences (legacy keys)
+    if (trainerId == null || trainerId.isEmpty) {
+      final sp = await SharedPreferences.getInstance();
+      trainerId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+    }
+
+    // Quick test fallback (uncomment to test one trainer only) — DO NOT leave this uncommented in production
+    // trainerId ??= '692d78fec70038b632303d56';
+
+    final token = auth?.token ?? (await SharedPreferences.getInstance()).getString('fitstreet_token') ?? '';
+
+    if (trainerId == null || trainerId.isEmpty || token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer not logged in properly')));
+      return;
+    }
+
+    final url = Uri.parse('https://api.fitstreet.in/api/trainers/$trainerId');
+
+    // Show loader
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await http.delete(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      Navigator.pop(context); // close loader
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Show success
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer account deleted successfully')));
+        }
+
+        // Clear important local keys (be explicit)
+        try {
+          final sp = await SharedPreferences.getInstance();
+          await sp.remove('fitstreet_token');
+          await sp.remove('fitstreet_role');
+          await sp.remove('fitstreet_user_id');
+          await sp.remove('fitstreet_user_name');
+          await sp.remove('fitstreet_user_email');
+          await sp.remove('fitstreet_profile_complete');
+          await sp.remove('mobile');
+
+          await sp.remove('fitstreet_trainer_id');
+          await sp.remove('fitstreet_trainer_db_id');
+          await sp.remove('fitstreet_trainer_unique_id');
+          await sp.remove('fitstreet_trainer_db_raw');
+          await sp.remove('trainer_raw_id');
+          await sp.remove('trainer_numeric_id');
+        } catch (_) {}
+
+        // Also make sure AuthManager clears its in-memory state
+        try {
+          await auth?.logout();
+        } catch (_) {}
+
+        if (!mounted) return;
+
+        // Redirect to HomeScreen and clear navigation stack so no stale UI remains
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+        );
+      } else {
+        // Try to extract useful error message from response body
+        String msg = 'Failed to delete account (${response.statusCode})';
+        try {
+          final parsed = jsonDecode(response.body);
+          if (parsed is Map && (parsed['message'] != null || parsed['error'] != null)) {
+            msg = (parsed['message'] ?? parsed['error']).toString();
+          } else if (parsed is String && parsed.isNotEmpty) {
+            msg = parsed;
+          }
+        } catch (_) {}
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      // ensure loader closed on exception
+      try {
+        Navigator.pop(context);
+      } catch (_) {}
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
     }
   }
 
@@ -1920,7 +2041,87 @@ content: const Text(
                             _openSupportAndPoliciesSheet(context);
                           },
                         ),
-                   
+                        _drawerItem(
+                          icon: Icons.delete,
+                          label: 'Account Delete',
+                          onTap: () async {
+                            Navigator.pop(context);
+
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) {
+                                final TextEditingController confirmCtrl = TextEditingController();
+                                return ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                    child: AlertDialog(
+                                      backgroundColor: Colors.white.withOpacity(0.12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+                                      ),
+                                      title: const Text(
+                                        'Delete Account',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                      ),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'This will permanently delete your account and all data. '
+                                                'This action cannot be undone.\n\n'
+                                                'Type DELETE to confirm.',
+                                            style: TextStyle(color: Colors.white70),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          TextField(
+                                            controller: confirmCtrl,
+                                            style: const TextStyle(color: Colors.white),
+                                            decoration: InputDecoration(
+                                              hintText: 'Type DELETE',
+                                              hintStyle: const TextStyle(color: Colors.white38),
+                                              filled: true,
+                                              fillColor: Colors.white10,
+                                              border: OutlineInputBorder(
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                          )
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(context, false),
+                                          child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            if (confirmCtrl.text.trim().toUpperCase() == 'DELETE') {
+                                              Navigator.pop(context, true);
+                                            }
+                                          },
+                                          child: const Text(
+                                            'Delete',
+                                            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+
+                            if (confirmed == true) {
+                              _deleteAccount(context);
+                            }
+                          },
+
+                        ),
+
+
                         _drawerItem(
                           icon: Icons.more_horiz,
                           label: 'Other',

@@ -444,7 +444,7 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           image: DecorationImage(
             image: AssetImage('assets/image/bg.png'),
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.lighten),
           ),
         ),
         child: SafeArea(

@@ -22,7 +22,7 @@ android {
         versionName = "5.1.0"
     }
 
-    // ✅ Use Java 17 for compilation
+    // use java 17
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

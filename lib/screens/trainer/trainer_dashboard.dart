@@ -23,6 +23,7 @@ import '../trainer/bank_details_edit_screen.dart';
 import '../legal/legal_page.dart';
 
 enum KycStatus { pending, done }
+
 enum KycState { notStarted, submitted, approved, rejected }
 
 class TrainerDashboard extends StatefulWidget {
@@ -32,7 +33,8 @@ class TrainerDashboard extends StatefulWidget {
   State<TrainerDashboard> createState() => _TrainerDashboardState();
 }
 
-class _TrainerDashboardState extends State<TrainerDashboard> with TickerProviderStateMixin {
+class _TrainerDashboardState extends State<TrainerDashboard>
+    with TickerProviderStateMixin {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   String? _dbTrainerId;
@@ -53,6 +55,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   List<dynamic> _completedBookings = [];
   List<dynamic> _rejectedBookings = [];
   bool _loadingBookings = false;
+  // Key to locate and scroll to the bookings section
+  final GlobalKey _bookingsSectionKey = GlobalKey();
 
   // Selected user (kept from previous UI; no longer used)
   // Map<String, dynamic>? _selectedBookingUser;
@@ -107,7 +111,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     {
       "id": "c1",
       "client": "Rita M",
-      "time": DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
+      "time":
+          DateTime.now().subtract(const Duration(days: 2)).toIso8601String(),
       "location": "Home",
       "amount": 500.0,
       "status": "paid",
@@ -173,7 +178,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     try {
       final prefs = await SharedPreferences.getInstance();
       final bool done = prefs.getBool(_kycKey) ?? false;
-      if (mounted) setState(() => kycStatus = done ? KycStatus.done : KycStatus.pending);
+      if (mounted)
+        setState(() => kycStatus = done ? KycStatus.done : KycStatus.pending);
       if (done && mounted) setState(() => _kycState = KycState.submitted);
 
       final aud = prefs.getString('fitstreet_trainer_audience');
@@ -198,8 +204,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       final fallback = (mobile != null && mobile.isNotEmpty)
           ? mobile
           : (unique != null && unique.isNotEmpty)
-          ? unique
-          : 'Trainer';
+              ? unique
+              : 'Trainer';
       if (mounted) setState(() => trainerName = fallback);
     } catch (_) {}
   }
@@ -254,7 +260,9 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   Future<void> _setAvailability(bool val) async {
     setState(() => isAvailable = val);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(val ? "Updating availability..." : "Updating availability...")),
+      SnackBar(
+          content: Text(
+              val ? "Updating availability..." : "Updating availability...")),
     );
 
     try {
@@ -266,41 +274,52 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trainer id not found. Please login again.")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Trainer id not found. Please login again.")));
         if (mounted) setState(() => isAvailable = !val);
         return;
       }
 
-      final fitApi = FitstreetApi('https://api.fitstreet.in', token: savedToken);
-      final streamed = await fitApi.updateTrainerProfileMultipart(trainerId, fields: {'isAvailable': val ? 'true' : 'false'});
+      final fitApi =
+          FitstreetApi('https://api.fitstreet.in', token: savedToken);
+      final streamed = await fitApi.updateTrainerProfileMultipart(trainerId,
+          fields: {'isAvailable': val ? 'true' : 'false'});
       final resp = await http.Response.fromStream(streamed);
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(val ? "You're visible to customers." : "Hidden from search.")));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                val ? "You're visible to customers." : "Hidden from search.")));
       } else {
         if (mounted) setState(() => isAvailable = !val);
         String msg = 'Failed to update availability (${resp.statusCode})';
         try {
           final b = jsonDecode(resp.body);
-          if (b is Map && (b['message'] != null || b['error'] != null)) msg = (b['message'] ?? b['error']).toString();
+          if (b is Map && (b['message'] != null || b['error'] != null))
+            msg = (b['message'] ?? b['error']).toString();
         } catch (_) {}
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (mounted) setState(() => isAvailable = !val);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Network error: ${e.toString()}")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Network error: ${e.toString()}")));
     }
   }
+
   Future<void> _deleteAccount(BuildContext context) async {
     final auth = context.read<AuthManager?>();
     // Prefer canonical DB id from AuthManager
     String? trainerId;
     try {
       trainerId = auth?.trainerId;
-      if (trainerId == null || trainerId.isEmpty) trainerId = await auth?.getApiTrainerId();
+      if (trainerId == null || trainerId.isEmpty)
+        trainerId = await auth?.getApiTrainerId();
     } catch (_) {
       trainerId = null;
     }
@@ -308,16 +327,20 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     // Fallback to SharedPreferences (legacy keys)
     if (trainerId == null || trainerId.isEmpty) {
       final sp = await SharedPreferences.getInstance();
-      trainerId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId = sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
     }
 
     // Quick test fallback (uncomment to test one trainer only) — DO NOT leave this uncommented in production
     // trainerId ??= '692d78fec70038b632303d56';
 
-    final token = auth?.token ?? (await SharedPreferences.getInstance()).getString('fitstreet_token') ?? '';
+    final token = auth?.token ??
+        (await SharedPreferences.getInstance()).getString('fitstreet_token') ??
+        '';
 
     if (trainerId == null || trainerId.isEmpty || token.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer not logged in properly')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Trainer not logged in properly')));
       return;
     }
 
@@ -344,7 +367,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       if (response.statusCode >= 200 && response.statusCode < 300) {
         // Show success
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer account deleted successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Trainer account deleted successfully')));
         }
 
         // Clear important local keys (be explicit)
@@ -377,71 +401,91 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
-              (route) => false,
+          (route) => false,
         );
       } else {
         // Try to extract useful error message from response body
         String msg = 'Failed to delete account (${response.statusCode})';
         try {
           final parsed = jsonDecode(response.body);
-          if (parsed is Map && (parsed['message'] != null || parsed['error'] != null)) {
+          if (parsed is Map &&
+              (parsed['message'] != null || parsed['error'] != null)) {
             msg = (parsed['message'] ?? parsed['error']).toString();
           } else if (parsed is String && parsed.isNotEmpty) {
             msg = parsed;
           }
         } catch (_) {}
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       // ensure loader closed on exception
       try {
         Navigator.pop(context);
       } catch (_) {}
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network error: $e')));
     }
   }
 
   void _openAvailabilityEditor() {
     final slot = slotLabels.isNotEmpty ? slotLabels.first : null;
     if (slot == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No slots configured.")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("No slots configured.")));
       return;
     }
     setState(() {
       for (var d in selectedDays) {
-        if (availability[d]!.contains(slot)) availability[d]!.remove(slot);
-        else availability[d]!.add(slot);
+        if (availability[d]!.contains(slot))
+          availability[d]!.remove(slot);
+        else
+          availability[d]!.add(slot);
       }
     });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Availability updated (local). Press 'Update Slots' to save.")));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            "Availability updated (local). Press 'Update Slots' to save.")));
   }
 
   Future<void> _openKycWizard() async {
-    final result = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const TrainerKycWizard()));
+    final result = await Navigator.push<bool>(
+        context, MaterialPageRoute(builder: (_) => const TrainerKycWizard()));
     if (result == true) {
       setState(() => _kycState = KycState.submitted);
       await _saveKycStatusLocally(true);
       await _loadTrainerInfo();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("KYC submitted. Awaiting approval.")));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("KYC submitted. Awaiting approval.")));
     }
   }
 
-  String _formatTrainerCode(int numericId) => 'FIT-${numericId.toString().padLeft(4, '0')}';
+  String _formatTrainerCode(int numericId) =>
+      'FIT-${numericId.toString().padLeft(4, '0')}';
 
   Future<int?> getTrainerNumericId() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      if (sp.containsKey('trainer_numeric_id')) return sp.getInt('trainer_numeric_id');
+      if (sp.containsKey('trainer_numeric_id'))
+        return sp.getInt('trainer_numeric_id');
     } catch (_) {}
     return null;
   }
 
   KycState _kycStateFromData(Map<dynamic, dynamic> data) {
-  final rawStatus = (data['status'] ?? data['kycStatus'] ?? '').toString().toLowerCase();
-  // _kycStatusRaw = rawStatus;
-    final bool isKycFlag = (data['isKyc'] == true) || (data['kycCompleted'] == true) || (data['isKycCompleted'] == true);
-    if (rawStatus == 'approved' || (data['kycApproved'] == true)) return KycState.approved;
-    if (rawStatus == 'submitted' || rawStatus == 'inprogress' || isKycFlag) return KycState.submitted;
+    final rawStatus =
+        (data['status'] ?? data['kycStatus'] ?? '').toString().toLowerCase();
+    // _kycStatusRaw = rawStatus;
+    final bool isKycFlag = (data['isKyc'] == true) ||
+        (data['kycCompleted'] == true) ||
+        (data['isKycCompleted'] == true);
+    if (rawStatus == 'approved' || (data['kycApproved'] == true))
+      return KycState.approved;
+    if (rawStatus == 'submitted' || rawStatus == 'inprogress' || isKycFlag)
+      return KycState.submitted;
     if (rawStatus == 'rejected') return KycState.rejected;
     if (rawStatus == 'pending') return KycState.notStarted;
     return KycState.notStarted;
@@ -450,7 +494,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   Future<void> _loadTrainerInfo() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final dbId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      final dbId = sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
       final unique = sp.getString('fitstreet_trainer_unique_id');
       final numId = await getTrainerNumericId();
       final storedName = await getUserName();
@@ -459,10 +504,10 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       if (numId != null) formatted = _formatTrainerCode(numId);
 
       KycState resolvedState = _kycState;
-  // Will resolve real city/state/address from server
-  String resolvedCity = cityCountry;
-  String resolvedStateText = '';
-  String resolvedAddress = addressLine;
+      // Will resolve real city/state/address from server
+      String resolvedCity = cityCountry;
+      String resolvedStateText = '';
+      String resolvedAddress = addressLine;
 
       try {
         final token = sp.getString('fitstreet_token') ?? '';
@@ -476,17 +521,37 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             final data = (parsed is Map) ? (parsed['data'] ?? parsed) : null;
             if (data is Map) {
               final serverState = _kycStateFromData(data);
-              if (serverState == KycState.approved) resolvedState = KycState.approved;
-              else if (serverState == KycState.submitted) resolvedState = KycState.submitted;
-              else if (localSubmitted) resolvedState = KycState.submitted;
-              else resolvedState = KycState.notStarted;
+              if (serverState == KycState.approved)
+                resolvedState = KycState.approved;
+              else if (serverState == KycState.submitted)
+                resolvedState = KycState.submitted;
+              else if (localSubmitted)
+                resolvedState = KycState.submitted;
+              else
+                resolvedState = KycState.notStarted;
 
               // Extract city/state/address from profile
               try {
-                final rawCity = (data['currentCity'] ?? data['city'] ?? '').toString().trim();
-                final rawState = (data['currentState'] ?? data['state'] ?? '').toString().trim();
-                final rawAddress = (data['currentAddress'] ?? data['address'] ?? data['addressLine'] ?? data['address1'] ?? data['addressLine1'] ?? '').toString().trim();
-                final rawImage = (data['trainerImageURL'] ?? data['imageURL'] ?? data['profileImageURL'] ?? '').toString().trim();
+                final rawCity = (data['currentCity'] ?? data['city'] ?? '')
+                    .toString()
+                    .trim();
+                final rawState = (data['currentState'] ?? data['state'] ?? '')
+                    .toString()
+                    .trim();
+                final rawAddress = (data['currentAddress'] ??
+                        data['address'] ??
+                        data['addressLine'] ??
+                        data['address1'] ??
+                        data['addressLine1'] ??
+                        '')
+                    .toString()
+                    .trim();
+                final rawImage = (data['trainerImageURL'] ??
+                        data['imageURL'] ??
+                        data['profileImageURL'] ??
+                        '')
+                    .toString()
+                    .trim();
                 if (rawCity.isNotEmpty) resolvedCity = rawCity;
                 if (rawState.isNotEmpty) resolvedStateText = rawState;
                 if (rawAddress.isNotEmpty) resolvedAddress = rawAddress;
@@ -494,14 +559,18 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
               } catch (_) {}
             }
           } else {
-            if (sp.getBool(_kycKey) ?? false) resolvedState = KycState.submitted;
+            if (sp.getBool(_kycKey) ?? false)
+              resolvedState = KycState.submitted;
           }
         } else {
-          if (localSubmitted) resolvedState = KycState.submitted;
-          else resolvedState = KycState.notStarted;
+          if (localSubmitted)
+            resolvedState = KycState.submitted;
+          else
+            resolvedState = KycState.notStarted;
         }
       } catch (_) {
-        final bool localSubmitted = (await SharedPreferences.getInstance()).getBool(_kycKey) ?? false;
+        final bool localSubmitted =
+            (await SharedPreferences.getInstance()).getBool(_kycKey) ?? false;
         if (localSubmitted) resolvedState = KycState.submitted;
       }
 
@@ -510,13 +579,17 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         _dbTrainerId = dbId;
         _uniqueTrainerCode = unique;
         _trainerCode = formatted;
-        if (storedName != null && storedName.isNotEmpty) trainerName = storedName;
+        if (storedName != null && storedName.isNotEmpty)
+          trainerName = storedName;
         _kycState = resolvedState;
         // Show city/state after KYC is submitted or approved; before that, keep it blank
-        if (resolvedState == KycState.approved || resolvedState == KycState.submitted) {
+        if (resolvedState == KycState.approved ||
+            resolvedState == KycState.submitted) {
           final locationDisplay = [resolvedCity, resolvedStateText]
               .where((s) => s.isNotEmpty)
-              .join(resolvedCity.isNotEmpty && resolvedStateText.isNotEmpty ? ", " : "");
+              .join(resolvedCity.isNotEmpty && resolvedStateText.isNotEmpty
+                  ? ", "
+                  : "");
           cityCountry = locationDisplay;
           addressLine = resolvedAddress;
         } else {
@@ -525,7 +598,9 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         }
       });
 
-      if ((storedName == null || storedName.isEmpty) && dbId != null && dbId.isNotEmpty) {
+      if ((storedName == null || storedName.isEmpty) &&
+          dbId != null &&
+          dbId.isNotEmpty) {
         await _refreshNameFromServer(dbId);
       }
     } catch (e) {
@@ -555,7 +630,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
 
   Future<String?> _getTrainerDbIdFromPrefs() async {
     final sp = await SharedPreferences.getInstance();
-    return sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+    return sp.getString('fitstreet_trainer_db_id') ??
+        sp.getString('fitstreet_trainer_id');
   }
 
   Future<String> _getTokenFromPrefs() async {
@@ -579,7 +655,8 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         return;
       }
 
-      final uri = Uri.parse('https://api.fitstreet.in/api/session-bookings/trainer/$trainerId/$tab');
+      final uri = Uri.parse(
+          'https://api.fitstreet.in/api/session-bookings/trainer/$trainerId/$tab');
       final headers = {
         'Content-Type': 'application/json',
         if (token.isNotEmpty) 'Authorization': 'Bearer $token',
@@ -594,8 +671,11 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         }
         final List items = (body is Map && body['bookings'] is List)
             ? body['bookings'] as List
-            : (body is Map && body['data'] is List) ? body['data'] as List
-            : (body is List) ? body : [];
+            : (body is Map && body['data'] is List)
+                ? body['data'] as List
+                : (body is List)
+                    ? body
+                    : [];
 
         setState(() {
           if (tab == 'upcoming') _upcomingBookings = items;
@@ -615,12 +695,13 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   // Accept booking (PATCH)
   String? _extractBookingId(dynamic bookingOrId) {
     if (bookingOrId == null) return null;
-    if (bookingOrId is String && bookingOrId.trim().isNotEmpty) return bookingOrId;
+    if (bookingOrId is String && bookingOrId.trim().isNotEmpty)
+      return bookingOrId;
     if (bookingOrId is Map) {
-      return bookingOrId['_id']?.toString()
-          ?? bookingOrId['id']?.toString()
-          ?? bookingOrId['bookingId']?.toString()
-          ?? bookingOrId['booking_id']?.toString();
+      return bookingOrId['_id']?.toString() ??
+          bookingOrId['id']?.toString() ??
+          bookingOrId['bookingId']?.toString() ??
+          bookingOrId['booking_id']?.toString();
     }
     return null;
   }
@@ -628,13 +709,16 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   Future<void> _acceptBookingApi(dynamic bookingOrId) async {
     final bookingId = _extractBookingId(bookingOrId);
     if (bookingId == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking id not found')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking id not found')));
       return;
     }
 
     final token = await _getTokenFromPrefs();
     final encodedId = Uri.encodeComponent(bookingId);
-    final uri = Uri.parse('https://api.fitstreet.in/api/session-bookings/accept/$encodedId');
+    final uri = Uri.parse(
+        'https://api.fitstreet.in/api/session-bookings/accept/$encodedId');
 
     try {
       final resp = await http.patch(uri, headers: {
@@ -646,7 +730,9 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         _markBookingAcceptedLocally(bookingId);
         // refresh in background
         _getBookedSessions('upcoming');
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking accepted')));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Booking accepted')));
         return;
       }
 
@@ -660,11 +746,16 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         }
       } catch (_) {}
 
-      if (resp.statusCode == 404) msg = 'Booking not found (may already be modified). Please refresh.';
+      if (resp.statusCode == 404)
+        msg = 'Booking not found (may already be modified). Please refresh.';
 
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Accept failed: $msg')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Accept failed: $msg')));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network error: $e')));
     }
   }
 
@@ -688,13 +779,15 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     updateList(_rejectedBookings);
 
     for (var i = 0; i < live.length; i++) {
-      if ((live[i]['id']?.toString() == bookingId) || (live[i]['_id']?.toString() == bookingId)) {
+      if ((live[i]['id']?.toString() == bookingId) ||
+          (live[i]['_id']?.toString() == bookingId)) {
         live[i]['accepted'] = true;
         changed = true;
       }
     }
     for (var i = 0; i < upcoming.length; i++) {
-      if ((upcoming[i]['id']?.toString() == bookingId) || (upcoming[i]['_id']?.toString() == bookingId)) {
+      if ((upcoming[i]['id']?.toString() == bookingId) ||
+          (upcoming[i]['_id']?.toString() == bookingId)) {
         upcoming[i]['accepted'] = true;
         changed = true;
       }
@@ -706,12 +799,15 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
   Future<void> _completeBookingApi(dynamic bookingOrId) async {
     final bookingId = _extractBookingId(bookingOrId);
     if (bookingId == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking id not found')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking id not found')));
       return;
     }
     final token = await _getTokenFromPrefs();
     final encodedId = Uri.encodeComponent(bookingId);
-    final uri = Uri.parse('https://api.fitstreet.in/api/session-bookings/complete/$encodedId');
+    final uri = Uri.parse(
+        'https://api.fitstreet.in/api/session-bookings/complete/$encodedId');
 
     try {
       final resp = await http.patch(uri, headers: {
@@ -720,7 +816,9 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
       });
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking marked complete')));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Booking marked complete')));
         await _getBookedSessions('upcoming');
         await _getBookedSessions('completed');
       } else {
@@ -731,10 +829,14 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         } catch (_) {
           if (resp.body.isNotEmpty) message = resp.body;
         }
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        if (mounted)
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network error: $e')));
     }
   }
 
@@ -742,14 +844,16 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
     final bookingId = _extractBookingId(bookingOrId);
     if (bookingId == null) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking id not found')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Booking id not found')));
       }
       return;
     }
 
     final token = await _getTokenFromPrefs();
     final encodedId = Uri.encodeComponent(bookingId);
-    final uri = Uri.parse('https://api.fitstreet.in/api/session-bookings/reject/$encodedId');
+    final uri = Uri.parse(
+        'https://api.fitstreet.in/api/session-bookings/reject/$encodedId');
 
     try {
       final resp = await http.patch(uri, headers: {
@@ -757,9 +861,12 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         if (token.isNotEmpty) 'Authorization': 'Bearer $token',
       });
 
-      if (resp.statusCode == 200 || resp.statusCode == 201 || resp.statusCode == 204) {
+      if (resp.statusCode == 200 ||
+          resp.statusCode == 201 ||
+          resp.statusCode == 204) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Booking rejected')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('Booking rejected')));
         }
         await _getBookedSessions('upcoming');
         await _getBookedSessions('rejected');
@@ -778,11 +885,13 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
         if (resp.body.isNotEmpty) message = resp.body;
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network error: $e')));
       }
     }
   }
@@ -805,25 +914,28 @@ class _TrainerDashboardState extends State<TrainerDashboard> with TickerProvider
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
             title: const Text(
-  "Support",
-  style: TextStyle(
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  ),
-),
-content: const Text(
-  "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
-  style: TextStyle(
-    color: Colors.white70,
-    height: 1.5,
-  ),
-),
-  
+              "Support",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
+              style: TextStyle(
+                color: Colors.white70,
+                height: 1.5,
+              ),
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: const Text("Close",
+                      style: TextStyle(color: Colors.white))),
             ],
           ),
         ),
@@ -855,23 +967,56 @@ content: const Text(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(height: 4, width: 36, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                    Container(
+                        height: 4,
+                        width: 36,
+                        decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(2))),
                     const SizedBox(height: 10),
                     ListTile(
-                      leading: const Icon(Icons.support_agent_outlined, color: Colors.white70),
-                      title: const Text('Support', style: TextStyle(color: Colors.white)),
+                      leading: const Icon(Icons.support_agent_outlined,
+                          color: Colors.white70),
+                      title: const Text('Support',
+                          style: TextStyle(color: Colors.white)),
                       onTap: () {
                         Navigator.pop(ctx);
                         _openSupport();
                       },
                     ),
                     // Removed 'Support' underlined section
-                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us', 'assets/legal/about.html'),
-                    _policyTile(ctx, Icons.privacy_tip_outlined, 'Privacy Policy', 'Privacy Policy', 'assets/legal/privacy.html'),
-                    _policyTile(ctx, Icons.rule_folder_outlined, 'Terms & Conditions', 'Terms & Conditions', 'assets/legal/terms.html'),
-                    _policyTile(ctx, Icons.receipt_long_outlined, 'Refund & Cancellation', 'Refund & Cancellation', 'assets/legal/refund.html'),
-                    _policyTile(ctx, Icons.local_shipping_outlined, 'Shipping Policy', 'Shipping Policy', 'assets/legal/shipping.html'),
-                    _policyTile(ctx, Icons.contact_support_outlined, 'Contact Us', 'Contact Us', 'assets/legal/contact.html'),
+                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us',
+                        'assets/legal/about.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.privacy_tip_outlined,
+                        'Privacy Policy',
+                        'Privacy Policy',
+                        'assets/legal/privacy.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.rule_folder_outlined,
+                        'Terms & Conditions',
+                        'Terms & Conditions',
+                        'assets/legal/terms.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.receipt_long_outlined,
+                        'Refund & Cancellation',
+                        'Refund & Cancellation',
+                        'assets/legal/refund.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.local_shipping_outlined,
+                        'Shipping Policy',
+                        'Shipping Policy',
+                        'assets/legal/shipping.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.contact_support_outlined,
+                        'Contact Us',
+                        'Contact Us',
+                        'assets/legal/contact.html'),
                   ],
                 ),
               ),
@@ -882,13 +1027,15 @@ content: const Text(
     );
   }
 
-  Widget _policyTile(BuildContext ctx, IconData icon, String label, String title, String assetPath) {
+  Widget _policyTile(BuildContext ctx, IconData icon, String label,
+      String title, String assetPath) {
     return ListTile(
       leading: Icon(icon, color: Colors.white70),
       title: Text(label, style: const TextStyle(color: Colors.white)),
       onTap: () {
         Navigator.pop(ctx);
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
       },
     );
   }
@@ -904,20 +1051,30 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Emergency (SOS)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("This will alert support. Proceed?", style: TextStyle(color: Colors.white70)),
+            title: const Text("Emergency (SOS)",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("This will alert support. Proceed?",
+                style: TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: Colors.white))),
               TextButton(
                 onPressed: () {
                   Navigator.pop(dCtx);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("SOS triggered.")));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("SOS triggered.")));
                   }
                 },
-                child: Text("Confirm", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                child: Text("Confirm",
+                    style: TextStyle(
+                        color: AppColors.primary, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -939,15 +1096,24 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+            title: const Text("Logout",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Are you sure you want to logout?",
+                style: TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, false),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: Colors.white))),
               TextButton(
                 onPressed: () => Navigator.pop(dCtx, true),
-                child: const Text("Logout", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+                child: const Text("Logout",
+                    style: TextStyle(
+                        color: Colors.redAccent, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -976,14 +1142,15 @@ content: const Text(
     }
 
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (r) => false);
+    Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()), (r) => false);
   }
 
   Future<void> _saveAudienceAndMode() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('fitstreet_trainer_audience', targetAudience);
-      await prefs.setString('fitstreet_trainer_mode', workingMode);
+      // Do not persist working mode from dashboard anymore
 
       final sp = await SharedPreferences.getInstance();
       final savedToken = sp.getString('fitstreet_token') ?? '';
@@ -993,27 +1160,37 @@ content: const Text(
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId != null && trainerId.isNotEmpty) {
-        final fitApi = FitstreetApi('https://api.fitstreet.in', token: savedToken);
+        final fitApi =
+            FitstreetApi('https://api.fitstreet.in', token: savedToken);
         final preferencesData = {
-          'mode': workingMode.toLowerCase(),
           'targetAudience': targetAudience,
           'availableFor': targetAudience.toLowerCase(),
         };
 
-        final response = await fitApi.updateTrainerPreferences(trainerId, preferencesData);
+        final response =
+            await fitApi.updateTrainerPreferences(trainerId, preferencesData);
         if (response.statusCode == 200 || response.statusCode == 201) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preferences saved to database successfully!")));
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text("Preferences saved to database successfully!")));
         } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Database save failed: ${response.statusCode}")));
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text("Database save failed: ${response.statusCode}")));
         }
       } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preferences saved locally only - no trainer ID")));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text("Preferences saved locally only - no trainer ID")));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error saving preferences: $e")));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error saving preferences: $e")));
     }
   }
 
@@ -1030,18 +1207,25 @@ content: const Text(
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) {
         setState(() => _loadingSlots = false);
         return;
       }
 
-      final fitApi = FitstreetApi('https://api.fitstreet.in', token: savedToken);
-      final resp = await fitApi.getSlotAvailabilityDetails(trainerId);
+      final fitApi =
+          FitstreetApi('https://api.fitstreet.in', token: savedToken);
+      // Use primary backend path: /api/trainers/slots/{trainerId}
+      final resp = await fitApi.getTrainerSlots(trainerId);
       if (resp.statusCode == 200) {
         final parsed = jsonDecode(resp.body);
-        final slots = (parsed is Map && parsed['slots'] is List) ? parsed['slots'] as List : parsed is List ? parsed : null;
+        final slots = (parsed is Map && parsed['slots'] is List)
+            ? parsed['slots'] as List
+            : parsed is List
+                ? parsed
+                : null;
         if (slots is List) {
           availability.forEach((k, v) => v.clear());
           for (final e in slots) {
@@ -1057,12 +1241,33 @@ content: const Text(
             } catch (_) {}
           }
           selectedDays.clear();
-          final firstWith = availability.entries.firstWhere((e) => e.value.isNotEmpty, orElse: () => MapEntry("Mon", availability["Mon"]!));
+          final firstWith = availability.entries.firstWhere(
+              (e) => e.value.isNotEmpty,
+              orElse: () => MapEntry("Mon", availability["Mon"]!));
           selectedDays.add(firstWith.key);
           if (mounted) setState(() {});
         }
       } else {
-        debugPrint('loadSlotsFromServer failed: ${resp.statusCode} ${resp.body}');
+        debugPrint(
+            'loadSlotsFromServer failed: ${resp.statusCode} ${resp.body}');
+        if (resp.statusCode == 404) {
+          // Gracefully handle not found: keep current availability, inform user
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No saved slot availability found yet.'),
+              ),
+            );
+          }
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Failed to load slots (${resp.statusCode}). Please try again later.',
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       debugPrint("_loadSlotsFromServer error: $e");
@@ -1081,56 +1286,61 @@ content: const Text(
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Trainer id not found. Please login again.")));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text("Trainer id not found. Please login again.")));
         return;
       }
 
-      final fitApi = FitstreetApi('https://api.fitstreet.in', token: savedToken);
-      final payloadSlots = availability.entries.map((e) => {"day": e.key, "slots": e.value.toList()}).toList();
+      final fitApi =
+          FitstreetApi('https://api.fitstreet.in', token: savedToken);
+      final payloadSlots = availability.entries
+          .map((e) => {"day": e.key, "slots": e.value.toList()})
+          .toList();
 
-      final resp1 = await fitApi.saveSlotAvailabilityDetails(trainerId, payloadSlots);
-      if (resp1.statusCode == 200 || resp1.statusCode == 201) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Slots updated successfully (slotAvailabilityDetails).")));
-        await _loadSlotsFromServer();
-        return;
-      }
-
+      // Use primary backend path: /api/trainers/slots/{trainerId}
       final resp2 = await fitApi.updateTrainerSlots(trainerId, payloadSlots);
       if (resp2.statusCode == 200 || resp2.statusCode == 201) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Slots updated successfully (trainers/slots).")));
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Slots updated successfully.")));
         await _loadSlotsFromServer();
         return;
       }
 
-      String msg = 'Failed to save slots (${resp1.statusCode})';
+      String msg = 'Failed to save slots (${resp2.statusCode})';
       try {
-        final b1 = jsonDecode(resp1.body);
-        if (b1 is Map && (b1['message'] != null || b1['error'] != null)) msg = (b1['message'] ?? b1['error']).toString();
+        final b2 = jsonDecode(resp2.body);
+        if (b2 is Map && (b2['message'] != null || b2['error'] != null))
+          msg = (b2['message'] ?? b2['error']).toString();
       } catch (_) {}
-      if (resp1.statusCode == 404 && resp2.body.isNotEmpty) {
-        try {
-          final b2 = jsonDecode(resp2.body);
-          if (b2 is Map && (b2['message'] != null || b2['error'] != null)) msg = (b2['message'] ?? b2['error']).toString();
-        } catch (_) {}
-      }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       debugPrint('_saveSlotsToServer error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Network error: $e")));
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Network error: $e")));
     }
   }
 
   // Notification API methods
   Future<void> getNotifications() async {
-    setState(() { loadingNotifications = true; });
+    setState(() {
+      loadingNotifications = true;
+    });
     try {
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       final userType = 'trainer';
-      final userId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id') ?? '';
+      final userId = sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id') ??
+          '';
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
       final resp = await api.getNotifications(userType, userId);
       if (resp.statusCode == 200) {
@@ -1147,11 +1357,15 @@ content: const Text(
               if (dt == null) {
                 final numVal = int.tryParse(v);
                 if (numVal != null) {
-                  dt = numVal > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(numVal) : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
+                  dt = numVal > 100000000000
+                      ? DateTime.fromMillisecondsSinceEpoch(numVal)
+                      : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
                 }
               }
             } else if (v is int) {
-              dt = v > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(v) : DateTime.fromMillisecondsSinceEpoch(v * 1000);
+              dt = v > 100000000000
+                  ? DateTime.fromMillisecondsSinceEpoch(v)
+                  : DateTime.fromMillisecondsSinceEpoch(v * 1000);
             }
             if (dt == null) return true; // keep if unknown timestamp
             return dt.isAfter(cutoff);
@@ -1159,6 +1373,7 @@ content: const Text(
             return true;
           }
         }
+
         final filtered = raw.where(within7).toList();
         setState(() {
           notifications = filtered;
@@ -1168,7 +1383,9 @@ content: const Text(
     } catch (e) {
       // Optionally show error
     } finally {
-      setState(() { loadingNotifications = false; });
+      setState(() {
+        loadingNotifications = false;
+      });
     }
   }
 
@@ -1177,10 +1394,14 @@ content: const Text(
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       final userType = 'trainer';
-      final userId = sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id') ?? '';
+      final userId = sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id') ??
+          '';
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
       await api.markNotificationsAsRead(userId, userType);
-      setState(() { notificationCount = 0; });
+      setState(() {
+        notificationCount = 0;
+      });
     } catch (e) {}
   }
 
@@ -1195,7 +1416,7 @@ content: const Text(
       await markNotificationsAsRead();
       _notifEntry?.markNeedsBuild();
     }
-  // Do not refresh notifications on open; use currently loaded list
+    // Do not refresh notifications on open; use currently loaded list
   }
 
   void _showNotificationOverlay() {
@@ -1244,28 +1465,44 @@ content: const Text(
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(width: 0.75, color: Colors.white.withOpacity(0.3)),
+                        border: Border.all(
+                            width: 0.75, color: Colors.white.withOpacity(0.3)),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8)),
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8)),
                         ],
                       ),
                       child: loadingNotifications
-                          ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                          ? const Center(
+                              child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: CircularProgressIndicator()))
                           : (notifications.isEmpty
-                              ? const Text('No notifications', style: TextStyle(color: Colors.white70))
-          : Column(
+                              ? const Text('No notifications',
+                                  style: TextStyle(color: Colors.white70))
+                              : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: notifications.map<Widget>((n) {
-                                    final msg = (n?['message'] ?? '').toString();
-            final ts = _formatNotificationDateTime(n?['createdAt']);
+                                    final msg =
+                                        (n?['message'] ?? '').toString();
+                                    final ts = _formatNotificationDateTime(
+                                        n?['createdAt']);
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(msg, style: const TextStyle(color: Colors.white)),
-              Text(ts, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                          Text(msg,
+                                              style: const TextStyle(
+                                                  color: Colors.white)),
+                                          Text(ts,
+                                              style: const TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 12)),
                                         ],
                                       ),
                                     );
@@ -1303,8 +1540,18 @@ content: const Text(
 
   String _monthShort(int m) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     if (m < 1 || m > 12) return '';
     return months[m - 1];
@@ -1349,7 +1596,9 @@ content: const Text(
   // Confirm dialogs
   Future<void> _confirmAccept(dynamic booking) async {
     final bookingId = _extractBookingId(booking);
-    final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
+    final clientName = (booking is Map)
+        ? (booking['client'] ?? booking['userName'] ?? booking['user'])
+        : 'Client';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dCtx) => ClipRRect(
@@ -1360,13 +1609,25 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text('Accept booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: Text('Accept session for ${clientName.toString()}?', style: const TextStyle(color: Colors.white70)),
+            title: const Text('Accept booking',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text('Accept session for ${clientName.toString()}?',
+                style: const TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
-              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text('Accept', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, false),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, true),
+                  child: Text('Accept',
+                      style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700))),
             ],
           ),
         ),
@@ -1379,7 +1640,9 @@ content: const Text(
 
   Future<void> _confirmComplete(dynamic booking) async {
     final bookingId = _extractBookingId(booking);
-    final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
+    final clientName = (booking is Map)
+        ? (booking['client'] ?? booking['userName'] ?? booking['user'])
+        : 'Client';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dCtx) => ClipRRect(
@@ -1390,13 +1653,26 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text('Mark complete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: Text('Mark session as complete for ${clientName.toString()}?', style: const TextStyle(color: Colors.white70)),
+            title: const Text('Mark complete',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text(
+                'Mark session as complete for ${clientName.toString()}?',
+                style: const TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
-              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: Text('Complete', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, false),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, true),
+                  child: Text('Complete',
+                      style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700))),
             ],
           ),
         ),
@@ -1409,7 +1685,9 @@ content: const Text(
 
   Future<void> _confirmReject(dynamic booking) async {
     final bookingId = _extractBookingId(booking);
-    final clientName = (booking is Map) ? (booking['client'] ?? booking['userName'] ?? booking['user']) : 'Client';
+    final clientName = (booking is Map)
+        ? (booking['client'] ?? booking['userName'] ?? booking['user'])
+        : 'Client';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dCtx) => ClipRRect(
@@ -1420,13 +1698,26 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text('Reject booking', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: Text('Reject session for ${clientName.toString()}? This action cannot be undone.', style: const TextStyle(color: Colors.white70)),
+            title: const Text('Reject booking',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: Text(
+                'Reject session for ${clientName.toString()}? This action cannot be undone.',
+                style: const TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white))),
-              TextButton(onPressed: () => Navigator.pop(dCtx, true), child: const Text('Reject', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, false),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx, true),
+                  child: const Text('Reject',
+                      style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w700))),
             ],
           ),
         ),
@@ -1461,9 +1752,9 @@ content: const Text(
 
 //    final paymentDetails = allBookingMaps.map((m) {
 //      return PaymentDetail(
- //       client: m['client'] ?? 'Client',
- //       netAmount: (m['netAmount'] ?? 0.0).toDouble(),
- //       isPaid: m['isPaid'] ?? false,
+    //       client: m['client'] ?? 'Client',
+    //       netAmount: (m['netAmount'] ?? 0.0).toDouble(),
+    //       isPaid: m['isPaid'] ?? false,
 //        date: m['date'],
 //      );
 //    }).toList();
@@ -1472,9 +1763,12 @@ content: const Text(
 //    final monthlyList = paymentDetails;
 
     String uiIdDisplay = '';
-    if (_uniqueTrainerCode != null && _uniqueTrainerCode!.isNotEmpty) uiIdDisplay = _uniqueTrainerCode!;
-    else if (_trainerCode.isNotEmpty) uiIdDisplay = _trainerCode;
-    else if (_dbTrainerId != null && _dbTrainerId!.isNotEmpty) uiIdDisplay = _dbTrainerId!.substring(0, 6);
+    if (_uniqueTrainerCode != null && _uniqueTrainerCode!.isNotEmpty)
+      uiIdDisplay = _uniqueTrainerCode!;
+    else if (_trainerCode.isNotEmpty)
+      uiIdDisplay = _trainerCode;
+    else if (_dbTrainerId != null && _dbTrainerId!.isNotEmpty)
+      uiIdDisplay = _dbTrainerId!.substring(0, 6);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -1488,7 +1782,8 @@ content: const Text(
           padding: const EdgeInsets.only(left: 12),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+            child: Image.asset('assets/image/fitstreet-bull-logo.png',
+                fit: BoxFit.contain),
           ),
         ),
         flexibleSpace: ClipRRect(
@@ -1505,11 +1800,7 @@ content: const Text(
               Navigator.pushNamed(context, '/wallet/trainer');
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            tooltip: "Menu",
-            onPressed: _openOverflowPanel,
-          ),
+
           // Notification bell with badge
           Stack(
             children: [
@@ -1528,7 +1819,8 @@ content: const Text(
                       color: Colors.red,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                    constraints:
+                        const BoxConstraints(minWidth: 20, minHeight: 20),
                     child: Text(
                       '$notificationCount',
                       style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -1538,13 +1830,18 @@ content: const Text(
                 ),
             ],
           ),
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: "Menu",
+            onPressed: _openOverflowPanel,
+          ),
         ],
       ),
       endDrawer: _buildEndDrawer(context),
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
+            image: AssetImage('assets/image/home2-bg.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
@@ -1564,13 +1861,15 @@ content: const Text(
                     ]);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Dashboard refreshed successfully')),
+                        const SnackBar(
+                            content: Text('Dashboard refreshed successfully')),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error refreshing: ${e.toString()}')),
+                        SnackBar(
+                            content: Text('Error refreshing: ${e.toString()}')),
                       );
                     }
                   }
@@ -1589,7 +1888,10 @@ content: const Text(
                         onToggleAvailability: _setAvailability,
                         onOpenAvailabilityEditor: _openAvailabilityEditor,
                         onNotifications: () {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Notifications clicked")));
+                          if (mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Notifications clicked")));
                         },
                       ),
                       const SizedBox(height: 12),
@@ -1598,25 +1900,36 @@ content: const Text(
                       if (_kycState == KycState.notStarted)
                         GlassCard(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                             child: Row(
                               children: [
-                                const Icon(Icons.verified_user, color: Colors.orangeAccent, size: 28),
+                                const Icon(Icons.verified_user,
+                                    color: Colors.orangeAccent, size: 28),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: const [
-                                      Text("Complete your KYC", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      Text("Complete your KYC",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold)),
                                       SizedBox(height: 4),
-                                      Text("Complete KYC to enable payouts & bookings.", style: TextStyle(color: Colors.white70)),
+                                      Text(
+                                          "Complete KYC to enable payouts & bookings.",
+                                          style:
+                                              TextStyle(color: Colors.white70)),
                                     ],
                                   ),
                                 ),
                                 ElevatedButton(
                                   onPressed: _openKycWizard,
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
-                                  child: const Text("Complete KYC", style: TextStyle(color: Colors.white)),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.white12),
+                                  child: const Text("Complete KYC",
+                                      style: TextStyle(color: Colors.white)),
                                 ),
                               ],
                             ),
@@ -1625,28 +1938,41 @@ content: const Text(
                       else if (_kycState == KycState.submitted)
                         GlassCard(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
                             child: Row(
                               children: [
-                                const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 28),
+                                const Icon(Icons.info_outline,
+                                    color: Colors.orangeAccent, size: 28),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: const [
-                                      Text("Your KYC is submitted.", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                      Text("Your KYC is submitted.",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold)),
                                       SizedBox(height: 4),
-                                      Text("Once your KYC is approved, we will notify you.", style: TextStyle(color: Colors.white70)),
+                                      Text(
+                                          "Once your KYC is approved, we will notify you.",
+                                          style:
+                                              TextStyle(color: Colors.white70)),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: Colors.orange.shade200,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: const Text("Pending", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  child: const Text("Pending",
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
@@ -1655,19 +1981,19 @@ content: const Text(
 
                       const SizedBox(height: 12),
 
-              //        EarningsCard(
-              //          weeklyPaymentsTableData: weeklyList,
-              //          monthlyPaymentsTableData: monthlyList,
-              //          grossTotal: grossTotal,
-              //          netTotal: netTotal,
-              //          grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-              //          netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-              //          weeklySubtitle: '',
-              //          grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
-               //         netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
-               //         monthlySubtitle: '',
-               //         platformFeePercent: _feePercent,
-               //       ),
+                      //        EarningsCard(
+                      //          weeklyPaymentsTableData: weeklyList,
+                      //          monthlyPaymentsTableData: monthlyList,
+                      //          grossTotal: grossTotal,
+                      //          netTotal: netTotal,
+                      //          grossWeekly: live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+                      //          netWeekly: _calculateNet(live.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+                      //          weeklySubtitle: '',
+                      //          grossMonthly: upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0)),
+                      //         netMonthly: _calculateNet(upcoming.fold(0.0, (s, e) => s + ((e['amount'] ?? 0) is num ? (e['amount'] ?? 0).toDouble() : 0.0))),
+                      //         monthlySubtitle: '',
+                      //         platformFeePercent: _feePercent,
+                      //       ),
 
                       const SizedBox(height: 20),
 
@@ -1677,40 +2003,46 @@ content: const Text(
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text("Preferences", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                const Text("Preferences",
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 10),
                                 Row(children: [
                                   Expanded(
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      const Text("Target Audience", style: TextStyle(color: Colors.white70)),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          _smallChoice("Both", targetAudience == "Both", () => setState(() => targetAudience = "Both")),
-                                          _smallChoice("female", targetAudience == "female", () => setState(() => targetAudience = "female")),
-                                          _smallChoice("male", targetAudience == "male", () => setState(() => targetAudience = "male")),
-                                        ],
-                                      ),
-                                    ]),
+                                          const Text("Target Audience",
+                                              style: TextStyle(
+                                                  color: Colors.white70)),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              _smallChoice(
+                                                  "Both",
+                                                  targetAudience == "Both",
+                                                  () => setState(() =>
+                                                      targetAudience = "Both")),
+                                              _smallChoice(
+                                                  "Female",
+                                                  targetAudience == "Female",
+                                                  () => setState(() =>
+                                                      targetAudience =
+                                                          "Female")),
+                                              _smallChoice(
+                                                  "Male",
+                                                  targetAudience == "Male",
+                                                  () => setState(() =>
+                                                      targetAudience = "Male")),
+                                            ],
+                                          ),
+                                        ]),
                                   ),
                                   const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                      const Text("Mode", style: TextStyle(color: Colors.white70)),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          _smallChoice("Offline", workingMode == "Offline", () => setState(() => workingMode = "Offline")),
-                                          _smallChoice("Online", workingMode == "Online", () => setState(() => workingMode = "Online")),
-                                          _smallChoice("Both", workingMode == "Both", () => setState(() => workingMode = "Both")),
-                                        ],
-                                      ),
-                                    ]),
-                                  ),
                                 ]),
                                 const SizedBox(height: 12),
                                 Align(
@@ -1728,62 +2060,123 @@ content: const Text(
                       const SizedBox(height: 14),
                       // Show only Availability (remove duplicate profile/id and motivation)
                       narrow
-                          ? Column(children: [
-                              _availabilityCard()
-                            ])
-                          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                              Expanded(child: SizedBox()),
-                            ]),
+                          ? Column(children: [_availabilityCard()])
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                  Expanded(child: SizedBox()),
+                                ]),
                       if (!narrow) _availabilityCard(),
 
                       const SizedBox(height: 20),
 
                       // Bookings UI
                       GlassCard(
+                        key: _bookingsSectionKey,
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("Session Bookings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              const Text("Session Bookings",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold)),
                               const SizedBox(height: 10),
                               Row(children: [
                                 GestureDetector(
                                   onTap: () => _getBookedSessions('upcoming'),
-                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'upcoming' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Upcoming', style: TextStyle(color: Colors.white))),
+                                  child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                          color: _bookingsTab == 'upcoming'
+                                              ? Colors.white12
+                                              : Colors.white10,
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      child: const Text('Upcoming',
+                                          style:
+                                              TextStyle(color: Colors.white))),
                                 ),
                                 const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () => _getBookedSessions('completed'),
-                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'completed' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Completed', style: TextStyle(color: Colors.white))),
+                                  child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                          color: _bookingsTab == 'completed'
+                                              ? Colors.white12
+                                              : Colors.white10,
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      child: const Text('Completed',
+                                          style:
+                                              TextStyle(color: Colors.white))),
                                 ),
                                 const SizedBox(width: 8),
                                 GestureDetector(
                                   onTap: () => _getBookedSessions('rejected'),
-                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _bookingsTab == 'rejected' ? Colors.white12 : Colors.white10, borderRadius: BorderRadius.circular(8)), child: const Text('Rejected', style: TextStyle(color: Colors.white))),
+                                  child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 8),
+                                      decoration: BoxDecoration(
+                                          color: _bookingsTab == 'rejected'
+                                              ? Colors.white12
+                                              : Colors.white10,
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                      child: const Text('Rejected',
+                                          style:
+                                              TextStyle(color: Colors.white))),
                                 ),
                               ]),
                               const SizedBox(height: 12),
-                              if (_loadingBookings) const Center(child: CircularProgressIndicator()) else Column(children: [
-                                if (_bookingsTab == 'upcoming' && _upcomingBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No upcoming sessions.', style: TextStyle(color: Colors.white70))),
-                                if (_bookingsTab == 'completed' && _completedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No completed sessions.', style: TextStyle(color: Colors.white70))),
-                                if (_bookingsTab == 'rejected' && _rejectedBookings.isEmpty) const Padding(padding: EdgeInsets.all(12), child: Text('No rejected sessions.', style: TextStyle(color: Colors.white70))),
-                                if (_bookingsTab == 'upcoming') ..._upcomingBookings.map((b) => _trainerBookingTile(b)).toList(),
-                                if (_bookingsTab == 'completed') ..._completedBookings.map((b) => _trainerBookingTile(b)).toList(),
-                                if (_bookingsTab == 'rejected') ..._rejectedBookings.map((b) => _trainerBookingTile(b)).toList(),
-                              ])
+                              if (_loadingBookings)
+                                const Center(child: CircularProgressIndicator())
+                              else
+                                Column(children: [
+                                  if (_bookingsTab == 'upcoming' &&
+                                      _upcomingBookings.isEmpty)
+                                    const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Text('No upcoming sessions.',
+                                            style: TextStyle(
+                                                color: Colors.white70))),
+                                  if (_bookingsTab == 'completed' &&
+                                      _completedBookings.isEmpty)
+                                    const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Text('No completed sessions.',
+                                            style: TextStyle(
+                                                color: Colors.white70))),
+                                  if (_bookingsTab == 'rejected' &&
+                                      _rejectedBookings.isEmpty)
+                                    const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Text('No rejected sessions.',
+                                            style: TextStyle(
+                                                color: Colors.white70))),
+                                  if (_bookingsTab == 'upcoming')
+                                    ..._upcomingBookings
+                                        .map((b) => _trainerBookingTile(b))
+                                        .toList(),
+                                  if (_bookingsTab == 'completed')
+                                    ..._completedBookings
+                                        .map((b) => _trainerBookingTile(b))
+                                        .toList(),
+                                  if (_bookingsTab == 'rejected')
+                                    ..._rejectedBookings
+                                        .map((b) => _trainerBookingTile(b))
+                                        .toList(),
+                                ])
                             ],
                           ),
                         ),
                       ),
 
                       const SizedBox(height: 80),
-                      Center(child: Column(children: [
-                        Container(width: 64, height: 64, decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.sports_martial_arts, color: Colors.white)),
-                        const SizedBox(height: 10),
-                        const Text("© Ball Street Pvt. Ltd.", style: TextStyle(color: Colors.white70)),
-                        const SizedBox(height: 20),
-                      ])),
                     ],
                   ),
                 ),
@@ -1791,11 +2184,6 @@ content: const Text(
             ),
 
             // Notification dropdown now rendered via OverlayEntry above the AppBar
-
-            // Floating actions (positioned)
-            Positioned(left: 18, bottom: 18, child: FloatingActionButton(heroTag: 'support_fab', onPressed: _openSupport, backgroundColor: AppColors.secondary, child: const Icon(Icons.headset_mic, color: Colors.white))),
-            Positioned(right: 18, bottom: 18, child: FloatingActionButton(heroTag: 'sos_fab', onPressed: _triggerSOS, backgroundColor: AppColors.primary, child: const Icon(Icons.sos, color: Colors.white))),
-            // Wallet FAB removed to match Home’s two-button layout (Support & SOS only)
           ],
         ),
       ),
@@ -1808,94 +2196,172 @@ content: const Text(
 
   Widget _trainerBookingTile(dynamic b) {
     final user = (b['User'] ?? b['userId'] ?? b['UserId'] ?? b['user'] ?? {});
-    final userName = (user is Map ? (user['fullName'] ?? user['name']) : user)?.toString() ?? (b['userName'] ?? 'Client');
-    final userCity = (user is Map ? (user['currentCity'] ?? user['city']) : '')?.toString() ?? '';
-    final userState = (user is Map ? (user['currentState'] ?? user['state']) : '')?.toString() ?? '';
+    final userName =
+        (user is Map ? (user['fullName'] ?? user['name']) : user)?.toString() ??
+            (b['userName'] ?? 'Client');
+    final userCity = (user is Map ? (user['currentCity'] ?? user['city']) : '')
+            ?.toString() ??
+        '';
+    final userState =
+        (user is Map ? (user['currentState'] ?? user['state']) : '')
+                ?.toString() ??
+            '';
 
     final selectedSession = (b['selectedSession'] ?? '').toString();
-    final selectedDate = b['selectedDate']?.toString() ?? b['sessionDate']?.toString() ?? '';
+    final selectedDate =
+        b['selectedDate']?.toString() ?? b['sessionDate']?.toString() ?? '';
     final selectedTime = (b['selectedTime'] ?? '').toString();
     final price = (b['price'] ?? b['amount'] ?? '').toString();
-    final isAccepted = (b['isAccepted'] == true || b['isAccepted']?.toString() == 'true' || b['accepted'] == true || b['accepted']?.toString() == 'true');
+    final isAccepted = (b['isAccepted'] == true ||
+        b['isAccepted']?.toString() == 'true' ||
+        b['accepted'] == true ||
+        b['accepted']?.toString() == 'true');
 
-    final sessionLabel = selectedSession.isNotEmpty ? '${selectedSession[0].toUpperCase()}${selectedSession.substring(1)}' : 'Session';
-  final inRejectedTab = _bookingsTab == 'rejected';
-  final inCompletedTab = _bookingsTab == 'completed';
+    final sessionLabel = selectedSession.isNotEmpty
+        ? '${selectedSession[0].toUpperCase()}${selectedSession.substring(1)}'
+        : 'Session';
+    final inRejectedTab = _bookingsTab == 'rejected';
+    final inCompletedTab = _bookingsTab == 'completed';
 
-  // Extract mode and goal for upcoming view
-  String modeRaw = (b['mode'] ?? b['sessionMode'] ?? b['selectedMode'] ?? b['bookingMode'] ?? b['trainingMode'] ?? '').toString();
-  modeRaw = modeRaw.trim().toLowerCase();
-  String modeLabel = '';
-  if (modeRaw.contains('online')) modeLabel = 'Online';
-  else if (modeRaw.contains('offline') || modeRaw.contains('inperson') || modeRaw.contains('in-person')) modeLabel = 'Offline';
+    // Extract mode and goal for upcoming view
+    String modeRaw = (b['mode'] ??
+            b['sessionMode'] ??
+            b['selectedMode'] ??
+            b['bookingMode'] ??
+            b['trainingMode'] ??
+            '')
+        .toString();
+    modeRaw = modeRaw.trim().toLowerCase();
+    String modeLabel = '';
+    if (modeRaw.contains('online'))
+      modeLabel = 'Online';
+    else if (modeRaw.contains('offline') ||
+        modeRaw.contains('inperson') ||
+        modeRaw.contains('in-person')) modeLabel = 'Offline';
 
-  final goalRaw = (user is Map
-      ? (user['goal'] ?? user['fitnessGoal'] ?? user['goalName'])
-      : (b['goal'] ?? b['fitnessGoal']))
-    ?.toString()
-    .trim();
-  final goalLabel = (goalRaw != null && goalRaw.isNotEmpty) ? goalRaw : '';
+    final goalRaw = (user is Map
+            ? (user['goal'] ?? user['fitnessGoal'] ?? user['goalName'])
+            : (b['goal'] ?? b['fitnessGoal']))
+        ?.toString()
+        .trim();
+    final goalLabel = (goalRaw != null && goalRaw.isNotEmpty) ? goalRaw : '';
 
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)),
+        decoration: BoxDecoration(
+            color: Colors.white10, borderRadius: BorderRadius.circular(10)),
         child: Row(
           children: [
             Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(userName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
-                Text(
-                  '$sessionLabel${selectedSession == 'monthly' ? ' (20 Sessions)' : ''} · ${_formatFullDate(selectedDate)}${selectedSession == 'single' && selectedTime.isNotEmpty ? ' | $selectedTime' : ''}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if ((modeLabel.isNotEmpty || goalLabel.isNotEmpty)) ...[
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (modeLabel.isNotEmpty) _glassBadge(modeLabel),
-                      if (goalLabel.isNotEmpty) _glassBadge('Goal: $goalLabel'),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(userName,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$sessionLabel${selectedSession == 'monthly' ? ' (20 Sessions)' : ''} · ${_formatFullDate(selectedDate)}${selectedSession == 'single' && selectedTime.isNotEmpty ? ' | $selectedTime' : ''}',
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if ((modeLabel.isNotEmpty || goalLabel.isNotEmpty)) ...[
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (modeLabel.isNotEmpty) _glassBadge(modeLabel),
+                          if (goalLabel.isNotEmpty)
+                            _glassBadge('Goal: $goalLabel'),
+                        ],
+                      ),
                     ],
-                  ),
-                ],
-                const SizedBox(height: 6),
-                Text('$userCity${userCity.isNotEmpty ? ", " : ""}$userState', style: const TextStyle(color: Colors.white70, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
-              ]),
+                    const SizedBox(height: 6),
+                    Text(
+                        '$userCity${userCity.isNotEmpty ? ", " : ""}$userState',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ]),
             ),
-
             ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 96, maxWidth: 150),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFF3DD1FF), borderRadius: BorderRadius.circular(8)), child: Text('₹$price', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold))),
+              child:
+                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF3DD1FF),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text('₹$price',
+                        style: const TextStyle(
+                            color: Colors.black87,
+                            fontWeight: FontWeight.bold))),
                 const SizedBox(height: 8),
                 if (inRejectedTab)
                   _glassBadge('Rejected')
                 else if (inCompletedTab)
                   _glassBadge('Completed')
                 else
-                  Wrap(spacing: 6, runSpacing: 6, alignment: WrapAlignment.end, children: [
-                    if (!isAccepted)
-                      TextButton(onPressed: () => _confirmAccept(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Accept', style: TextStyle(color: Colors.white))),
-                    if (!isAccepted)
-                      TextButton(onPressed: () => _confirmReject(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Reject', style: TextStyle(color: Colors.redAccent))),
-                    if (isAccepted)
-                      TextButton(onPressed: () => _confirmComplete(b), style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('Complete', style: TextStyle(color: Colors.white))),
-                    if (isAccepted)
-                      TextButton(onPressed: () {
-                        final userCopy = (user is Map) ? Map<String, dynamic>.from(user) : {'fullName': userName};
-                        _showUserProfileModalDialog(userCopy);
-                      }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white)))
-                    else
-                      TextButton(onPressed: () {
-                        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Accept the booking to view contact details.')));
-                      }, style: TextButton.styleFrom(backgroundColor: Colors.white12), child: const Text('View Profile', style: TextStyle(color: Colors.white70))),
-                  ])
+                  Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        if (!isAccepted)
+                          TextButton(
+                              onPressed: () => _confirmAccept(b),
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white12),
+                              child: const Text('Accept',
+                                  style: TextStyle(color: Colors.white))),
+                        if (!isAccepted)
+                          TextButton(
+                              onPressed: () => _confirmReject(b),
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white12),
+                              child: const Text('Reject',
+                                  style: TextStyle(color: Colors.redAccent))),
+                        if (isAccepted)
+                          TextButton(
+                              onPressed: () => _confirmComplete(b),
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white12),
+                              child: const Text('Complete',
+                                  style: TextStyle(color: Colors.white))),
+                        if (isAccepted)
+                          TextButton(
+                              onPressed: () {
+                                final userCopy = (user is Map)
+                                    ? Map<String, dynamic>.from(user)
+                                    : {'fullName': userName};
+                                _showUserProfileModalDialog(userCopy);
+                              },
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white12),
+                              child: const Text('View Profile',
+                                  style: TextStyle(color: Colors.white)))
+                        else
+                          TextButton(
+                              onPressed: () {
+                                if (mounted)
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              'Accept the booking to view contact details.')));
+                              },
+                              style: TextButton.styleFrom(
+                                  backgroundColor: Colors.white12),
+                              child: const Text('View Profile',
+                                  style: TextStyle(color: Colors.white70))),
+                      ])
               ]),
             )
           ],
@@ -1904,7 +2370,8 @@ content: const Text(
     );
   }
 
-  Future<void> _showUserProfileModalDialog(Map<String, dynamic> selectedUser) async {
+  Future<void> _showUserProfileModalDialog(
+      Map<String, dynamic> selectedUser) async {
     await showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -1915,19 +2382,50 @@ content: const Text(
             padding: const EdgeInsets.all(14),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text((selectedUser['fullName'] ?? 'User'), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, color: Colors.white70))
-                ]),
-                const SizedBox(height: 8),
-                if ((selectedUser['email'] ?? '').toString().isNotEmpty) Text('Email: ${selectedUser['email']}', style: const TextStyle(color: Colors.white70)),
-                if ((selectedUser['mobileNumber'] ?? selectedUser['mobile'] ?? '').toString().isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Mobile: ${selectedUser['mobileNumber'] ?? selectedUser['mobile']}', style: const TextStyle(color: Colors.white70))),
-                if ((selectedUser['currentAddress'] ?? '').toString().isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text('Address: ${selectedUser['currentAddress']}', style: const TextStyle(color: Colors.white70))),
-                const SizedBox(height: 8),
-                Text('Goal: ${selectedUser['goal'] ?? 'N/A'}', style: const TextStyle(color: Colors.white70)),
-                const SizedBox(height: 8),
-              ]),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text((selectedUser['fullName'] ?? 'User'),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close,
+                                  color: Colors.white70))
+                        ]),
+                    const SizedBox(height: 8),
+                    if ((selectedUser['email'] ?? '').toString().isNotEmpty)
+                      Text('Email: ${selectedUser['email']}',
+                          style: const TextStyle(color: Colors.white70)),
+                    if ((selectedUser['mobileNumber'] ??
+                            selectedUser['mobile'] ??
+                            '')
+                        .toString()
+                        .isNotEmpty)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                              'Mobile: ${selectedUser['mobileNumber'] ?? selectedUser['mobile']}',
+                              style: const TextStyle(color: Colors.white70))),
+                    if ((selectedUser['currentAddress'] ?? '')
+                        .toString()
+                        .isNotEmpty)
+                      Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                              'Address: ${selectedUser['currentAddress']}',
+                              style: const TextStyle(color: Colors.white70))),
+                    const SizedBox(height: 8),
+                    Text('Goal: ${selectedUser['goal'] ?? 'N/A'}',
+                        style: const TextStyle(color: Colors.white70)),
+                    const SizedBox(height: 8),
+                  ]),
             ),
           ),
         ),
@@ -1973,12 +2471,15 @@ content: const Text(
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.chevron_right, color: Colors.white70),
+                          icon: const Icon(Icons.chevron_right,
+                              color: Colors.white70),
                           onPressed: () {
                             Navigator.pop(context);
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const TrainerProfileEditRestrictedScreen()),
                             );
                           },
                         ),
@@ -1992,7 +2493,10 @@ content: const Text(
                       children: [
                         Text(
                           trainerName.isNotEmpty ? trainerName : 'Trainer',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
                         const Text(
@@ -2012,7 +2516,11 @@ content: const Text(
                           label: 'Profile',
                           onTap: () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const TrainerProfileEditRestrictedScreen()));
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const TrainerProfileEditRestrictedScreen()));
                           },
                         ),
                         _drawerItem(
@@ -2020,19 +2528,43 @@ content: const Text(
                           label: 'Bank Details',
                           onTap: () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const BankDetailsEditScreen()));
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const BankDetailsEditScreen()));
                           },
                         ),
                         _drawerItem(
-                          icon: Icons.settings_outlined,
-                          label: 'Settings',
+                          icon: Icons.book_online,
+                          label: 'My Booked Sessions',
                           onTap: () {
+                            // Close drawer and navigate to bookings section
                             Navigator.pop(context);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
+                            // Default to upcoming tab and fetch sessions
+                            _getBookedSessions('upcoming');
+                            // Smooth scroll to the bookings card
+                            if (_bookingsSectionKey.currentContext != null) {
+                              Scrollable.ensureVisible(
+                                _bookingsSectionKey.currentContext!,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeInOut,
+                              );
                             }
                           },
                         ),
+                        //        _drawerItem(
+                        //        icon: Icons.settings_outlined,
+                        //      label: 'Settings',
+                        //    onTap: () {
+                        //             Navigator.pop(context);
+                        //           if (mounted) {
+                        //           ScaffoldMessenger.of(context).showSnackBar(
+                        //             const SnackBar(
+                        //               content: Text('Settings coming soon')));
+                        //   }
+                        //    },
+                        //   ),
                         _drawerItem(
                           icon: Icons.support_agent,
                           label: 'Support & Policies',
@@ -2050,42 +2582,55 @@ content: const Text(
                             final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) {
-                                final TextEditingController confirmCtrl = TextEditingController();
+                                final TextEditingController confirmCtrl =
+                                    TextEditingController();
                                 return ClipRRect(
                                   borderRadius: BorderRadius.circular(16),
                                   child: BackdropFilter(
-                                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                                    filter: ImageFilter.blur(
+                                        sigmaX: 10, sigmaY: 10),
                                     child: AlertDialog(
-                                      backgroundColor: Colors.white.withOpacity(0.12),
+                                      backgroundColor:
+                                          Colors.white.withOpacity(0.12),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
-                                        side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+                                        side: BorderSide(
+                                            color:
+                                                Colors.white.withOpacity(0.3),
+                                            width: 0.75),
                                       ),
                                       title: const Text(
                                         'Delete Account',
-                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       content: Column(
                                         mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           const Text(
                                             'This will permanently delete your account and all data. '
-                                                'This action cannot be undone.\n\n'
-                                                'Type DELETE to confirm.',
-                                            style: TextStyle(color: Colors.white70),
+                                            'This action cannot be undone.\n\n'
+                                            'Type DELETE to confirm.',
+                                            style: TextStyle(
+                                                color: Colors.white70),
                                           ),
                                           const SizedBox(height: 12),
                                           TextField(
                                             controller: confirmCtrl,
-                                            style: const TextStyle(color: Colors.white),
+                                            style: const TextStyle(
+                                                color: Colors.white),
                                             decoration: InputDecoration(
                                               hintText: 'Type DELETE',
-                                              hintStyle: const TextStyle(color: Colors.white38),
+                                              hintStyle: const TextStyle(
+                                                  color: Colors.white38),
                                               filled: true,
                                               fillColor: Colors.white10,
                                               border: OutlineInputBorder(
-                                                borderRadius: BorderRadius.circular(10),
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
                                               ),
                                             ),
                                           )
@@ -2093,18 +2638,26 @@ content: const Text(
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () => Navigator.pop(context, false),
-                                          child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Cancel',
+                                              style: TextStyle(
+                                                  color: Colors.white)),
                                         ),
                                         TextButton(
                                           onPressed: () {
-                                            if (confirmCtrl.text.trim().toUpperCase() == 'DELETE') {
+                                            if (confirmCtrl.text
+                                                    .trim()
+                                                    .toUpperCase() ==
+                                                'DELETE') {
                                               Navigator.pop(context, true);
                                             }
                                           },
                                           child: const Text(
                                             'Delete',
-                                            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700),
+                                            style: TextStyle(
+                                                color: Colors.redAccent,
+                                                fontWeight: FontWeight.w700),
                                           ),
                                         ),
                                       ],
@@ -2118,24 +2671,25 @@ content: const Text(
                               _deleteAccount(context);
                             }
                           },
-
                         ),
-
-
-                        _drawerItem(
-                          icon: Icons.more_horiz,
-                          label: 'Other',
-                          onTap: () {
-                            Navigator.pop(context);
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('More options coming soon')));
-                            }
-                          },
-                        ),
-                        const Divider(height: 16, color: Colors.white24),
+                        //    _drawerItem(
+                        //      icon: Icons.more_horiz,
+                        //     label: 'Other',
+                        //    onTap: () {
+                        //     Navigator.pop(context);
+                        //     if (mounted) {
+                        //       ScaffoldMessenger.of(context).showSnackBar(
+                        //          const SnackBar(
+                        //              content:
+                        //                Text('More options coming soon')));
+                        //  }
+                        //    },
+                        //   ),
+                        // const Divider(height: 16, color: Colors.white24),
                         ListTile(
                           leading: const Icon(Icons.logout, color: Colors.red),
-                          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                          title: const Text('Logout',
+                              style: TextStyle(color: Colors.red)),
                           onTap: () async {
                             Navigator.pop(context);
                             await _logout();
@@ -2169,7 +2723,8 @@ content: const Text(
           title: Text(label, style: const TextStyle(color: Colors.white)),
           trailing: const Icon(Icons.chevron_right, color: Colors.white54),
           onTap: onTap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
@@ -2208,7 +2763,9 @@ content: const Text(
                 color: selected ? null : baseColor,
                 gradient: selected ? selGradient : null,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: selected ? accent : Colors.white.withOpacity(0.25), width: 0.9),
+                border: Border.all(
+                    color: selected ? accent : Colors.white.withOpacity(0.25),
+                    width: 0.9),
               ),
               child: Text(
                 label,
@@ -2246,9 +2803,13 @@ content: const Text(
                   )
                 : null,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: isPressed ? pressedAccent : Colors.white.withOpacity(0.28), width: 0.9),
+            border: Border.all(
+                color:
+                    isPressed ? pressedAccent : Colors.white.withOpacity(0.28),
+                width: 0.9),
           );
-          final textStyle = const TextStyle(color: Colors.white, fontWeight: FontWeight.w600);
+          final textStyle =
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.w600);
           final iconColor = Colors.white;
 
           return GestureDetector(
@@ -2265,7 +2826,8 @@ content: const Text(
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: decoration,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -2307,11 +2869,23 @@ content: const Text(
         opacity: disabled ? 0.5 : 1.0,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Expanded(child: Text("Availability", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-              Tooltip(message: isAvailable ? "You're visible" : "Hidden from customer search", child: Switch(value: isAvailable, onChanged: (v) => _setAvailability(v))),
-              IconButton(onPressed: _loadSlotsFromServer, icon: const Icon(Icons.refresh, color: Colors.white70)),
+              const Expanded(
+                  child: Text("Availability",
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold))),
+              Tooltip(
+                  message: isAvailable
+                      ? "You're visible"
+                      : "Hidden from customer search",
+                  child: Switch(
+                      value: isAvailable,
+                      onChanged: (v) => _setAvailability(v))),
+              IconButton(
+                  onPressed: _loadSlotsFromServer,
+                  icon: const Icon(Icons.refresh, color: Colors.white70)),
             ]),
             const SizedBox(height: 8),
             SizedBox(
@@ -2374,7 +2948,9 @@ content: const Text(
               _glassButton(
                 "Clear day",
                 icon: Icons.clear,
-                onTap: disabled ? null : () => setState(() => availability[_selectedDay]!.clear()),
+                onTap: disabled
+                    ? null
+                    : () => setState(() => availability[_selectedDay]!.clear()),
                 blurSigma: 1,
                 disabled: disabled,
               ),
@@ -2397,9 +2973,11 @@ Widget _glassBadge(String label) {
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.75),
+          border:
+              Border.all(color: Colors.white.withOpacity(0.25), width: 0.75),
         ),
-        child: Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        child: Text(label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12)),
       ),
     ),
   );

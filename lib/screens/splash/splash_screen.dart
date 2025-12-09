@@ -147,9 +147,9 @@ class _SplashScreenState extends State<SplashScreen> {
                                     Text(
                         "Fitness Delivered At Your Doorstep",
                         style: TextStyle(
-                          fontSize: 25,
-                          color: Colors.white70,
-                          fontStyle: FontStyle.italic,
+                          fontSize: 35,
+                          color: Colors.white,
+                          fontStyle: FontStyle.normal,
                           fontWeight: FontWeight.bold,
                        
                         ),

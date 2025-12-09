@@ -40,7 +40,8 @@ class _UserWalletScreenState extends State<UserWalletScreen> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        final list = (body['paymentDetails'] ?? body['data'] ?? []) as List<dynamic>;
+        final list =
+            (body['paymentDetails'] ?? body['data'] ?? []) as List<dynamic>;
         setState(() => _payments = list);
       } else {
         _showSnack('Failed to load payments (${res.statusCode})');
@@ -76,7 +77,9 @@ class _UserWalletScreenState extends State<UserWalletScreen> {
     return _payments.skip(start).take(_pageSize).toList();
   }
 
-  int get _pages => (_payments.isEmpty) ? 1 : ((_payments.length + _pageSize - 1) ~/ _pageSize);
+  int get _pages => (_payments.isEmpty)
+      ? 1
+      : ((_payments.length + _pageSize - 1) ~/ _pageSize);
 
   @override
   Widget build(BuildContext context) {
@@ -87,11 +90,13 @@ class _UserWalletScreenState extends State<UserWalletScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
           tooltip: 'Back',
         ),
-        title: const Text('Wallet & Transactions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: const Text('Wallet & Transactions',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -102,7 +107,13 @@ class _UserWalletScreenState extends State<UserWalletScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Opacity(
+            opacity: 0.2,
+            child: Image.asset(
+              'assets/image/wallet-bg.png',
+              fit: BoxFit.contain,
+            ),
+          ),
           Container(color: Colors.black.withOpacity(0.35)),
           SafeArea(
             child: SingleChildScrollView(
@@ -110,66 +121,124 @@ class _UserWalletScreenState extends State<UserWalletScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Wallet & Transactions Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Wallet & Transactions Details',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Overview of wallet balance, transaction history, and payment methods.', style: TextStyle(color: Colors.white.withOpacity(0.7))),
+                  Text(
+                      'Overview of wallet balance, transaction history, and payment methods.',
+                      style: TextStyle(color: Colors.white.withOpacity(0.7))),
                   const SizedBox(height: 12),
                   GlassCard(
                     padding: const EdgeInsets.all(12),
                     child: _loading
-                        ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                        ? const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator()))
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Payment History', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('Total: ${_payments.length}', style: const TextStyle(color: Colors.white70)),
+                                  const Text('Payment History',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Total: ${_payments.length}',
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
                                 ],
                               ),
                               const Divider(height: 20, thickness: 0.2),
                               if (_payments.isEmpty)
                                 const Padding(
                                   padding: EdgeInsets.all(24.0),
-                                  child: Center(child: Text('No payments found', style: TextStyle(color: Colors.white70))),
+                                  child: Center(
+                                      child: Text('No payments found',
+                                          style: TextStyle(
+                                              color: Colors.white70))),
                                 )
                               else ...[
                                 ..._paged.map((p) {
                                   final map = p as Map<String, dynamic>;
-                                  final trainerName = map['Trainer']?['fullName'] ?? 'Coach';
+                                  final trainerName =
+                                      map['Trainer']?['fullName'] ?? 'Coach';
                                   final amount = map['amount'] ?? 0;
                                   final sessionType = map['sessionType'] ?? '';
                                   final updatedAt = map['updatedAt'];
                                   final isPaid = map['isPaid'] == true;
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
                                     child: Row(children: [
-                                      Expanded(flex: 3, child: Text(trainerName.toString(), style: const TextStyle(fontWeight: FontWeight.w600))),
-                                      Expanded(flex: 3, child: Text(_fmtDate(updatedAt), style: const TextStyle(color: Colors.white70))),
-                                      Expanded(flex: 2, child: Text(sessionType.toString(), style: const TextStyle(color: Colors.white70))),
-                                      Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('₹$amount', style: const TextStyle(fontWeight: FontWeight.bold)))),
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(trainerName.toString(),
+                                              style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w600))),
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(_fmtDate(updatedAt),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
+                                      Expanded(
+                                          flex: 2,
+                                          child: Text(sessionType.toString(),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
+                                      Expanded(
+                                          flex: 2,
+                                          child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text('₹$amount',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold)))),
                                       const SizedBox(width: 12),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: isPaid ? Colors.green : Colors.amber,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: isPaid
+                                              ? Colors.green
+                                              : Colors.amber,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                        child: Text(isPaid ? 'Paid' : 'Pending', style: TextStyle(color: isPaid ? Colors.white : Colors.black)),
+                                        child: Text(isPaid ? 'Paid' : 'Pending',
+                                            style: TextStyle(
+                                                color: isPaid
+                                                    ? Colors.white
+                                                    : Colors.black)),
                                       )
                                     ]),
                                   );
                                 }),
                                 const SizedBox(height: 8),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Showing ${_payments.isEmpty ? 0 : ((_page - 1) * _pageSize + 1)} - ${(_page * _pageSize).clamp(0, _payments.length)} of ${_payments.length}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text(
+                                        'Showing ${_payments.isEmpty ? 0 : ((_page - 1) * _pageSize + 1)} - ${(_page * _pageSize).clamp(0, _payments.length)} of ${_payments.length}',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12)),
                                     Row(children: [
-                                      OutlinedButton(onPressed: _page > 1 ? () => setState(() => _page--) : null, child: const Text('Prev')),
+                                      OutlinedButton(
+                                          onPressed: _page > 1
+                                              ? () => setState(() => _page--)
+                                              : null,
+                                          child: const Text('Prev')),
                                       const SizedBox(width: 8),
-                                      OutlinedButton(onPressed: _page < _pages ? () => setState(() => _page++) : null, child: const Text('Next')),
+                                      OutlinedButton(
+                                          onPressed: _page < _pages
+                                              ? () => setState(() => _page++)
+                                              : null,
+                                          child: const Text('Next')),
                                     ]),
                                   ],
                                 )

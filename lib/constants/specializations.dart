@@ -58,7 +58,13 @@ const Map<String, List<String>> kGroupedSpecializations = {
     'Sports Nutritionist',
     'Weight Management Expert',
     'Diet Planning Specialist',
+    'Clinical Nutritionist',
+    'PCOS/PCOD Nutrition Expert',
+    'Diabetes Nutrition Specialist',
+    'Thyroid Nutrition Specialist',
+    'Cholesterol Management Nutritionist',
     'Holistic Nutrition Coach',
+    'Pediatric Nutritionist',
   ],
   'Mental Health & Counseling': [
     'Counselors',
@@ -85,4 +91,16 @@ const Map<String, List<String>> kGroupedSpecializations = {
     'Badminton Coach',
     'Athletic Performance Trainer',
   ],
+  'Physiotherapist': [
+    'Orthopedic Physiotherapy',
+    'Neurological Physiotherapy',
+    'Sports Physiotherapy',
+    'Pediatric Physiotherapy',
+    'Geriatric Physiotherapy',
+    'Cardiopulmonary Physiotherapy',
+    'Women’s Health Physiotherapy',
+    'Manual Therapy',
+    'Rehabilitation Therapy',
+    'Ergonomic & Posture Physiotherapy'
+  ]
 };

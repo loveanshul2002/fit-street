@@ -36,8 +36,10 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
 
     setState(() => _loading = true);
     try {
-  // Save mobile immediately so greeting can show number instead of 'there'
-  try { await saveMobile(mobile); } catch (_) {}
+      // Save mobile immediately so greeting can show number instead of 'there'
+      try {
+        await saveMobile(mobile);
+      } catch (_) {}
 
       final auth = context.read<AuthManager>();
       final Map<String, dynamic> result = await auth.sendLoginOtp(mobile);
@@ -51,7 +53,8 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
         try {
           if (body is String) {
             expectedOtp = body;
-          } else if (body is Map && (body['otp'] != null || body['data']?['otp'] != null)) {
+          } else if (body is Map &&
+              (body['otp'] != null || body['data']?['otp'] != null)) {
             expectedOtp = (body['otp'] ?? body['data']?['otp']).toString();
           }
         } catch (_) {}
@@ -71,7 +74,8 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
       } else {
         String message = 'Failed to send OTP';
         try {
-          if (body is Map && (body['message'] != null || body['error'] != null)) {
+          if (body is Map &&
+              (body['message'] != null || body['error'] != null)) {
             message = (body['message'] ?? body['error']).toString();
           } else if (body is String && body.isNotEmpty) {
             message = body;
@@ -115,7 +119,8 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                 height: kToolbarHeight,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png',
+                      fit: BoxFit.contain),
                 ),
               ),
             ],
@@ -133,7 +138,7 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
         height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
+            image: AssetImage('assets/image/home2-bg.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
@@ -144,7 +149,8 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: GlassCard(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 22.0),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18.0, vertical: 22.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -152,7 +158,10 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Login',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -185,9 +194,11 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
                                 )
-                              : const Text('Send OTP', style: TextStyle(color: Colors.white)),
+                              : const Text('Send OTP',
+                                  style: TextStyle(color: Colors.white)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -196,12 +207,15 @@ class _LoginScreenStyledState extends State<LoginScreenStyled> {
                           // Keep a single styled auth entry; optionally navigate to a sign-up variant here.
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const UserAuthScreen()),
+                            MaterialPageRoute(
+                                builder: (_) => const UserAuthScreen()),
                           );
                         },
                         child: const Text(
                           'Not registered yet? Create an account',
-                          style: TextStyle(color: Colors.white, decoration: TextDecoration.underline),
+                          style: TextStyle(
+                              color: Colors.white,
+                              decoration: TextDecoration.underline),
                         ),
                       ),
                     ],

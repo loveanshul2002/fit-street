@@ -21,6 +21,7 @@ import 'steps/consent_step.dart';
 import 'models/spec_row.dart';
 import '../../../state/auth_manager.dart';
 import '../../../services/fitstreet_api.dart';
+import '../trainer_dashboard.dart';
 
 class TrainerKycWizard extends StatefulWidget {
   const TrainerKycWizard({super.key});
@@ -66,7 +67,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   final TextEditingController aadhaar = TextEditingController();
 
   // ✅ Added paths here
-  String? selfiePath,  aadhaarPhotofrontPath, aadhaarPhotobackPath;
+  String? selfiePath, aadhaarPhotofrontPath, aadhaarPhotobackPath;
 
   // ---------- Bank ----------
   final TextEditingController accName = TextEditingController();
@@ -96,7 +97,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   bool ackCancellationPolicy = false;
   bool isPaid = false;
 
-
   final TextEditingController esignName = TextEditingController();
   final TextEditingController esignDate = TextEditingController();
 
@@ -115,14 +115,14 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
     super.initState();
     final now = DateTime.now();
     esignDate.text =
-    "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(
-        2, '0')}/${now.year}";
+        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
     if (professionalRows.isEmpty) professionalRows.add(SpecRow());
     _loadSavedProfile();
   }
 
   // Fetch specialization proofs and populate professionalRows. Optionally pass embedded map from getTrainer.
-  Future<void> _prefillSpecializationsFromServer(String trainerId, {Map? embedded}) async {
+  Future<void> _prefillSpecializationsFromServer(String trainerId,
+      {Map? embedded}) async {
     try {
       _loadedProofIds.clear();
       List<dynamic>? list;
@@ -132,9 +132,14 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         final api = await _api();
         final resp = await api.getSpecializationProofs(trainerId);
         dynamic body;
-        try { body = jsonDecode(resp.body); } catch (_) { body = null; }
+        try {
+          body = jsonDecode(resp.body);
+        } catch (_) {
+          body = null;
+        }
         if (body is Map) {
-          final data = body['data'] ?? body['proofs'] ?? body['items'] ?? body['list'];
+          final data =
+              body['data'] ?? body['proofs'] ?? body['items'] ?? body['list'];
           if (data is List) list = data;
         } else if (body is List) {
           list = body;
@@ -144,31 +149,35 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       }
 
       // Fallback to embedded
-    if (list == null || list.isEmpty) {
+      if (list == null || list.isEmpty) {
         try {
-      final proofs = (embedded != null && embedded['specializationProofs'] is List)
-        ? embedded['specializationProofs'] as List
-        : (embedded != null && embedded['specializations'] is List)
-          ? embedded['specializations'] as List
-                  : null;
+          final proofs =
+              (embedded != null && embedded['specializationProofs'] is List)
+                  ? embedded['specializationProofs'] as List
+                  : (embedded != null && embedded['specializations'] is List)
+                      ? embedded['specializations'] as List
+                      : null;
           if (proofs != null) list = proofs;
         } catch (_) {}
       }
 
-    if (list == null || list.isEmpty) return;
+      if (list == null || list.isEmpty) return;
 
       // dispose existing controllers
       for (final r in professionalRows) {
-        try { r.certificateName.dispose(); } catch (_) {}
+        try {
+          r.certificateName.dispose();
+        } catch (_) {}
       }
       professionalRows.clear();
 
-  for (final item in list) {
+      for (final item in list) {
         if (item is! Map) continue;
         final spec = (item['specialization'] ?? item['spec'] ?? '').toString();
         if (spec.isEmpty) continue;
         final name = (item['certificateName'] ?? '').toString();
-        final photo = (item['certificateImageURL'] ?? item['photoURL'] ?? '').toString();
+        final photo =
+            (item['certificateImageURL'] ?? item['photoURL'] ?? '').toString();
         final pid = (item['_id'] ?? item['id'])?.toString();
 
         final row = SpecRow();
@@ -195,8 +204,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         sp.getString('fitstreet_user_mobile') ??
         '';
     email.text = sp.getString('fitstreet_trainer_email') ?? '';
-  bioData.text = sp.getString('fitstreet_trainer_bio') ?? '';
-  
+    bioData.text = sp.getString('fitstreet_trainer_bio') ?? '';
 
     try {
       if (!mounted) return; // guard context usage across async gap
@@ -227,19 +235,25 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
                 dob.text = dobRaw;
               }
               if (parsed != null) {
-                dob.text = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+                dob.text =
+                    '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
               }
             } catch (_) {}
           }
 
           // Address (permanent)
-          if (data['pincode'] != null) pincode.text = (data['pincode'] ?? '').toString();
-          if (data['city'] != null && data['city'].toString().isNotEmpty) city.text = data['city'];
-          if (data['state'] != null && data['state'].toString().isNotEmpty) stateCtrl.text = data['state'];
-          if (data['address'] != null && data['address'].toString().isNotEmpty) addrPermanent.text = data['address'];
+          if (data['pincode'] != null)
+            pincode.text = (data['pincode'] ?? '').toString();
+          if (data['city'] != null && data['city'].toString().isNotEmpty)
+            city.text = data['city'];
+          if (data['state'] != null && data['state'].toString().isNotEmpty)
+            stateCtrl.text = data['state'];
+          if (data['address'] != null && data['address'].toString().isNotEmpty)
+            addrPermanent.text = data['address'];
 
           // Address (current) and parity
-          final same = (data['isAddressSame'] == true) || (data['isAddressSame']?.toString() == 'true');
+          final same = (data['isAddressSame'] == true) ||
+              (data['isAddressSame']?.toString() == 'true');
           sameAsPermanent = same;
           final currentPin = (data['currentPincode'] ?? '').toString();
           final currentCityVal = (data['currentCity'] ?? '').toString();
@@ -259,38 +273,53 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           }
 
           // Emergency details
-          if (data['emergencyPersonName'] != null) emgName.text = data['emergencyPersonName'];
-          if (data['emergencyPersonMobile'] != null) emgMobile.text = data['emergencyPersonMobile'];
-          if (data['emergencyPersonRelation'] != null) emgRelation.text = data['emergencyPersonRelation'];
+          if (data['emergencyPersonName'] != null)
+            emgName.text = data['emergencyPersonName'];
+          if (data['emergencyPersonMobile'] != null)
+            emgMobile.text = data['emergencyPersonMobile'];
+          if (data['emergencyPersonRelation'] != null)
+            emgRelation.text = data['emergencyPersonRelation'];
 
           // IDs and photos
-          if (data['aadhaarCard'] != null) aadhaar.text = data['aadhaarCard'].toString();
+          if (data['aadhaarCard'] != null)
+            aadhaar.text = data['aadhaarCard'].toString();
           // Support remote image URLs as paths to preview in steps
-          if (data['trainerImageURL'] != null && data['trainerImageURL'].toString().isNotEmpty) {
+          if (data['trainerImageURL'] != null &&
+              data['trainerImageURL'].toString().isNotEmpty) {
             selfiePath = data['trainerImageURL'].toString();
           }
-          if (data['aadhaarFrontImageURL'] != null && data['aadhaarFrontImageURL'].toString().isNotEmpty) {
+          if (data['aadhaarFrontImageURL'] != null &&
+              data['aadhaarFrontImageURL'].toString().isNotEmpty) {
             aadhaarPhotofrontPath = data['aadhaarFrontImageURL'].toString();
           }
-          if (data['aadhaarBackImageURL'] != null && data['aadhaarBackImageURL'].toString().isNotEmpty) {
+          if (data['aadhaarBackImageURL'] != null &&
+              data['aadhaarBackImageURL'].toString().isNotEmpty) {
             aadhaarPhotobackPath = data['aadhaarBackImageURL'].toString();
           }
 
           // Bank details
-          if (data['accountNumber'] != null) accName.text = data['accountNumber'].toString();
+          if (data['accountNumber'] != null)
+            accName.text = data['accountNumber'].toString();
           if (data['ifscCode'] != null) ifsc.text = data['ifscCode'].toString();
-          if (data['bankName'] != null) bankName.text = data['bankName'].toString();
+          if (data['bankName'] != null)
+            bankName.text = data['bankName'].toString();
           if (data['branch'] != null) branch.text = data['branch'].toString();
           if (data['upiId'] != null) upi.text = data['upiId'].toString();
 
           // Experience
-          if (data['experience'] != null) experience = data['experience'].toString();
+          if (data['experience'] != null)
+            experience = data['experience'].toString();
 
           // Languages: CSV -> trainingLangs + otherLangCtrl
-          if (data['languages'] != null && data['languages'].toString().isNotEmpty) {
+          if (data['languages'] != null &&
+              data['languages'].toString().isNotEmpty) {
             final raw = data['languages'].toString();
-            final tokens = raw.split(RegExp(r'[,;]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-            final known = <String>{'English','Hindi'};
+            final tokens = raw
+                .split(RegExp(r'[,;]'))
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .toList();
+            final known = <String>{'English', 'Hindi'};
             final others = <String>[];
             trainingLangs.clear();
             for (final t in tokens) {
@@ -315,10 +344,10 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           if (data['monthlySessionPrice'] != null) {
             monthlySessionPrice = data['monthlySessionPrice'].toString();
           }
-          if (data['isPaid'] == true || (data['isPaid']?.toString() == 'true')) {
+          if (data['isPaid'] == true ||
+              (data['isPaid']?.toString() == 'true')) {
             isPaid = true;
           }
-
 
           // Prefill specialization proofs using dedicated endpoint; fallback to embedded
           await _prefillSpecializationsFromServer(id, embedded: data);
@@ -339,7 +368,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
     gender.dispose();
     mobile.dispose();
     email.dispose();
-  bioData.dispose();
+    bioData.dispose();
     pincode.dispose();
     city.dispose();
     stateCtrl.dispose();
@@ -385,9 +414,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
       final tmpDir = await getTemporaryDirectory();
       final fileName =
-          'selfie_${DateTime
-          .now()
-          .millisecondsSinceEpoch}${p.extension(picked.path)}';
+          'selfie_${DateTime.now().millisecondsSinceEpoch}${p.extension(picked.path)}';
       final saved = File('${tmpDir.path}/$fileName');
       final bytes = await picked.readAsBytes();
       await saved.writeAsBytes(bytes);
@@ -400,8 +427,10 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   }
 
   Future<void> _next() async {
-    if (_step == 0) { // Identity
-      if (fIdentity.currentState!.validate() && IdentityStep.validateAge(dob, _toast)) {
+    if (_step == 0) {
+      // Identity
+      if (fIdentity.currentState!.validate() &&
+          IdentityStep.validateAge(dob, _toast)) {
         // Mandatory document checks before leaving Identity step
         if (selfiePath == null || selfiePath!.isEmpty) {
           _toast('Please upload your Selfie.');
@@ -416,29 +445,48 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           return;
         }
         final ok = await _saveStepIdentity();
-        if (ok) { setState(() => _step = 1); _page.jumpToPage(1); }
+        if (ok) {
+          setState(() => _step = 1);
+          _page.jumpToPage(1);
+        }
       }
       return;
     }
-    if (_step == 1) { // Payment step just moves forward when paid
-      if (!isPaid) { _toast('Please complete activation payment.'); return; }
-      setState(() => _step = 2); _page.jumpToPage(2); return;
+    if (_step == 1) {
+      // Payment step just moves forward when paid
+      if (!isPaid) {
+        _toast('Please complete activation payment.');
+        return;
+      }
+      setState(() => _step = 2);
+      _page.jumpToPage(2);
+      return;
     }
-    if (_step == 2) { // Bank
+    if (_step == 2) {
+      // Bank
       if (fBank.currentState!.validate()) {
         final ok = await _saveStepBank();
-        if (ok) { setState(() => _step = 3); _page.jumpToPage(3); }
+        if (ok) {
+          setState(() => _step = 3);
+          _page.jumpToPage(3);
+        }
       }
       return;
     }
-    if (_step == 3) { // Professional
-      if (fProfessional.currentState!.validate() && ProfessionalStep.validateProfessionalRows(professionalRows, _toast)) {
+    if (_step == 3) {
+      // Professional
+      if (fProfessional.currentState!.validate() &&
+          ProfessionalStep.validateProfessionalRows(professionalRows, _toast)) {
         final ok = await _saveStepProfessional();
-        if (ok) { setState(() => _step = 4); _page.jumpToPage(4); }
+        if (ok) {
+          setState(() => _step = 4);
+          _page.jumpToPage(4);
+        }
       }
       return;
     }
-    if (_step == 4) { // Consent
+    if (_step == 4) {
+      // Consent
       // First: check required uploads
       if (selfiePath == null ||
           selfiePath!.isEmpty ||
@@ -460,7 +508,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         agreeHnS: agreeHnS,
         ackTrainerAgreement: ackTrainerAgreement,
         ackCancellationPolicy: ackCancellationPolicy,
-  isPaid: isPaid,
+        isPaid: isPaid,
         toast: _toast,
       );
 
@@ -470,8 +518,12 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         final ok = await _uploadKyc();
         if (!ok) return;
         if (!mounted) return;
-        _toast("KYC submitted! Well verify it shortly.");
-        Navigator.pop(context, true);
+        _toast("KYC submitted! We'll verify it shortly.");
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const TrainerDashboard()),
+          (route) => false,
+        );
       }
 
       return;
@@ -479,17 +531,32 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
   }
 
   void _back() {
-  // Back navigation for 5-step flow
-  if (_step == 4) { setState(() => _step = 3); _page.jumpToPage(3); return; }
-  if (_step == 3) { setState(() => _step = 2); _page.jumpToPage(2); return; }
-  if (_step == 2) { setState(() => _step = 1); _page.jumpToPage(1); return; }
-  if (_step == 1) { setState(() => _step = 0); _page.jumpToPage(0); return; }
-  Navigator.pop(context); // step 0 exit
+    // Back navigation for 5-step flow
+    if (_step == 4) {
+      setState(() => _step = 3);
+      _page.jumpToPage(3);
+      return;
+    }
+    if (_step == 3) {
+      setState(() => _step = 2);
+      _page.jumpToPage(2);
+      return;
+    }
+    if (_step == 2) {
+      setState(() => _step = 1);
+      _page.jumpToPage(1);
+      return;
+    }
+    if (_step == 1) {
+      setState(() => _step = 0);
+      _page.jumpToPage(0);
+      return;
+    }
+    Navigator.pop(context); // step 0 exit
   }
 
   @override
   Widget build(BuildContext context) {
-  final bool keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0.0;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -500,11 +567,13 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         leading: Row(
           children: [
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-              onPressed: _back,
-              tooltip: 'Back',
-            ),
+            if (_step != 0)
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                    color: Colors.white),
+                onPressed: _back,
+                tooltip: 'Back',
+              ),
             const SizedBox(width: 4),
             Image.asset(
               'assets/image/fitstreet-bull-logo.png',
@@ -521,184 +590,270 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Container(color: Color.fromARGB((0.15 * 255).round(), 0, 0, 0)),
+            child:
+                Container(color: Color.fromARGB((0.15 * 255).round(), 0, 0, 0)),
           ),
         ),
       ),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Opacity(
+            opacity: 0.1,
+            child: Image.asset(
+              'assets/image/homee.png',
+              fit: BoxFit.contain,
+            ),
+          ),
           Container(color: Color.fromARGB((0.35 * 255).round(), 0, 0, 0)),
           SafeArea(
             child: Column(
               children: [
-                if (!keyboardOpen)
-                  Padding(
+                Expanded(
+                  child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                     child: GlassCard(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Row(
+                        child: Column(
                           children: [
-                            _stepPill(0, "Identity"),
-                            const SizedBox(width: 8),
-                            _stepPill(1, "Payment"),
-                            const SizedBox(width: 8),
-                            _stepPill(2, "Bank"),
-                            const SizedBox(width: 8),
-                            _stepPill(3, "Professional"),
-                            const SizedBox(width: 8),
-                            _stepPill(4, "Consent"),
+                            Expanded(
+                              child: NestedScrollView(
+                                headerSliverBuilder:
+                                    (context, innerBoxIsScrolled) => [
+                                  SliverToBoxAdapter(
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        Expanded(
+                                          child: _stepPill(0, "Personal Info"),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _stepPill(1, "Payment"),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _stepPill(2, "Bank Details"),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _stepPill(3, "Specialization"),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _stepPill(
+                                              4, "Terms & Conditions"),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SliverToBoxAdapter(
+                                      child: SizedBox(height: 12)),
+                                ],
+                                body: PageView(
+                                  controller: _page,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  children: [
+                                    IdentityStep(
+                                      formKey: fIdentity,
+                                      language: language,
+                                      onLanguageChanged: (v) =>
+                                          setState(() => language = v),
+                                      fullName: fullName,
+                                      dob: dob,
+                                      gender: gender,
+                                      mobile: mobile,
+                                      email: email,
+                                      bioData: bioData,
+                                      pincode: pincode,
+                                      city: city,
+                                      stateCtrl: stateCtrl,
+                                      currentPincode: currentPincode,
+                                      currentCity: currentCity,
+                                      currentState: currentState,
+                                      sameAsPermanent: sameAsPermanent,
+                                      onSameAsPermanentChanged: (v) =>
+                                          setState(() {
+                                        sameAsPermanent = v;
+                                        if (v) {
+                                          addrCurrent.text = addrPermanent.text;
+                                          currentPincode.text = pincode.text;
+                                          currentCity.text = city.text;
+                                          currentState.text = stateCtrl.text;
+                                        } else {
+                                          addrCurrent.clear();
+                                          currentPincode.clear();
+                                          currentCity.clear();
+                                          currentState.clear();
+                                        }
+                                      }),
+                                      addrPermanent: addrPermanent,
+                                      addrCurrent: addrCurrent,
+                                      emgName: emgName,
+                                      emgRelation: emgRelation,
+                                      emgMobile: emgMobile,
+                                      aadhaar: aadhaar,
+                                      aadhaarPhotofrontPath:
+                                          aadhaarPhotofrontPath,
+                                      aadhaarPhotobackPath:
+                                          aadhaarPhotobackPath,
+                                      selfiePath: selfiePath,
+                                      pickAadhaarPhotofront: (p) => setState(
+                                          () => aadhaarPhotofrontPath = p),
+                                      pickAadhaarPhotoback: (p) => setState(
+                                          () => aadhaarPhotobackPath = p),
+                                      pickSelfie: (p) =>
+                                          setState(() => selfiePath = p),
+                                      onPincodeChanged: _onPincodeChanged,
+                                      onCurrentPincodeChanged:
+                                          _onCurrentPincodeChanged,
+                                      readOnlyFullName: true,
+                                      readOnlyMobile: true,
+                                    ),
+                                    PaymentStep(
+                                      isPaid: isPaid,
+                                      onPaidChanged: (v) async {
+                                        if (!mounted) return;
+                                        setState(() => isPaid = v);
+                                        if (v) {
+                                          try {
+                                            final trainerId =
+                                                await _getTrainerId();
+                                            if (trainerId != null &&
+                                                trainerId.isNotEmpty) {
+                                              final api = await _api();
+                                              await api
+                                                  .updateTrainerProfileMultipart(
+                                                      trainerId,
+                                                      fields: {
+                                                    'isPaid': 'true'
+                                                  });
+                                            }
+                                          } catch (e) {
+                                            debugPrint(
+                                                'mark isPaid failed: $e');
+                                          }
+                                        }
+                                      },
+                                      fullName: fullName.text,
+                                      mobile: mobile.text,
+                                      email: email.text,
+                                    ),
+                                    BankStep(
+                                      formKey: fBank,
+                                      accName: accName,
+                                      ifsc: ifsc,
+                                      bankName: bankName,
+                                      branch: branch,
+                                      upi: upi,
+                                    ),
+                                    ProfessionalStep(
+                                      formKey: fProfessional,
+                                      experience: experience,
+                                      onExperienceChanged: (v) =>
+                                          setState(() => experience = v),
+                                      trainingLangs: trainingLangs,
+                                      otherLangCtrl: otherLangCtrl,
+                                      rows: professionalRows,
+                                      onOneSessionPriceChanged: (v) =>
+                                          setState(() => oneSessionPrice = v),
+                                      onMonthlySessionPriceChanged: (v) =>
+                                          setState(
+                                              () => monthlySessionPrice = v),
+                                      oneSessionPriceInitial: oneSessionPrice,
+                                      monthlySessionPriceInitial:
+                                          monthlySessionPrice,
+                                    ),
+                                    ConsentStep(
+                                      noCriminalRecord: noCriminalRecord,
+                                      agreeHnS: agreeHnS,
+                                      ackTrainerAgreement: ackTrainerAgreement,
+                                      ackCancellationPolicy:
+                                          ackCancellationPolicy,
+                                      onChange: ({
+                                        bool? noCrime,
+                                        bool? hns,
+                                        bool? agr,
+                                        bool? cancel,
+                                        bool? payout,
+                                        bool? privacy,
+                                      }) {
+                                        setState(() {
+                                          if (noCrime != null)
+                                            noCriminalRecord = noCrime;
+                                          if (hns != null) agreeHnS = hns;
+                                          if (agr != null)
+                                            ackTrainerAgreement = agr;
+                                          if (cancel != null)
+                                            ackCancellationPolicy = cancel;
+                                        });
+                                      },
+                                      esignName: esignName,
+                                      esignDate: esignDate,
+                                      onSignatureBytes: (bytes) =>
+                                          signaturePng = bytes,
+                                      isPaid: isPaid,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Footer inside glass
+                            Row(
+                              children: [
+                                if (_step > 0) ...[
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: BorderSide(
+                                            color:
+                                                Colors.white.withOpacity(0.60)),
+                                      ),
+                                      onPressed: _back,
+                                      child: const Text("Back"),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          Colors.white.withOpacity(0.20),
+                                      elevation: 0,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(28),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.40),
+                                        ),
+                                      ),
+                                    ),
+                                    onPressed: _next,
+                                    child: Text(
+                                      _step < 4 ? "Continue" : "Submit KYC",
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: PageView(
-                    controller: _page,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      IdentityStep(
-                        formKey: fIdentity,
-                        language: language,
-                        onLanguageChanged: (v) => setState(() => language = v),
-                        fullName: fullName,
-                        dob: dob,
-                        gender: gender,
-                        mobile: mobile,
-                        email: email,
-                        bioData: bioData,
-                        pincode: pincode,
-                        city: city,
-                        stateCtrl: stateCtrl,
-                        currentPincode: currentPincode,
-                        currentCity: currentCity,
-                        currentState: currentState,
-                        sameAsPermanent: sameAsPermanent,
-                        onSameAsPermanentChanged: (v) => setState(() {
-                          sameAsPermanent = v;
-                          if (v) {
-                            addrCurrent.text = addrPermanent.text;
-                            currentPincode.text = pincode.text;
-                            currentCity.text = city.text;
-                            currentState.text = stateCtrl.text;
-                          } else {
-                            addrCurrent.clear();
-                            currentPincode.clear();
-                            currentCity.clear();
-                            currentState.clear();
-                          }
-                        }),
-                        addrPermanent: addrPermanent,
-                        addrCurrent: addrCurrent,
-                        emgName: emgName,
-                        emgRelation: emgRelation,
-                        emgMobile: emgMobile,
-                        aadhaar: aadhaar,
-                        aadhaarPhotofrontPath: aadhaarPhotofrontPath,
-                        aadhaarPhotobackPath: aadhaarPhotobackPath,
-                        selfiePath: selfiePath,
-                        pickAadhaarPhotofront: (p) => setState(() => aadhaarPhotofrontPath = p),
-                        pickAadhaarPhotoback: (p) => setState(() => aadhaarPhotobackPath = p),
-                        pickSelfie: (p) => setState(() => selfiePath = p),
-                        onPincodeChanged: _onPincodeChanged,
-                        onCurrentPincodeChanged: _onCurrentPincodeChanged,
-                        readOnlyFullName: true,
-                        readOnlyMobile: true,
-                      ),
-                      PaymentStep(
-                        isPaid: isPaid,
-                        onPaidChanged: (v) async {if (!mounted) return; setState(() => isPaid = v);
-                          if (v) {
-                            try { final trainerId = await _getTrainerId(); if (trainerId != null && trainerId.isNotEmpty) { final api = await _api(); await api.updateTrainerProfileMultipart(trainerId, fields: {'isPaid': 'true'}); } } catch (e) { debugPrint('mark isPaid failed: $e'); }
-                          }
-                        },
-                        fullName: fullName.text,
-                        mobile: mobile.text,
-                        email: email.text,
-                      ),
-                      BankStep(
-                        formKey: fBank,
-                        accName: accName,
-                        ifsc: ifsc,
-                        bankName: bankName,
-                        branch: branch,
-                        upi: upi,
-                      ),
-                      ProfessionalStep(
-                        formKey: fProfessional,
-                        experience: experience,
-                        onExperienceChanged: (v) => setState(() => experience = v),
-                        trainingLangs: trainingLangs,
-                        otherLangCtrl: otherLangCtrl,
-                        rows: professionalRows,
-                        onOneSessionPriceChanged: (v) => setState(() => oneSessionPrice = v),
-                        onMonthlySessionPriceChanged: (v) => setState(() => monthlySessionPrice = v),
-                        oneSessionPriceInitial: oneSessionPrice,
-                        monthlySessionPriceInitial: monthlySessionPrice,
-                      ),
-                      ConsentStep(
-                        noCriminalRecord: noCriminalRecord,
-                        agreeHnS: agreeHnS,
-                        ackTrainerAgreement: ackTrainerAgreement,
-                        ackCancellationPolicy: ackCancellationPolicy,
-                        onChange: ({
-                          bool? noCrime,
-                          bool? hns,
-                          bool? agr,
-                          bool? cancel,
-                          bool? payout,
-                          bool? privacy,
-                        }) {
-                          setState(() {
-                            if (noCrime != null) noCriminalRecord = noCrime;
-                            if (hns != null) agreeHnS = hns;
-                            if (agr != null) ackTrainerAgreement = agr;
-                            if (cancel != null) ackCancellationPolicy = cancel;
-                          });
-                        },
-                        esignName: esignName,
-                        esignDate: esignDate,
-                        onSignatureBytes: (bytes) => signaturePng = bytes,
-                        isPaid: isPaid,
-                      ),
-                    ],
-                  ),
                 ),
-                if (!keyboardOpen)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: BorderSide(color: Color.fromARGB((0.6 * 255).round(), 255, 255, 255)),
-                            ),
-                            onPressed: _back,
-                            child: Text(_step == 0 ? "Exit" : "Back"),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color.fromARGB((0.2 * 255).round(), 255, 255, 255),
-                            ),
-                            onPressed: _next,
-                            child: Text(
-                              _step < 4 ? "Continue" : "Submit KYC",
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                // Footer moved inside GlassCard above
               ],
             ),
           ),
@@ -709,22 +864,54 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
   Widget _stepPill(int i, String label) {
     final active = i == _step;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-      color: active
-        ? Color.fromARGB((0.25 * 255).round(), 255, 255, 255)
-        : Color.fromARGB((0.12 * 255).round(), 255, 255, 255),
-          borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Color.fromARGB((0.25 * 255).round(), 255, 255, 255)),
-        ),
-        alignment: Alignment.center,
-        child: Text(label,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            )),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: active
+                  ? Color.fromARGB((0.35 * 255).round(), 255, 255, 255)
+                  : Color.fromARGB((0.18 * 255).round(), 255, 255, 255),
+              border: Border.all(
+                color: Color.fromARGB((0.45 * 255).round(), 255, 255, 255),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              '${i + 1}',
+              style: TextStyle(
+                color: active ? const Color(0xFFFF6B35) : Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 32,
+            child: Center(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                softWrap: true,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -737,8 +924,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           final d = await auth.getCityState(v);
           if (!mounted) return;
           setState(() {
-            city.text = (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
-            stateCtrl.text = (d != null && (d['state'] ?? '').isNotEmpty) ? d['state']! : '—';
+            city.text =
+                (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
+            stateCtrl.text = (d != null && (d['state'] ?? '').isNotEmpty)
+                ? d['state']!
+                : '—';
             if (sameAsPermanent) {
               addrCurrent.text = addrPermanent.text;
               currentPincode.text = pincode.text;
@@ -780,8 +970,11 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           final d = await auth.getCityState(v);
           if (!mounted) return;
           setState(() {
-            currentCity.text = (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
-            currentState.text = (d != null && (d['state'] ?? '').isNotEmpty) ? d['state']! : '—';
+            currentCity.text =
+                (d != null && (d['city'] ?? '').isNotEmpty) ? d['city']! : '—';
+            currentState.text = (d != null && (d['state'] ?? '').isNotEmpty)
+                ? d['state']!
+                : '—';
           });
         } catch (_) {
           if (!mounted) return;
@@ -798,7 +991,6 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       });
     }
   }
-
 
   // removed mock pincode lookup; now using AuthManager.getCityState
 
@@ -835,7 +1027,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (txt.isNotEmpty && RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(txt)) {
           final parts = txt.split('/');
           dobIso =
-          "${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}";
+              "${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}";
         } else if (txt.isNotEmpty) {
           dobIso = txt;
         }
@@ -850,9 +1042,7 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           .where((s) => s.isNotEmpty)
           .toList();
       if (trainingLangs.any((l) => l.toLowerCase() == 'other') &&
-          otherLangCtrl.text
-              .trim()
-              .isNotEmpty) {
+          otherLangCtrl.text.trim().isNotEmpty) {
         // support comma/semicolon separated additional other languages
         langs.addAll(otherLangCtrl.text
             .split(RegExp(r'[,;]'))
@@ -862,82 +1052,73 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
 
       // Build fields exactly as backend expects
       final Map<String, String> fields = {
-        if (fullName.text
-            .trim()
-            .isNotEmpty) 'fullName': fullName.text.trim(),
-        if (mobile.text
-            .trim()
-            .isNotEmpty) 'mobileNumber': mobile.text.trim(),
-  if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
+        if (fullName.text.trim().isNotEmpty) 'fullName': fullName.text.trim(),
+        if (mobile.text.trim().isNotEmpty) 'mobileNumber': mobile.text.trim(),
+        if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
         if (dobIso != null && dobIso.isNotEmpty) 'dob': dobIso,
-        if (email.text
-            .trim()
-            .isNotEmpty) 'email': email.text.trim(),
-        if (pincode.text
-            .trim()
-            .isNotEmpty) 'pincode': pincode.text.trim(),
-        if (city.text.trim().isNotEmpty && city.text.trim() != '—') 'city': city.text.trim(),
-        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'state': stateCtrl.text.trim(),
+        if (email.text.trim().isNotEmpty) 'email': email.text.trim(),
+        if (pincode.text.trim().isNotEmpty) 'pincode': pincode.text.trim(),
+        if (city.text.trim().isNotEmpty && city.text.trim() != '—')
+          'city': city.text.trim(),
+        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—')
+          'state': stateCtrl.text.trim(),
 
-    // indicate whether current = permanent (parity with user profile form)
-    'isAddressSame': sameAsPermanent ? 'true' : 'false',
+        // indicate whether current = permanent (parity with user profile form)
+        'isAddressSame': sameAsPermanent ? 'true' : 'false',
 
         // current address pincode/city/state when different from permanent
-  if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty) 'currentPincode': currentPincode.text.trim(),
-  if (!sameAsPermanent && currentCity.text.trim().isNotEmpty && currentCity.text.trim() != '—') 'currentCity': currentCity.text.trim(),
-  if (!sameAsPermanent && currentState.text.trim().isNotEmpty && currentState.text.trim() != '—') 'currentState': currentState.text.trim(),
-    // when same, mirror permanent into current*
-    if (sameAsPermanent && pincode.text
-      .trim()
-      .isNotEmpty) 'currentPincode': pincode.text.trim(),
-  if (sameAsPermanent && city.text.trim().isNotEmpty && city.text.trim() != '—') 'currentCity': city.text.trim(),
-  if (sameAsPermanent && stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'currentState': stateCtrl.text.trim(),
+        if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty)
+          'currentPincode': currentPincode.text.trim(),
+        if (!sameAsPermanent &&
+            currentCity.text.trim().isNotEmpty &&
+            currentCity.text.trim() != '—')
+          'currentCity': currentCity.text.trim(),
+        if (!sameAsPermanent &&
+            currentState.text.trim().isNotEmpty &&
+            currentState.text.trim() != '—')
+          'currentState': currentState.text.trim(),
+        // when same, mirror permanent into current*
+        if (sameAsPermanent && pincode.text.trim().isNotEmpty)
+          'currentPincode': pincode.text.trim(),
+        if (sameAsPermanent &&
+            city.text.trim().isNotEmpty &&
+            city.text.trim() != '—')
+          'currentCity': city.text.trim(),
+        if (sameAsPermanent &&
+            stateCtrl.text.trim().isNotEmpty &&
+            stateCtrl.text.trim() != '—')
+          'currentState': stateCtrl.text.trim(),
 
-        if (addrPermanent.text
-            .trim()
-            .isNotEmpty) 'address': addrPermanent.text.trim(),
-    if (!sameAsPermanent && addrCurrent.text
-      .trim()
-      .isNotEmpty) 'currentAddress': addrCurrent.text.trim(),
-    if (sameAsPermanent && addrPermanent.text
-      .trim()
-      .isNotEmpty) 'currentAddress': addrPermanent.text.trim(),
-        if (emgName.text
-            .trim()
-            .isNotEmpty) 'emergencyPersonName': emgName.text.trim(),
-        if (emgMobile.text
-            .trim()
-            .isNotEmpty) 'emergencyPersonMobile': emgMobile.text.trim(),
-        if (emgRelation.text
-            .trim()
-            .isNotEmpty) 'emergencyPersonRelation': emgRelation.text.trim(),
+        if (addrPermanent.text.trim().isNotEmpty)
+          'address': addrPermanent.text.trim(),
+        if (!sameAsPermanent && addrCurrent.text.trim().isNotEmpty)
+          'currentAddress': addrCurrent.text.trim(),
+        if (sameAsPermanent && addrPermanent.text.trim().isNotEmpty)
+          'currentAddress': addrPermanent.text.trim(),
+        if (emgName.text.trim().isNotEmpty)
+          'emergencyPersonName': emgName.text.trim(),
+        if (emgMobile.text.trim().isNotEmpty)
+          'emergencyPersonMobile': emgMobile.text.trim(),
+        if (emgRelation.text.trim().isNotEmpty)
+          'emergencyPersonRelation': emgRelation.text.trim(),
 
-        if (aadhaar.text
-            .trim()
-            .isNotEmpty) 'aadhaarCard': aadhaar.text.replaceAll(' ', '').trim(),
-        if (accName.text
-            .trim()
-            .isNotEmpty) 'accountNumber': accName.text.trim(),
-        if (ifsc.text
-            .trim()
-            .isNotEmpty) 'ifscCode': ifsc.text.trim(),
-        if (bankName.text
-            .trim()
-            .isNotEmpty) 'bankName': bankName.text.trim(),
-        if (upi.text
-            .trim()
-            .isNotEmpty) 'upiId': upi.text.trim(),
+        if (aadhaar.text.trim().isNotEmpty)
+          'aadhaarCard': aadhaar.text.replaceAll(' ', '').trim(),
+        if (accName.text.trim().isNotEmpty)
+          'accountNumber': accName.text.trim(),
+        if (ifsc.text.trim().isNotEmpty) 'ifscCode': ifsc.text.trim(),
+        if (bankName.text.trim().isNotEmpty) 'bankName': bankName.text.trim(),
+        if (upi.text.trim().isNotEmpty) 'upiId': upi.text.trim(),
         if (langs.isNotEmpty) 'languages': langs.toSet().join(','),
-        if (experience != null &&
-            experience!.isNotEmpty) 'experience': experience!,
-        if (gender.value != null && (gender.value ?? '')
-            .toString()
-            .isNotEmpty) 'gender': gender.value ?? '',
+        if (experience != null && experience!.isNotEmpty)
+          'experience': experience!,
+        if (gender.value != null && (gender.value ?? '').toString().isNotEmpty)
+          'gender': gender.value ?? '',
         // pricing fields (only include if non-null/non-empty)
-        if (oneSessionPrice != null &&
-            oneSessionPrice!.isNotEmpty) 'oneSessionPrice': oneSessionPrice!,
-        if (monthlySessionPrice != null && monthlySessionPrice!
-            .isNotEmpty) 'monthlySessionPrice': monthlySessionPrice!,
+        if (oneSessionPrice != null && oneSessionPrice!.isNotEmpty)
+          'oneSessionPrice': oneSessionPrice!,
+        if (monthlySessionPrice != null && monthlySessionPrice!.isNotEmpty)
+          'monthlySessionPrice': monthlySessionPrice!,
         // operational flags / defaults expected by API:
         'isAvailable': 'true',
         'mode': 'offline',
@@ -965,9 +1146,8 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         // signature bytes -> temp file and send as esignImageURL
         if (signaturePng != null && signaturePng!.isNotEmpty) {
           final dir = await getTemporaryDirectory();
-          final tmp = File('${dir.path}/esign_${DateTime
-              .now()
-              .millisecondsSinceEpoch}.png');
+          final tmp = File(
+              '${dir.path}/esign_${DateTime.now().millisecondsSinceEpoch}.png');
           await tmp.writeAsBytes(signaturePng!);
           files['esignImageURL'] = tmp;
         }
@@ -979,14 +1159,15 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       debugPrint('KYC submit - fields keys: ${fields.keys.toList()}');
       debugPrint('KYC submit - files: ${files.keys.toList()}');
 
-      final savedToken = (await SharedPreferences.getInstance()).getString(
-          'fitstreet_token') ?? '';
-      final fitApi = FitstreetApi(
-          'https://api.fitstreet.in', token: savedToken);
+      final savedToken = (await SharedPreferences.getInstance())
+              .getString('fitstreet_token') ??
+          '';
+      final fitApi =
+          FitstreetApi('https://api.fitstreet.in', token: savedToken);
 
       // Call multipart update
-    final streamed = await fitApi.updateTrainerProfileMultipart(
-      trainerId, fields: fields, files: files.isEmpty ? null : files);
+      final streamed = await fitApi.updateTrainerProfileMultipart(trainerId,
+          fields: fields, files: files.isEmpty ? null : files);
       final resp = await http.Response.fromStream(streamed);
 
       debugPrint(
@@ -1009,10 +1190,15 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         // Sync specialization proofs to avoid duplicates
         try {
           // Delete removed ones first
-          final currentIds = professionalRows.map((r) => r.proofId).whereType<String>().toSet();
+          final currentIds = professionalRows
+              .map((r) => r.proofId)
+              .whereType<String>()
+              .toSet();
           final toDelete = _loadedProofIds.difference(currentIds);
           for (final idToDelete in toDelete) {
-            try { await fitApi.deleteSpecializationProof(trainerId, idToDelete); } catch (_) {}
+            try {
+              await fitApi.deleteSpecializationProof(trainerId, idToDelete);
+            } catch (_) {}
           }
 
           // Create or replace per row
@@ -1021,28 +1207,38 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
             if (spec == null || spec.isEmpty) continue;
             final certPath = row.certificatePhotoPath;
             final certName = row.certificateName.text.trim();
-            final isUrl = (certPath != null) && (certPath.toLowerCase().startsWith('http://') || certPath.toLowerCase().startsWith('https://'));
+            final isUrl = (certPath != null) &&
+                (certPath.toLowerCase().startsWith('http://') ||
+                    certPath.toLowerCase().startsWith('https://'));
 
             if (row.proofId != null) {
               if (certPath != null && certPath.isNotEmpty && !isUrl) {
-                try { await fitApi.deleteSpecializationProof(trainerId, row.proofId!); } catch (_) {}
+                try {
+                  await fitApi.deleteSpecializationProof(
+                      trainerId, row.proofId!);
+                } catch (_) {}
                 final f = File(certPath);
                 if (await f.exists()) {
-                  await fitApi.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                  await fitApi.createSpecializationProof(trainerId, spec, f,
+                      certificateName: certName.isEmpty ? null : certName);
                 } else {
-                  await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                  await fitApi.createSpecializationProofMinimal(trainerId, spec,
+                      certificateName: certName.isEmpty ? null : certName);
                 }
               }
             } else {
               if (certPath != null && certPath.isNotEmpty && !isUrl) {
                 final f = File(certPath);
                 if (await f.exists()) {
-                  await fitApi.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
+                  await fitApi.createSpecializationProof(trainerId, spec, f,
+                      certificateName: certName.isEmpty ? null : certName);
                 } else {
-                  await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                  await fitApi.createSpecializationProofMinimal(trainerId, spec,
+                      certificateName: certName.isEmpty ? null : certName);
                 }
               } else {
-                await fitApi.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+                await fitApi.createSpecializationProofMinimal(trainerId, spec,
+                    certificateName: certName.isEmpty ? null : certName);
               }
             }
           }
@@ -1053,14 +1249,14 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
           debugPrint('Error while syncing specialization proofs: $e');
         }
 
-
         _toast('KYC uploaded successfully.');
         return true;
       } else {
         String msg = 'Failed to submit KYC (${resp.statusCode})';
         try {
           if (body is Map) {
-            msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg).toString();
+            msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg)
+                .toString();
           } else if (resp.body.isNotEmpty) {
             msg = resp.body;
           }
@@ -1087,11 +1283,14 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       if (id != null && id.isNotEmpty) return id;
     } catch (_) {}
     final sp = await SharedPreferences.getInstance();
-    return sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+    return sp.getString('fitstreet_trainer_db_id') ??
+        sp.getString('fitstreet_trainer_id');
   }
 
   Future<FitstreetApi> _api() async {
-    final token = (await SharedPreferences.getInstance()).getString('fitstreet_token') ?? '';
+    final token =
+        (await SharedPreferences.getInstance()).getString('fitstreet_token') ??
+            '';
     return FitstreetApi('https://api.fitstreet.in', token: token);
   }
 
@@ -1105,9 +1304,12 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         return false;
       }
       // Enforce mandatory images for identity save
-      if (selfiePath == null || selfiePath!.isEmpty ||
-          aadhaarPhotofrontPath == null || aadhaarPhotofrontPath!.isEmpty ||
-          aadhaarPhotobackPath == null || aadhaarPhotobackPath!.isEmpty) {
+      if (selfiePath == null ||
+          selfiePath!.isEmpty ||
+          aadhaarPhotofrontPath == null ||
+          aadhaarPhotofrontPath!.isEmpty ||
+          aadhaarPhotobackPath == null ||
+          aadhaarPhotobackPath!.isEmpty) {
         _toast('Selfie, Aadhaar front and back are required.');
         return false;
       }
@@ -1116,47 +1318,76 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       final txt = dob.text.trim();
       if (txt.isNotEmpty && RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(txt)) {
         final parts = txt.split('/');
-        dobIso = "${parts[2]}-${parts[1].padLeft(2,'0')}-${parts[0].padLeft(2,'0')}";
+        dobIso =
+            "${parts[2]}-${parts[1].padLeft(2, '0')}-${parts[0].padLeft(2, '0')}";
       } else if (txt.isNotEmpty) {
         dobIso = txt;
       }
       final fields = <String, dynamic>{
         if (fullName.text.trim().isNotEmpty) 'fullName': fullName.text.trim(),
         if (mobile.text.trim().isNotEmpty) 'mobileNumber': mobile.text.trim(),
-  if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
+        if (bioData.text.trim().isNotEmpty) 'bioData': bioData.text.trim(),
         if (email.text.trim().isNotEmpty) 'email': email.text.trim(),
         if (dobIso != null && dobIso.isNotEmpty) 'dob': dobIso,
-        if (gender.value != null && (gender.value ?? '').isNotEmpty) 'gender': gender.value,
+        if (gender.value != null && (gender.value ?? '').isNotEmpty)
+          'gender': gender.value,
         if (pincode.text.trim().isNotEmpty) 'pincode': pincode.text.trim(),
-        if (city.text.trim().isNotEmpty && city.text.trim() != '—') 'city': city.text.trim(),
-        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'state': stateCtrl.text.trim(),
+        if (city.text.trim().isNotEmpty && city.text.trim() != '—')
+          'city': city.text.trim(),
+        if (stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—')
+          'state': stateCtrl.text.trim(),
         'isAddressSame': sameAsPermanent ? 'true' : 'false',
-        if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty) 'currentPincode': currentPincode.text.trim(),
-        if (!sameAsPermanent && currentCity.text.trim().isNotEmpty && currentCity.text.trim() != '—') 'currentCity': currentCity.text.trim(),
-        if (!sameAsPermanent && currentState.text.trim().isNotEmpty && currentState.text.trim() != '—') 'currentState': currentState.text.trim(),
-        if (sameAsPermanent && pincode.text.trim().isNotEmpty) 'currentPincode': pincode.text.trim(),
-        if (sameAsPermanent && city.text.trim().isNotEmpty && city.text.trim() != '—') 'currentCity': city.text.trim(),
-        if (sameAsPermanent && stateCtrl.text.trim().isNotEmpty && stateCtrl.text.trim() != '—') 'currentState': stateCtrl.text.trim(),
-        if (addrPermanent.text.trim().isNotEmpty) 'address': addrPermanent.text.trim(),
-        if (!sameAsPermanent && addrCurrent.text.trim().isNotEmpty) 'currentAddress': addrCurrent.text.trim(),
-        if (sameAsPermanent && addrPermanent.text.trim().isNotEmpty) 'currentAddress': addrPermanent.text.trim(),
-        if (emgName.text.trim().isNotEmpty) 'emergencyPersonName': emgName.text.trim(),
-        if (emgMobile.text.trim().isNotEmpty) 'emergencyPersonMobile': emgMobile.text.trim(),
-        if (emgRelation.text.trim().isNotEmpty) 'emergencyPersonRelation': emgRelation.text.trim(),
-        if (aadhaar.text.trim().isNotEmpty) 'aadhaarCard': aadhaar.text.replaceAll(' ','').trim(),
+        if (!sameAsPermanent && currentPincode.text.trim().isNotEmpty)
+          'currentPincode': currentPincode.text.trim(),
+        if (!sameAsPermanent &&
+            currentCity.text.trim().isNotEmpty &&
+            currentCity.text.trim() != '—')
+          'currentCity': currentCity.text.trim(),
+        if (!sameAsPermanent &&
+            currentState.text.trim().isNotEmpty &&
+            currentState.text.trim() != '—')
+          'currentState': currentState.text.trim(),
+        if (sameAsPermanent && pincode.text.trim().isNotEmpty)
+          'currentPincode': pincode.text.trim(),
+        if (sameAsPermanent &&
+            city.text.trim().isNotEmpty &&
+            city.text.trim() != '—')
+          'currentCity': city.text.trim(),
+        if (sameAsPermanent &&
+            stateCtrl.text.trim().isNotEmpty &&
+            stateCtrl.text.trim() != '—')
+          'currentState': stateCtrl.text.trim(),
+        if (addrPermanent.text.trim().isNotEmpty)
+          'address': addrPermanent.text.trim(),
+        if (!sameAsPermanent && addrCurrent.text.trim().isNotEmpty)
+          'currentAddress': addrCurrent.text.trim(),
+        if (sameAsPermanent && addrPermanent.text.trim().isNotEmpty)
+          'currentAddress': addrPermanent.text.trim(),
+        if (emgName.text.trim().isNotEmpty)
+          'emergencyPersonName': emgName.text.trim(),
+        if (emgMobile.text.trim().isNotEmpty)
+          'emergencyPersonMobile': emgMobile.text.trim(),
+        if (emgRelation.text.trim().isNotEmpty)
+          'emergencyPersonRelation': emgRelation.text.trim(),
+        if (aadhaar.text.trim().isNotEmpty)
+          'aadhaarCard': aadhaar.text.replaceAll(' ', '').trim(),
       };
       final files = <String, File>{};
       if (selfiePath != null && selfiePath!.isNotEmpty) {
-        final f = File(selfiePath!); if (await f.exists()) files['trainerImageURL'] = f;
+        final f = File(selfiePath!);
+        if (await f.exists()) files['trainerImageURL'] = f;
       }
       if (aadhaarPhotofrontPath != null && aadhaarPhotofrontPath!.isNotEmpty) {
-        final f = File(aadhaarPhotofrontPath!); if (await f.exists()) files['aadhaarFrontImageURL'] = f;
+        final f = File(aadhaarPhotofrontPath!);
+        if (await f.exists()) files['aadhaarFrontImageURL'] = f;
       }
       if (aadhaarPhotobackPath != null && aadhaarPhotobackPath!.isNotEmpty) {
-        final f = File(aadhaarPhotobackPath!); if (await f.exists()) files['aadhaarBackImageURL'] = f;
+        final f = File(aadhaarPhotobackPath!);
+        if (await f.exists()) files['aadhaarBackImageURL'] = f;
       }
       final api = await _api();
-      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: files.isEmpty ? null : files);
+      final streamed = await api.updateTrainerProfileMultipart(trainerId,
+          fields: fields, files: files.isEmpty ? null : files);
       final resp = await http.Response.fromStream(streamed);
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         _toast('Identity saved');
@@ -1182,14 +1413,16 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         return false;
       }
       final fields = <String, dynamic>{
-        if (accName.text.trim().isNotEmpty) 'accountNumber': accName.text.trim(),
+        if (accName.text.trim().isNotEmpty)
+          'accountNumber': accName.text.trim(),
         if (ifsc.text.trim().isNotEmpty) 'ifscCode': ifsc.text.trim(),
         if (bankName.text.trim().isNotEmpty) 'bankName': bankName.text.trim(),
         if (branch.text.trim().isNotEmpty) 'branch': branch.text.trim(),
         if (upi.text.trim().isNotEmpty) 'upiId': upi.text.trim(),
       };
       final api = await _api();
-      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: null);
+      final streamed = await api.updateTrainerProfileMultipart(trainerId,
+          fields: fields, files: null);
       final resp = await http.Response.fromStream(streamed);
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         _toast('Bank details saved');
@@ -1215,21 +1448,33 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         return false;
       }
       // languages
-      final langs = trainingLangs.where((l) => l.toLowerCase() != 'other').map((s)=>s.trim()).where((s)=>s.isNotEmpty).toList();
-      if (trainingLangs.any((l)=> l.toLowerCase()=='other') && otherLangCtrl.text.trim().isNotEmpty) {
-        langs.addAll(otherLangCtrl.text.split(RegExp(r'[,;]')).map((s)=>s.trim()).where((s)=>s.isNotEmpty));
+      final langs = trainingLangs
+          .where((l) => l.toLowerCase() != 'other')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (trainingLangs.any((l) => l.toLowerCase() == 'other') &&
+          otherLangCtrl.text.trim().isNotEmpty) {
+        langs.addAll(otherLangCtrl.text
+            .split(RegExp(r'[,;]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty));
       }
       final fields = <String, dynamic>{
-        if (experience != null && experience!.isNotEmpty) 'experience': experience,
+        if (experience != null && experience!.isNotEmpty)
+          'experience': experience,
         if (langs.isNotEmpty) 'languages': langs.toSet().join(','),
-        if (oneSessionPrice != null && oneSessionPrice!.isNotEmpty) 'oneSessionPrice': oneSessionPrice,
-        if (monthlySessionPrice != null && monthlySessionPrice!.isNotEmpty) 'monthlySessionPrice': monthlySessionPrice,
+        if (oneSessionPrice != null && oneSessionPrice!.isNotEmpty)
+          'oneSessionPrice': oneSessionPrice,
+        if (monthlySessionPrice != null && monthlySessionPrice!.isNotEmpty)
+          'monthlySessionPrice': monthlySessionPrice,
         // keep defaults
         'isAvailable': 'true',
         'mode': 'offline',
       };
       final api = await _api();
-      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields, files: null);
+      final streamed = await api.updateTrainerProfileMultipart(trainerId,
+          fields: fields, files: null);
       final resp = await http.Response.fromStream(streamed);
       if (!(resp.statusCode == 200 || resp.statusCode == 201)) {
         _toast('Save failed (${resp.statusCode})');
@@ -1237,10 +1482,13 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
       }
       // Sync specialization proofs with server
       // Delete removed ones
-      final currentIds = professionalRows.map((r) => r.proofId).whereType<String>().toSet();
+      final currentIds =
+          professionalRows.map((r) => r.proofId).whereType<String>().toSet();
       final toDelete = _loadedProofIds.difference(currentIds);
       for (final idToDelete in toDelete) {
-        try { await api.deleteSpecializationProof(trainerId, idToDelete); } catch (_) {}
+        try {
+          await api.deleteSpecializationProof(trainerId, idToDelete);
+        } catch (_) {}
       }
 
       // Create or replace
@@ -1249,34 +1497,73 @@ class _TrainerKycWizardState extends State<TrainerKycWizard> {
         if (spec == null || spec.isEmpty) continue;
         final certPath = row.certificatePhotoPath;
         final certName = row.certificateName.text.trim();
-        final isUrl = (certPath != null) && (certPath.toLowerCase().startsWith('http://') || certPath.toLowerCase().startsWith('https://'));
+        final isUrl = (certPath != null) &&
+            (certPath.toLowerCase().startsWith('http://') ||
+                certPath.toLowerCase().startsWith('https://'));
 
         try {
           if (row.proofId != null) {
             if (certPath != null && certPath.isNotEmpty && !isUrl) {
-              try { await api.deleteSpecializationProof(trainerId, row.proofId!); } catch (_) {}
+              try {
+                await api.deleteSpecializationProof(trainerId, row.proofId!);
+              } catch (_) {}
               final f = File(certPath);
               if (await f.exists()) {
-                final res = await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
-                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+                final res = await api.createSpecializationProof(
+                    trainerId, spec, f,
+                    certificateName: certName.isEmpty ? null : certName);
+                try {
+                  final b = jsonDecode(res.body);
+                  final pid =
+                      (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString();
+                  if (pid != null && pid.isNotEmpty) row.proofId = pid;
+                } catch (_) {}
               } else {
-                final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
-                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+                final res = await api.createSpecializationProofMinimal(
+                    trainerId, spec,
+                    certificateName: certName.isEmpty ? null : certName);
+                try {
+                  final b = jsonDecode(res.body);
+                  final pid =
+                      (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString();
+                  if (pid != null && pid.isNotEmpty) row.proofId = pid;
+                } catch (_) {}
               }
             } // else no change
           } else {
             if (certPath != null && certPath.isNotEmpty && !isUrl) {
               final f = File(certPath);
               if (await f.exists()) {
-                final res = await api.createSpecializationProof(trainerId, spec, f, certificateName: certName.isEmpty ? null : certName);
-                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+                final res = await api.createSpecializationProof(
+                    trainerId, spec, f,
+                    certificateName: certName.isEmpty ? null : certName);
+                try {
+                  final b = jsonDecode(res.body);
+                  final pid =
+                      (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString();
+                  if (pid != null && pid.isNotEmpty) row.proofId = pid;
+                } catch (_) {}
               } else {
-                final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
-                try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+                final res = await api.createSpecializationProofMinimal(
+                    trainerId, spec,
+                    certificateName: certName.isEmpty ? null : certName);
+                try {
+                  final b = jsonDecode(res.body);
+                  final pid =
+                      (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString();
+                  if (pid != null && pid.isNotEmpty) row.proofId = pid;
+                } catch (_) {}
               }
             } else {
-              final res = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
-              try { final b = jsonDecode(res.body); final pid = (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString(); if (pid != null && pid.isNotEmpty) row.proofId = pid; } catch (_) {}
+              final res = await api.createSpecializationProofMinimal(
+                  trainerId, spec,
+                  certificateName: certName.isEmpty ? null : certName);
+              try {
+                final b = jsonDecode(res.body);
+                final pid =
+                    (b['data']?['_id'] ?? b['_id'] ?? b['id'])?.toString();
+                if (pid != null && pid.isNotEmpty) row.proofId = pid;
+              } catch (_) {}
             }
           }
         } catch (e) {

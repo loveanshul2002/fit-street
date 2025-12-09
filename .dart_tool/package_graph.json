@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "fit_street",
-      "version": "6.0.0+6",
+      "version": "6.1.0+1",
       "dependencies": [
         "cupertino_icons",
         "dio",

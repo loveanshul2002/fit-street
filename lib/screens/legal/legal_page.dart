@@ -5,19 +5,22 @@ import '../../widgets/glass_card.dart';
 class LegalPage extends StatelessWidget {
   final String title;
   final String assetHtmlPath;
-  const LegalPage({super.key, required this.title, required this.assetHtmlPath});
+  const LegalPage(
+      {super.key, required this.title, required this.assetHtmlPath});
 
   bool get _isAbout => title.toLowerCase().contains('about');
   bool get _privacy => title.toLowerCase().contains('privacy');
   bool get _terms => title.toLowerCase().contains('terms');
-  bool get _refund => title.toLowerCase().contains('refund') || title.toLowerCase().contains('cancellation');
-  bool get _shipping => title.toLowerCase().contains('shipping') || title.toLowerCase().contains('delivery');
+  bool get _refund =>
+      title.toLowerCase().contains('refund') ||
+      title.toLowerCase().contains('cancellation');
+  bool get _shipping =>
+      title.toLowerCase().contains('shipping') ||
+      title.toLowerCase().contains('delivery');
   bool get _contact => title.toLowerCase().contains('contact');
 
-
-
-        Widget _aboutContent() {
-  const body = '''🏋️‍♂️ About FitStreet
+  Widget _aboutContent() {
+    const body = '''About FitStreet
 Last Updated: October 27, 2025
 Operated by: Ball Street Private Limited
 Registered Office: B-10/128 , Kalyani, Nadia , West Bengal 741235
@@ -40,7 +43,7 @@ We:
 • Provide tools for booking, payments, communication, and scheduling.
 • Do not provide medical diagnosis, prescriptions, or emergency healthcare.
 Each trainer, nutritionist, and counsellor operate as an independent service provider.
-Fit Street is not responsible for the outcome of individual sessions but ensures professionalism, verification, and secure digital infrastructure.
+FitStreet is not responsible for the outcome of individual sessions but ensures professionalism, verification, and secure digital infrastructure.
 We operate in compliance with:
 • Companies Act, 2013
 • Information Technology Act, 2000 & Rules (2021 Amendment)
@@ -50,15 +53,15 @@ We operate in compliance with:
 • Mental Healthcare Act, 2017 (for counsellor listings)
 
 3. Our Services
-🏠 1. Doorstep Fitness Training (24×7 Availability)
+🏠 Doorstep Fitness Training (24×7 Availability)
 • Book certified trainers at your home, society gym, park, or office.
 • Sessions are available anytime — 24 hours, 7 days a week, as per trainer availability.
 • All trainers are identity-verified, background-checked, and trained in client safety protocols.
-🧠 2. Mental Wellness Counselling (Online)
+🧠 Mental Wellness Counselling (Online)
 • Book private, one-on-one online sessions with licensed counsellors or psychologists.
 • All counsellors follow the Mental Healthcare Act, 2017 and maintain strict confidentiality.
 • FitStreet provides a secure digital environment for safe emotional support.
-🥗 3. Nutrition Consultations (Online)
+🥗 Nutrition Consultations (Online)
 • Consult qualified nutritionists for balanced, healthy dietary guidance.
 • Fit Street does not provide meal plans directly — only certified nutritionists offer professional recommendations through online sessions.
 • All consultations follow ethical and evidence-based nutrition standards.
@@ -90,7 +93,7 @@ App Store Rules — Google Play & Apple App Store policies — ✅
 
 7. Data Protection & User Privacy
 We take user privacy extremely seriously.
-Fit Street collects and processes data only to deliver booked services — never for unauthorised marketing or resale.
+FitStreet collects and processes data only to deliver booked services — never for unauthorised marketing or resale.
 • All personal data is stored on encrypted servers.
 • All transmissions are SSL/HTTPS secured.
 • Access is restricted to authorised employees and verified professionals only.
@@ -114,10 +117,10 @@ For general queries or assistance:
 📞 8587001919
 
 10. Disclaimer
-Fit Street is not a medical organisation.
+FitStreet is not a medical organisation.
 All fitness, nutrition, and counselling services are intended for general wellness only and should not replace medical treatment.
 Users are advised to consult their physicians before starting any new fitness or nutrition program.
-Fit Street is not liable for injuries, damages, or outcomes arising from trainer or user actions outside professional scope.
+FitStreet is not liable for injuries, damages, or outcomes arising from trainer or user actions outside professional scope.
 
 11. Corporate Details
 Entity: Ball Street Private Limited
@@ -129,17 +132,20 @@ Directors: Gopal Mondal, Ashish Mishra
 Jurisdiction: Courts of West Bengal
 
 12. Continuous Improvement
-Fit Street regularly updates its systems, terms, and policies to ensure compliance with:
+FitStreet regularly updates its systems, terms, and policies to ensure compliance with:
 • Latest Google Play & Apple App Store developer guidelines
 • DPDP Act, 2023
 • RBI, MeitY, and MHCA standards
 All changes are publicly posted with an updated 27/10/2025.
 
-🔒 Fit Street — India’s First 24×7 Doorstep Fitness & Wellness Platform
-Delivering certified trainers at your doorstep across Delhi NCR, and Online across Pan India, and expert online guidance from nutritionists and mental health professionals — all in one secure, compliant, and trusted app.''';
+FitStreet — India’s First 24×7 Doorstep Fitness & Wellness Platform
+Delivering certified trainers at your doorstep across Delhi NCR, and Online across Pan India,
+and expert online guidance from nutritionists and mental health professionals —
+all in one secure, compliant, and trusted app.''';
 
     final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -158,13 +164,17 @@ Delivering certified trainers at your doorstep across Delhi NCR, and Online acro
   }
 
   Widget _privacyContent() {
-    const body = '''FitStreet Privacy Policy
+    const body = '''Privacy Policy
 Last Updated: September 15, 2025
 Effective Date: September 15, 2025
+Operated By: Ball Street Private Limited
+Corporate Website: https://fitstreet.in
+
+1. Introduction & Compliance
 FitStreet, operated by Ball Street Private Limited ("we", "our" or "us"), respects your privacy and is committed to protecting your personal data. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website, use our mobile applications, and engage with our fitness platform services (“Services”). By accessing or using FitStreet’s Services, you agree to the terms of this Privacy Policy and consent to the collection, use, and disclosure of your information as described below.
 Compliance statement: This Privacy Policy complies with the Information Technology Act, 2000, the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and Google Play Developer Program Policies (including the User Data Policy). We declare accurate data collection and sharing practices in the Google Play Console Data Safety form.
 
-1. Information We Collect
+2. Information We Collect
 1.1 Information You Provide to Us
 • Personal Identification Information: name, date of birth, gender, photo, email address, phone number, address, and other contact details.
 • Government Identifiers: PAN, Aadhaar (masked or reference tokens only), KYC documents, selfie for identity verification. By providing KYC or identity documents you expressly consent to such processing for verification and compliance purposes.
@@ -179,8 +189,7 @@ Compliance statement: This Privacy Policy complies with the Information Technolo
 • Location Data: approximate location derived from IP or precise GPS location if you enable location sharing (with explicit consent).
 • Cookies and Similar Technologies: used to personalize content, optimize user experience, and for analytics and advertising (with consent where required).
 
-2. How We Use Your Information
-We use data to:
+3. How We Use Your Information
 • Provide, operate, and maintain our Services.
 • Verify identities and perform KYC compliance checks (for trainers/payments).
 • Connect trainers to clients and facilitate bookings, scheduling, and payments.
@@ -192,15 +201,14 @@ We use data to:
 • Comply with legal obligations and respond to lawful requests.
 • Detect, prevent and respond to fraud, abuse and security threats.
 
-3. Legal Basis for Processing (if applicable)
-Under applicable laws (including the Information Technology Act, 2000):
+4. Legal Basis for Processing
 • Processing necessary for contract performance (service delivery).
 • Processing necessary to comply with legal obligations (KYC, taxation).
 • Processing based on your consent (which you can withdraw to the extent permitted by law).
 • Processing necessary for legitimate interests (security, fraud prevention), balanced with your rights.
 
-4. Information Sharing and Disclosure
-We do not sell or rent personal information. We may share data with:
+5. Information Sharing and Disclosure
+• We do not sell or rent personal information. We may share data with:
 • Service Providers: payment gateways, cloud hosting, analytics, push notifications, crash reporting, customer support and marketing providers. Example provider categories: Analytics (e.g., Google Analytics for Firebase), Push Notifications (e.g., Firebase Cloud Messaging), Payments (e.g., Razorpay, Stripe), Cloud Hosting (e.g., AWS, Google Cloud). Replace these examples with the actual providers you use.
 • Regulatory Authorities: for compliance with laws, KYC, taxation or court orders.
 • Trainers and Clients: limited profile information necessary to facilitate bookings and services.
@@ -208,55 +216,56 @@ We do not sell or rent personal information. We may share data with:
 • Business Transfers: in a merger, acquisition or sale; any such transfer will include appropriate confidentiality protections.
 • Aggregate/Anonymised Data: shared for research or analytics in a manner that cannot identify you.
 
-5. Storage, Retention & Security
+6. Storage, Retention & Security
 • Storage & Transfers: Data is processed and stored in India and may be transferred to other countries with adequate protections. We implement reasonable safeguards for international transfers.
 • Retention: We retain personal data only as long as necessary for service provision and legal compliance. When you delete your account, we will delete or anonymise account data within 90 days, except where we must retain certain records for legal, tax, or fraud-prevention reasons. Backups may persist for up to 180 days but will be isolated and deleted according to policy.
 • Security: We use industry-standard technical and organisational measures (encryption in transit and at rest, access controls, periodic security audits and vulnerability assessments). However, no method is 100% secure.
 
-6. Your Rights & Choices
-Where local law grants you rights, you may:
+7. Your Rights & Choices
+• Where local law grants you rights, you may:
 • Access and correct personal data.
 • Request deletion or restriction of processing (subject to legal exceptions).
 • Request portability of your data in a machine-readable format.
 • Withdraw consent for processing (where processing is consent-based).
 • Opt out of marketing communications.
 • Control cookies via browser or app settings.
-• Data Deletion Request
-If you want to delete your Fit Street account or any personal data shared with us, please email support@fitstreet.in with the subject “Delete My Account”.
-Once we receive your request, your account and associated data will be permanently deleted within 7 business days.
+• To exercise rights, contact us at support@ballstreet.club. We will respond as required by applicable law.
 
-To exercise rights, contact us at support@ballstreet.club. We will respond as required by applicable law.
+8. Children’s Privacy
+• Our Services are not directed at children under 18. We do not knowingly collect personal data from children under 18 without verified parental consent. If we learn we have collected such data without consent, we will delete it promptly.
 
-7. Children’s Privacy
-Our Services are not directed at children under 18. We do not knowingly collect personal data from children under 18 without verified parental consent. If we learn we have collected such data without consent, we will delete it promptly.
+9. Cookies and Tracking Technologies
+• We use cookies and similar technologies to enhance UX, remember preferences, analyze usage, and (with consent) deliver targeted advertising. You can control cookie settings in your browser and within the app.
 
-8. Cookies and Tracking Technologies
-We use cookies and similar technologies to enhance UX, remember preferences, analyze usage, and (with consent) deliver targeted advertising. You can control cookie settings in your browser and within the app.
+10. Third-Party SDKs and Links
+• Third-party SDKs used in the App (analytics, crash reporting, ad SDKs, payment SDKs) may collect data independently. Please review the privacy policies of such providers. The App may contain links to third-party websites; we are not responsible for their privacy practices.
 
-9. Third-Party SDKs and Links
-Third-party SDKs used in the App (analytics, crash reporting, ad SDKs, payment SDKs) may collect data independently. Please review the privacy policies of such providers. The App may contain links to third-party websites; we are not responsible for their privacy practices.
+11. Changes to This Privacy Policy
+• We may update this Policy. Material changes will be posted and, where required, we will notify you. Continued use constitutes acceptance.
 
-10. Changes to This Privacy Policy
-We may update this Policy. Material changes will be posted and, where required, we will notify you. Continued use constitutes acceptance.
+12. Google Play Compliance
+• FitStreet collects and uses data in accordance with Google Play’s User Data Policy. We accurately disclose all data collection, use, and sharing practices in the Play Console Data Safety form and do not sell personal or sensitive user data to third parties.
 
-11. Google Play Compliance
-FitStreet collects and uses data in accordance with Google Play’s User Data Policy. We accurately disclose all data collection, use, and sharing practices in the Play Console Data Safety form and do not sell personal or sensitive user data to third parties.
+13. Data Deletion Request
+• If you want to delete your Fit Street account or any personal data shared with us, please email support@fitstreet.in with the subject “Delete My Account”.
+• Once we receive your request, your account and associated data will be permanently deleted within 7 business days.
 
-12. Grievance Officer (India)
-Grievance Officer: Abhishek Chauhan
-Email: support@ballstreet.club
-Phone: +91 8100 20 1919
-Address: Ball Street Private Limited, Delhi NCR, India
-We will acknowledge and respond to grievances within 30 days.
+14. Grievance Officer (India)
+• Grievance Officer: Abhishek Chauhan
+• Email: support@ballstreet.club
+• Phone: +91 8100 20 1919
+• Address: Ball Street Private Limited, Delhi NCR, India
+• We will acknowledge and respond to grievances within 30 days.
 
-13. Contact Us
-Email: support@ballstreet.club
-Phone: +91 8100 20 1919
-Address: Ball Street Private Limited, Delhi NCR, India
-FitStreet – Fitness Delivered at your Door-Step''';
+15. Contact Us
+• Email: support@ballstreet.club
+• Phone: +91 8100 20 1919
+• Address: Ball Street Private Limited, Delhi NCR, India
+• FitStreet – Fitness Delivered at your Door-Step''';
 
     final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -275,9 +284,9 @@ FitStreet – Fitness Delivered at your Door-Step''';
   }
 
   Widget _termsContent() {
-    const body = '''🧾 FitStreet Terms & Conditions (Updated for 2025)
+    const body = '''FitStreet Terms & Conditions
 (Applicable to both FitStreet Trainers and Members)
-Last Updated: October 27 2025
+Last Updated: October 27, 2025
 FitStreet is owned and operated by Ball Street Private Limited, having its registered office in India (“Company”, “we”, “us”, or “our”).
 These Terms govern your access to and use of the FitStreet mobile application, website, and related services (collectively, the “Platform”).
 By registering, accessing, or using FitStreet, you agree to these Terms & Conditions and our Privacy Policy.
@@ -285,7 +294,7 @@ If you do not agree, you must not use the Platform.
 
 PART A — Terms for Trainers / Counsellors / Psychologists
 1. Registration & Membership
-1.1 Trainers must complete digital registration and pay a one-time, non-refundable onboarding fee of ₹1499 (or as updated).
+1.1 Trainers must complete digital registration and pay a one-time, non-refundable onboarding fee.
 1.2 Registration includes digital profile access and visibility to potential clients.
 1.3 FitStreet may approve, reject, or revoke registrations at its sole discretion and without obligation to disclose reasons.
 2. Independent Contractor Status
@@ -329,7 +338,10 @@ PART A — Terms for Trainers / Counsellors / Psychologists
 11. Dispute Resolution & Governing Law
 11.1 Disputes shall first be attempted through amicable negotiation, then mediation or arbitration under the Arbitration & Conciliation Act 1996.
 11.2 Governing law: India.
-11.3 Exclusive jurisdiction: Courts of West Bengal..
+11.3 Exclusive jurisdiction: Courts of West Bengal.
+12. Non-Defamation & Public Statements
+12.1 Trainers shall not publish, post, circulate or communicate any false, misleading, defamatory, derogatory or malicious statements regarding FitStreet, its services, employees, directors or other Trainers, whether online or offline, including but not limited to social media platforms, public forums or private client communication.
+12.2 Any such act shall constitute a material breach and may result in immediate suspension or termination of the Trainer's account. FitStreet reserves the right to initiate civil and/or criminal legal action, including claims for damages, under applicable laws in India.
 
 PART B — Terms for Members / Users
 1. Eligibility & Account Responsibility
@@ -387,8 +399,9 @@ PART C — General Provisions
 • Amendments: FitStreet may modify these Terms by posting updated versions; continued use constitutes acceptance.
 • Notices: All legal notices to be sent to Support@ballstreet.club''';
 
-       final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -407,7 +420,7 @@ PART C — General Provisions
   }
 
   Widget _refundContent() {
-    const body = '''FitStreet Refund & Cancellation Policy
+    const body = '''Refund & Cancellation Policy
 Last Updated: October 27, 2025
 Operated by: Ball Street Private Limited
 Website: https://fitstreet.in
@@ -421,9 +434,9 @@ It applies to both:
 By completing a registration or booking, you agree to this Policy along with the Terms & Conditions and Shipping & Service Delivery Policy.
 
 2. Nature of Services
-Fit Street provides doorstep personal training, online nutrition consultations, and mental wellness counselling across Delhi NCR and online.
-All offerings are services only — no physical goods are shipped.
-Bookings are confirmed only after advance payment through secure RBI-compliant gateways.
+• Fit Street provides doorstep personal training, online nutrition consultations, and mental wellness counselling across Delhi NCR and online.
+• All offerings are services only — no physical goods are shipped.
+• Bookings are confirmed only after advance payment through secure RBI-compliant gateways.
 
 3. Refund & Cancellation — For Members / Clients
 3.1 Booking Payments
@@ -439,9 +452,8 @@ Bookings are confirmed only after advance payment through secure RBI-compliant g
 • Once the first session is completed, the package becomes non-refundable.
 • Remaining sessions can be rescheduled within package validity.
 3.4 Cancellation by Fit Street
-Fit Street may cancel or reassign bookings due to trainer unavailability, emergencies, or safety reasons.
-In such cases:
-• Members receive a free reschedule or 100% refund within 5–7 business days.
+• Fit Street may cancel or reassign bookings due to trainer unavailability, emergencies, or safety reasons.
+• In such cases: Members receive a free reschedule or 100% refund within 5–7 business days.
 3.5 Refund Process for Members
 • Approved refunds are processed via the original payment method only.
 • Processing time: 5–7 business days (excluding bank delays).
@@ -456,13 +468,10 @@ In such cases:
 • When a member books a trainer, the full payment is collected in advance by Fit Street.
 • Fit Street holds the amount in escrow until the session is delivered.
 Payouts to Trainers:
-Booking Type
-Payment Release Timeline
-Single session
-Same day after completion verification
-Multi-session / monthly package
-Weekly payouts for completed sessions
-FitStreet may withhold payments if:
+Booking Type — Payment Release Timeline
+Single session — Same day after completion verification
+Multi-session / monthly package — Weekly payouts for completed sessions
+• FitStreet may withhold payments if:
 • The trainer fails to deliver sessions,
 • There are customer disputes, safety violations, or unverified attendance,
 • There is breach of the Trainer Code of Conduct.
@@ -471,10 +480,9 @@ FitStreet may withhold payments if:
 • Frequent or last-minute cancellations can lead to reduced client allocations or deactivation.
 • If a trainer cancels without notice, FitStreet may deduct or forfeit corresponding payouts.
 4.4 Refunds Affecting Trainers
-If FitStreet issues a refund to a client for an undelivered session, the respective payout will be reversed or adjusted from the trainer’s next cycle.
+• If FitStreet issues a refund to a client for an undelivered session, the respective payout will be reversed or adjusted from the trainer’s next cycle.
 
 5. Exceptions & Non-Refundable Scenarios
-Refunds will not be provided in the following cases:
 • Trainer registration fee (non-refundable onboarding).
 • Cancellations made by clients within 12 hours of session start.
 • Client no-shows or late logins (beyond 15 minutes).
@@ -483,35 +491,35 @@ Refunds will not be provided in the following cases:
 • Refund requests beyond 7 days of booking date.
 
 6. Force Majeure
-In events beyond FitStreet’s reasonable control (natural disasters, government restrictions, strikes, etc.), services may be postponed or rescheduled.
-Refunds may be offered at FitStreet’s discretion depending on impact.
+• In events beyond FitStreet’s reasonable control (natural disasters, government restrictions, strikes, etc.), services may be postponed or rescheduled.
+• Refunds may be offered at FitStreet’s discretion depending on impact.
 
 7. Fraud, Abuse & Misuse
-Fit Street reserves the right to deny or reverse refunds in cases of:
+• Fit Street reserves the right to deny or reverse refunds in cases of:
 • Payment disputes raised after verified service delivery,
 • Fraudulent chargebacks, or
 • Misuse of cancellation policy for repeated free sessions.
 
 8. Refund & Payment Queries
-For refund status, payment disputes, or transaction support:
-📧 Email: support@fitstreet.in
-📞 Helpline: +91 8100201919
-Response Time: Within 24 working hours
-For unresolved issues:
-👤 Grievance Officer:Ashu Nagar
-📧 Email: grievance@fitstreet.in
-📍 Address: B-10/128, Kalyani , Nadia , West Bengal 741235
-⏱️ Response Time: Within 15 working days
+• Email: support@fitstreet.in
+• Helpline: +91 8100201919
+• Response Time: Within 24 working hours
+• For unresolved issues:
+• Grievance Officer: Ashu Nagar
+• Email: grievance@fitstreet.in
+• Address: B-10/128, Kalyani , Nadia , West Bengal 741235
+• Response Time: Within 15 working days
 
 9. Governing Law
-This Policy is governed by and construed in accordance with the laws of India, specifically under:
+• This Policy is governed by and construed in accordance with the laws of India, specifically under:
 • The Consumer Protection Act, 2019, and
 • The Indian Contract Act, 1872, and
 • The Information Technology (Intermediary Guidelines) Rules, 2021.
-Any disputes arising under this Policy shall be subject to the exclusive jurisdiction of courts at West Bengal, India.''';
+• Any disputes arising under this Policy shall be subject to the exclusive jurisdiction of courts at West Bengal, India.''';
 
-        final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -530,7 +538,7 @@ Any disputes arising under this Policy shall be subject to the exclusive jurisdi
   }
 
   Widget _shippingContent() {
-    const body = '''🚚 FitStreet Shipping & Service Delivery Policy
+    const body = '''Shipping & Service Delivery Policy
 Last Updated: October 27, 2025
 Operated by: Ball Street Private Limited
 Website: https://fitstreet.in
@@ -542,9 +550,8 @@ We do not sell or ship any physical goods, merchandise, or equipment.
 All bookings made through the Fit Street App or Website are treated as service appointments, not product deliveries.
 
 2. Service “Delivery” Definition
-For the purpose of consumer protection and platform compliance, “delivery” on FitStreet refers to:
-• 🏠 Doorstep Fitness Sessions: The arrival of a verified trainer at the customer’s chosen location (home, park, gym, or office) within the scheduled time slot.
-• 💻 Online Nutrition or Counselling Sessions: Activation of a secure video or chat session link at the confirmed date and time.
+• Doorstep Fitness Sessions: The arrival of a verified trainer at the customer’s chosen location (home, park, gym, or office) within the scheduled time slot.
+• Online Nutrition or Counselling Sessions: Activation of a secure video or chat session link at the confirmed date and time.
 Once the trainer, nutritionist, or counsellor successfully conducts the booked session, the service is considered delivered in full.
 
 3. Service Areas & Availability
@@ -569,43 +576,40 @@ FitStreet defines non-delivery as:
 In such cases, the booking will either be:
 • Rescheduled at no extra charge, or
 • Fully refunded, as per the Refund Policy.
-Cancellations by users with less than 12 hours’ notice are subject to session forfeiture.
+• Cancellations by users with less than 12 hours’ notice are subject to session forfeiture.
 
 7. Refunds & Failed Sessions
-If a booked service cannot be delivered due to FitStreet’s internal error or unavailability, users are entitled to:
+• If a booked service cannot be delivered due to FitStreet’s internal error or unavailability, users are entitled to:
 • Full refund of the session fee, or
 • Free rescheduling within 7 days.
-Refunds are processed via the original payment method and usually reflect within 5–7 business days, depending on the user’s bank or payment gateway.
+• Refunds are processed via the original payment method and usually reflect within 5–7 business days, depending on the user’s bank or payment gateway.
 
 8. No Physical Shipments
-FitStreet does not:
+• FitStreet does not:
 • Ship fitness equipment, supplements, or accessories;
 • Offer courier or logistics services;
 • Charge any shipping or handling fees.
-All services are digital or in-person experiences confirmed via the app.
+• All services are digital or in-person experiences confirmed via the app.
 
 9. Proof of Delivery
-FitStreet may collect proof of service delivery in the following forms:
+• FitStreet may collect proof of service delivery in the following forms:
 • GPS attendance verification of trainers.
 • Digital session logs or screenshots for online consultations.
 • User feedback or digital acknowledgment within the app.
-This ensures transparency and compliance under the Consumer Protection (E-commerce) Rules, 2020.
+• This ensures transparency and compliance under the Consumer Protection (E-commerce) Rules, 2020.
 
 10. Contact & Grievance Redressal
-For any issues related to session delivery or booking disputes, please contact:
-Grievance Officer: Ashu Nagar
-📧 grievance@fitstreet.in
-📍 B-10/128 , Kalyani, Nadia , West Bengal 741235
-⏱️ Response Time: Within 15 working days
+• Grievance Officer: Ashu Nagar
+• Email: grievance@fitstreet.in
+• Address: B-10/128 , Kalyani, Nadia , West Bengal 741235
+• Response Time: Within 15 working days
 
 11. Governing Law
-This Shipping & Delivery Policy is governed by the laws of India, and any disputes shall be subject to the exclusive jurisdiction of Courts in West Bengal''';
-
-
-
+• This Shipping & Delivery Policy is governed by the laws of India, and any disputes shall be subject to the exclusive jurisdiction of Courts in West Bengal''';
 
     final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -624,7 +628,7 @@ This Shipping & Delivery Policy is governed by the laws of India, and any disput
   }
 
   Widget _contactcontent() {
-    const body = '''Contact Us — FitStreet
+    const body = '''Contact FitStreet
 Last Updated: October 27, 2025
 Operated By: Ball Street Private Limited
 Registered Office: B-10/128, Kalyani, Nadia, West Bengal 741235
@@ -637,7 +641,7 @@ Our team is available 24 × 7 to assist you with:
 • Trainer or counsellor feedback
 • App or technical support
 📧 Email: support@fitstreet.in
-📞 Phone / WhatsApp:+91 8100 20 1919
+📞 Phone / WhatsApp: +91 8100 20 1919
 Response Time: Within 24 working hours
 
 2. Corporate & Partnership Enquiries
@@ -670,12 +674,12 @@ Monday – Friday, 10 AM to 6 PM (IST).
 This Contact page is published in compliance with the Consumer Protection (E-Commerce) Rules 2020 and the Information Technology (Intermediary Guidelines 2021).
 All communications are governed by the laws of India and subject to the exclusive jurisdiction of the courts at West Bengal.
 
-🔒 FitStreet — Always Here for You, 24 × 7
-Doorstep Fitness | Online Nutrition | Mental Wellness Support
-''';
+FitStreet — Always Here for You, 24 × 7
+Doorstep Fitness | Online Nutrition | Mental Wellness Support''';
 
     final baseStyle = const TextStyle(color: Colors.white70, height: 1.45);
-    final boldStyle = baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
+    final boldStyle =
+        baseStyle.copyWith(fontWeight: FontWeight.w700, color: Colors.white);
     final lines = body.split('\n');
     final headingPattern = RegExp(r'^\d+\.\s');
 
@@ -692,6 +696,7 @@ Doorstep Fitness | Online Nutrition | Mental Wellness Support
 
     return SelectableText.rich(TextSpan(children: spans));
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -724,24 +729,29 @@ Doorstep Fitness | Online Nutrition | Mental Wellness Support
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text(title,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-          _isAbout
-            ? _aboutContent()
-            : _privacy
-              ? _privacyContent()
-              : _terms
-                ? _termsContent()
-                : _refund
-                    ? _refundContent()
-                    : _shipping
-                      ? _shippingContent()
-          : _contact
-          ? _contactcontent()
-                      : const Text(
-                          'Content goes here. You can load markdown/HTML or static text. Contact us if you want us to wire live links or CMS-backed content.',
-                          style: TextStyle(color: Colors.white70),
-                        ),
+                    _isAbout
+                        ? _aboutContent()
+                        : _privacy
+                            ? _privacyContent()
+                            : _terms
+                                ? _termsContent()
+                                : _refund
+                                    ? _refundContent()
+                                    : _shipping
+                                        ? _shippingContent()
+                                        : _contact
+                                            ? _contactcontent()
+                                            : const Text(
+                                                'Content goes here. You can load markdown/HTML or static text. Contact us if you want us to wire live links or CMS-backed content.',
+                                                style: TextStyle(
+                                                    color: Colors.white70),
+                                              ),
                   ],
                 ),
               ),

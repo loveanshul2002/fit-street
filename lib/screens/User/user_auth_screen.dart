@@ -50,7 +50,9 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
       await saveUserName(name);
       await saveMobile(mobile);
       // Ensure profile-complete is false at start so Home shows the CTA until finished
-      try { await saveProfileComplete(false); } catch (_) {}
+      try {
+        await saveProfileComplete(false);
+      } catch (_) {}
 
       final auth = context.read<AuthManager>();
       final result = await auth.sendSignupOtp(mobile);
@@ -64,7 +66,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
         try {
           if (body is String) {
             expectedOtp = body;
-          } else if (body is Map && (body['otp'] != null || body['data']?['otp'] != null)) {
+          } else if (body is Map &&
+              (body['otp'] != null || body['data']?['otp'] != null)) {
             expectedOtp = (body['otp'] ?? body['data']?['otp']).toString();
           }
         } catch (_) {}
@@ -83,7 +86,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
       } else {
         String message = 'Failed to send OTP';
         try {
-          if (body is Map && (body['message'] != null || body['error'] != null)) {
+          if (body is Map &&
+              (body['message'] != null || body['error'] != null)) {
             message = (body['message'] ?? body['error']).toString();
           } else if (body is String && body.isNotEmpty) {
             message = body;
@@ -126,7 +130,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                 height: kToolbarHeight,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png',
+                      fit: BoxFit.contain),
                 ),
               ),
             ],
@@ -142,8 +147,9 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
+            image: AssetImage('assets/image/home2-bg.png'),
             fit: BoxFit.cover,
+            opacity: 1,
             colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
         ),
@@ -161,7 +167,8 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                         // Full Name
                         TextField(
                           controller: _nameController,
-                          decoration: const InputDecoration(labelText: 'Full name'),
+                          decoration:
+                              const InputDecoration(labelText: 'Full name'),
                         ),
                         const SizedBox(height: 12),
 
@@ -193,9 +200,11 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text('Send OTP', style: TextStyle(color: Colors.white)),
+                                : const Text('Send OTP',
+                                    style: TextStyle(color: Colors.white)),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -213,13 +222,15 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const TrainerRegisterWizard(),
+                                        builder: (_) =>
+                                            const TrainerRegisterWizard(),
                                       ),
                                     );
                                   },
                                   borderRadius: BorderRadius.circular(16),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
                                     decoration: BoxDecoration(
                                       gradient: LinearGradient(
                                         colors: [
@@ -230,10 +241,12 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
                                         end: Alignment.bottomRight,
                                       ),
                                       borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: Colors.white.withOpacity(0.28), width: 0.75),
+                                      border: Border.all(
+                                          color: Colors.white.withOpacity(0.28),
+                                          width: 0.75),
                                     ),
                                     child: const Text(
-                                      "Are you a Trainer? Register Here",
+                                      "Are you a Trainer, Yoga Trainer, Counselor or Nutritionist? Register Here",
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600,
@@ -257,4 +270,3 @@ class _UserAuthScreenState extends State<UserAuthScreen> {
     );
   }
 }
-

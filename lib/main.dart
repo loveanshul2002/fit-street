@@ -11,9 +11,6 @@ import 'screens/wallet/trainer_wallet_screen.dart';
 import 'services/fitstreet_api.dart';
 import 'state/auth_manager.dart';
 
-
-
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -46,11 +43,9 @@ class FitStreetApp extends StatelessWidget {
         '/auth': (context) => const HomeScreen(),
         '/home': (context) => const HomeScreen(),
         '/trainer': (context) => const TrainerDashboard(),
-  '/wallet/user': (context) => const UserWalletScreen(),
-  '/wallet/trainer': (context) => const TrainerWalletScreen(),
+        '/wallet/user': (context) => const UserWalletScreen(),
+        '/wallet/trainer': (context) => const TrainerWalletScreen(),
       },
     );
   }
 }
-
-

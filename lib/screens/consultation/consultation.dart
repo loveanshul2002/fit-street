@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/fitstreet_api.dart';
@@ -34,11 +35,15 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
   Future<void> _submit() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) return;
-    setState(() { _submitting = true; _errorMsg = null; });
+    setState(() {
+      _submitting = true;
+      _errorMsg = null;
+    });
     try {
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
-      final api = FitstreetApi('https://api.fitstreet.in', token: token.isEmpty ? null : token);
+      final api = FitstreetApi('https://api.fitstreet.in',
+          token: token.isEmpty ? null : token);
       final resp = await api.createConsultation(
         name: _nameCtrl.text.trim(),
         phoneNumber: _mobileCtrl.text.trim(),
@@ -47,7 +52,9 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
       if (!mounted) return;
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Consultation request submitted successfully. Our team will get back to you soon.')),
+          const SnackBar(
+              content: Text(
+                  'Consultation request submitted successfully. Our team will get back to you soon.')),
         );
         Navigator.pop(context); // Back to previous (dashboard/home)
       } else {
@@ -70,7 +77,6 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
     return null;
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,19 +85,21 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('Free Consultation'),
         flexibleSpace: Container(color: Colors.black.withOpacity(0.15)),
       ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
-            fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
-          ),
+              image: AssetImage('assets/image/home2-bg.png'),
+              fit: BoxFit.cover,
+              opacity: 0.5),
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -107,14 +115,17 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                       const SizedBox(height: 12),
                       const Text(
                         'Book Your Free Consultation',
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
-            _glassField(
+                      _glassField(
                         child: TextFormField(
                           controller: _nameCtrl,
-              autofocus: true,
+                          autofocus: true,
                           decoration: const InputDecoration(
                             hintText: 'Name',
                             border: InputBorder.none,
@@ -124,17 +135,27 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-          _glassField(
+                      _glassField(
                         child: TextFormField(
                           controller: _mobileCtrl,
                           decoration: const InputDecoration(
                             hintText: 'Mobile Number',
                             border: InputBorder.none,
-            counterText: '',
+                            counterText: '',
                           ),
                           keyboardType: TextInputType.phone,
-                       
-                          
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty)
+                              return 'Required';
+                            final digits = v.trim();
+                            if (digits.length != 10)
+                              return 'Enter a 10-digit mobile number';
+                            return null;
+                          },
                           style: const TextStyle(color: Colors.white),
                         ),
                       ),
@@ -155,18 +176,27 @@ class _ConsultationScreenState extends State<ConsultationScreen> {
                       if (_errorMsg != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(_errorMsg!, style: const TextStyle(color: Colors.redAccent)),
+                          child: Text(_errorMsg!,
+                              style: const TextStyle(color: Colors.redAccent)),
                         ),
                       ElevatedButton(
                         onPressed: _submitting ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF5B01),
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(40)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(40)),
                         ),
                         child: _submitting
-                            ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('Submit', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Submit',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800)),
                       ),
                       const SizedBox(height: 30),
                     ],

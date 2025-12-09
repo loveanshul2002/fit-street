@@ -69,7 +69,8 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) return;
 
@@ -77,12 +78,17 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       final resp = await api.getTrainer(trainerId);
       if (resp.statusCode == 200) {
         dynamic body;
-        try { body = jsonDecode(resp.body); } catch (_) { body = resp.body; }
+        try {
+          body = jsonDecode(resp.body);
+        } catch (_) {
+          body = resp.body;
+        }
         final data = (body is Map) ? (body['data'] ?? body) : null;
         if (data is Map) {
           final wasKycCompleted = _isKycCompleted;
           // Convert to Map<String, dynamic> for type safety
-          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
+          final Map<String, dynamic> trainerData =
+              Map<String, dynamic>.from(data);
 
           // Check KYC status using utility function
           _isKycCompleted = KycUtils.isKycCompleted(trainerData);
@@ -92,7 +98,9 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
             setState(() {});
             if (_isKycCompleted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('KYC completed! You can now edit your bank details.')),
+                const SnackBar(
+                    content: Text(
+                        'KYC completed! You can now edit your bank details.')),
               );
             }
           }
@@ -115,11 +123,13 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer id not found. Please login again.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Trainer id not found. Please login again.')));
         return;
       }
 
@@ -127,11 +137,16 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       final resp = await api.getTrainer(trainerId);
       if (resp.statusCode == 200) {
         dynamic body;
-        try { body = jsonDecode(resp.body); } catch (_) { body = resp.body; }
+        try {
+          body = jsonDecode(resp.body);
+        } catch (_) {
+          body = resp.body;
+        }
         final data = (body is Map) ? (body['data'] ?? body) : null;
         if (data is Map) {
           // Convert to Map<String, dynamic> for type safety
-          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
+          final Map<String, dynamic> trainerData =
+              Map<String, dynamic>.from(data);
 
           // Check KYC status using utility function
           _isKycCompleted = KycUtils.isKycCompleted(trainerData);
@@ -150,7 +165,8 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -177,11 +193,13 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
 
       if (trainerId == null || trainerId.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer id not found. Please login again.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Trainer id not found. Please login again.')));
         return;
       }
 
@@ -193,7 +211,8 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
         if (_upiCtrl.text.trim().isNotEmpty) 'upiId': _upiCtrl.text.trim(),
       };
 
-      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields);
+      final streamed =
+          await api.updateTrainerProfileMultipart(trainerId, fields: fields);
       final resp = await http.Response.fromStream(streamed);
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
@@ -201,22 +220,26 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
           await context.read<AuthManager>().fetchTrainerProfile(trainerId);
         } catch (_) {}
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bank details updated')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Bank details updated')));
         Navigator.pop(context, true);
       } else {
         String msg = 'Failed (${resp.statusCode})';
         try {
           final body = jsonDecode(resp.body);
-          if (body is Map && (body['message'] != null || body['error'] != null)) {
+          if (body is Map &&
+              (body['message'] != null || body['error'] != null)) {
             msg = (body['message'] ?? body['error']).toString();
           }
         } catch (_) {}
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -229,12 +252,15 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
               SizedBox(width: 8),
-              Text('KYC Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('KYC Required',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           content: const Text(
@@ -290,7 +316,8 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
           children: [
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white),
               onPressed: () => Navigator.pop(context),
               tooltip: 'Back',
             ),
@@ -302,7 +329,8 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
             ),
           ],
         ),
-        title: const Text('Bank Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: const Text('Bank Details',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -313,7 +341,7 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Image.asset('assets/image/home2-bg.png', fit: BoxFit.cover),
           Container(color: Colors.black.withOpacity(0.35)),
           _loading
               ? const Center(child: CircularProgressIndicator())
@@ -339,15 +367,18 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
                                   decoration: BoxDecoration(
                                     color: Colors.orange.withOpacity(0.9),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.orange.shade300),
+                                    border: Border.all(
+                                        color: Colors.orange.shade300),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
+                                      const Icon(Icons.warning_amber_rounded,
+                                          color: Colors.white, size: 24),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: const [
                                             Text(
                                               'Complete KYC to Edit Bank Details',
@@ -360,7 +391,9 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
                                             SizedBox(height: 4),
                                             Text(
                                               'Your bank details are read-only until KYC verification is completed.',
-                                              style: TextStyle(color: Colors.white, fontSize: 14),
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14),
                                             ),
                                           ],
                                         ),
@@ -371,9 +404,12 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.white,
                                           foregroundColor: Colors.orange,
-                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 16, vertical: 8),
                                         ),
-                                        child: const Text('Complete KYC', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        child: const Text('Complete KYC',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold)),
                                       ),
                                     ],
                                   ),
@@ -383,34 +419,53 @@ class _BankDetailsEditScreenState extends State<BankDetailsEditScreen> {
                                   readOnly: !_isKycCompleted,
                                   validator: req,
                                   keyboardType: TextInputType.number,
-                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly
+                                  ]),
                               field('IFSC Code', _ifscCtrl,
                                   readOnly: !_isKycCompleted,
                                   validator: req,
-                                  inputFormatters: [UpperCaseTextFormatter(), FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))],
+                                  inputFormatters: [
+                                    UpperCaseTextFormatter(),
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[A-Z0-9]'))
+                                  ],
                                   maxLength: 11),
-                              field('Bank Name', _bankCtrl, readOnly: !_isKycCompleted, validator: req),
+                              field('Bank Name', _bankCtrl,
+                                  readOnly: !_isKycCompleted, validator: req),
                               field('UPI ID (optional)', _upiCtrl,
-                                  readOnly: !_isKycCompleted,
-                                  validator: (v) {
-                                    if (v != null && v.isNotEmpty && !v.contains('@')) {
-                                      return 'Invalid UPI ID';
-                                    }
-                                    return null;
-                                  },
-                                  inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\\s'))]),
+                                  readOnly: !_isKycCompleted, validator: (v) {
+                                if (v != null &&
+                                    v.isNotEmpty &&
+                                    !v.contains('@')) {
+                                  return 'Invalid UPI ID';
+                                }
+                                return null;
+                              }, inputFormatters: [
+                                FilteringTextInputFormatter.deny(RegExp(r'\\s'))
+                              ]),
                               const SizedBox(height: 20),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: (_saving || !_isKycCompleted) ? null : _save,
+                                  onPressed: (_saving || !_isKycCompleted)
+                                      ? null
+                                      : _save,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.white12,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
                                   ),
                                   child: _saving
-                                      ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                                      : const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16)),
+                                      ? const SizedBox(
+                                          height: 22,
+                                          width: 22,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : const Text('Save',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16)),
                                 ),
                               ),
                             ],

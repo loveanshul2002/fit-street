@@ -80,7 +80,9 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
           setState(() {
             _profileData = data;
             final status = data['status']?.toString().toLowerCase();
-            _kycDone = _toBool(data['isKyc']) || _toBool(data['kycCompleted']) || status == 'approved';
+            _kycDone = _toBool(data['isKyc']) ||
+                _toBool(data['kycCompleted']) ||
+                status == 'approved';
           });
         }
       }
@@ -88,7 +90,8 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
       final wa = await auth.api.getWithdrawalAmount(trainerId);
       if (wa.statusCode == 200) {
         final body = jsonDecode(wa.body);
-        final amount = (body['withdrawalAmount'] ?? body['data']?['withdrawalAmount']);
+        final amount =
+            (body['withdrawalAmount'] ?? body['data']?['withdrawalAmount']);
         setState(() {
           _profileData ??= {};
           _profileData!['withdrawalAmount'] = _toNum(amount);
@@ -111,7 +114,8 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        final list = (body['paymentDetails'] ?? body['data'] ?? []) as List<dynamic>;
+        final list =
+            (body['paymentDetails'] ?? body['data'] ?? []) as List<dynamic>;
         setState(() => _payments = list);
       } else {
         _snack('Failed to load client payments (${res.statusCode})');
@@ -133,7 +137,8 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
       if (!mounted) return;
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body);
-        final list = (body['withdrawals'] ?? body['data'] ?? []) as List<dynamic>;
+        final list =
+            (body['withdrawals'] ?? body['data'] ?? []) as List<dynamic>;
         setState(() => _withdrawals = list);
       } else {
         _snack('Failed to load withdrawals (${res.statusCode})');
@@ -168,19 +173,26 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
     return _payments.skip(start).take(_clientPageSize).toList();
   }
 
-  int get _clientPages => (_payments.isEmpty) ? 1 : ((_payments.length + _clientPageSize - 1) ~/ _clientPageSize);
+  int get _clientPages => (_payments.isEmpty)
+      ? 1
+      : ((_payments.length + _clientPageSize - 1) ~/ _clientPageSize);
 
-  int get _clientEnd => ((_clientPage * _clientPageSize).clamp(0, _payments.length));
+  int get _clientEnd =>
+      ((_clientPage * _clientPageSize).clamp(0, _payments.length));
 
   List<dynamic> get _withdrawalPageItems {
     final start = (_withdrawalPage - 1) * _withdrawalPageSize;
     return _withdrawals.skip(start).take(_withdrawalPageSize).toList();
   }
 
-  int get _withdrawalPages => (_withdrawals.isEmpty) ? 1 : ((_withdrawals.length + _withdrawalPageSize - 1) ~/ _withdrawalPageSize);
+  int get _withdrawalPages => (_withdrawals.isEmpty)
+      ? 1
+      : ((_withdrawals.length + _withdrawalPageSize - 1) ~/
+          _withdrawalPageSize);
 
-  int get _withdrawalEnd => ((_withdrawalPage * _withdrawalPageSize).clamp(0, _withdrawals.length));
-  
+  int get _withdrawalEnd =>
+      ((_withdrawalPage * _withdrawalPageSize).clamp(0, _withdrawals.length));
+
   bool get _canWithdraw {
     final avail = _toNum(_profileData?['withdrawalAmount']);
     final active = _toBool(_profileData?['isWithdrawalActive']);
@@ -201,7 +213,8 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Available for withdrawal: ₹${_profileData?['withdrawalAmount'] ?? 0}'),
+              Text(
+                  'Available for withdrawal: ₹${_profileData?['withdrawalAmount'] ?? 0}'),
               const SizedBox(height: 8),
               TextField(
                 controller: controller,
@@ -211,7 +224,9 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
             ElevatedButton(
               onPressed: () async {
                 final raw = controller.text.trim();
@@ -236,7 +251,8 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
     final id = context.read<AuthManager>().trainerId;
     if (id == null || id.isEmpty) return;
     try {
-      final res = await context.read<AuthManager>().api.requestWithdrawal(id, amt);
+      final res =
+          await context.read<AuthManager>().api.requestWithdrawal(id, amt);
       if (res.statusCode == 200 || res.statusCode == 201) {
         _snack('Withdrawal request submitted');
         await _fetchSummary();
@@ -258,11 +274,13 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
           onPressed: () => Navigator.pop(context),
           tooltip: 'Back',
         ),
-        title: const Text('Earnings & Wallet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: const Text('Earnings & Wallet',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -273,7 +291,13 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
+          Opacity(
+            opacity: 0.2,
+            child: Image.asset(
+              'assets/image/wallet-bg.png',
+              fit: BoxFit.contain,
+            ),
+          ),
           Container(color: Colors.black.withOpacity(0.35)),
           SafeArea(
             child: SingleChildScrollView(
@@ -281,43 +305,72 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Overview of earnings, client payments and withdrawal history', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                      'Overview of earnings, client payments and withdrawal history',
+                      style: TextStyle(color: Colors.white70)),
                   const SizedBox(height: 12),
 
                   // Earnings card
                   GlassCard(
                     padding: const EdgeInsets.all(12),
                     child: _loadingSummary
-                        ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                        ? const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator()))
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Earnings', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const Text('Earnings',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
-                                      const Text('Total', style: TextStyle(color: Colors.white70)),
-                                      Text('₹${_profileData?['totalAmount'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                      const Text('Total',
+                                          style:
+                                              TextStyle(color: Colors.white70)),
+                                      Text(
+                                          '₹${_profileData?['totalAmount'] ?? 0}',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18)),
                                     ],
                                   )
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text('Net shown after ${_profileData?['commission'] ?? 0}% app fee', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                              Text(
+                                  'Net shown after ${_profileData?['commission'] ?? 0}% app fee',
+                                  style: const TextStyle(
+                                      color: Colors.white70, fontSize: 12)),
                               const Divider(height: 20, thickness: 0.2),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                    const Text('Withdrawal Amount', style: TextStyle(color: Colors.white70)),
-                                    Text('₹${_profileData?['withdrawalAmount'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                  ]),
+                                  Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('Withdrawal Amount',
+                                            style: TextStyle(
+                                                color: Colors.white70)),
+                                        Text(
+                                            '₹${_profileData?['withdrawalAmount'] ?? 0}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16)),
+                                      ]),
                                   ElevatedButton(
-                                    onPressed: _canWithdraw ? _openWithdrawDialog : null,
+                                    onPressed: _canWithdraw
+                                        ? _openWithdrawDialog
+                                        : null,
                                     child: const Text('Withdraw'),
                                   )
                                 ],
@@ -332,64 +385,119 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
                   GlassCard(
                     padding: const EdgeInsets.all(12),
                     child: _loadingPayments
-                        ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                        ? const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator()))
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Client Payments', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('Total: ${_payments.length}', style: const TextStyle(color: Colors.white70)),
+                                  const Text('Client Payments',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Total: ${_payments.length}',
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
                                 ],
                               ),
                               const Divider(height: 20, thickness: 0.2),
                               if (_payments.isEmpty)
                                 const Padding(
                                   padding: EdgeInsets.all(24.0),
-                                  child: Center(child: Text('No client payments', style: TextStyle(color: Colors.white70))),
+                                  child: Center(
+                                      child: Text('No client payments',
+                                          style: TextStyle(
+                                              color: Colors.white70))),
                                 )
-                              else
-                                ...[
-                                  ..._clientPageItems.map((p) {
-                                    final map = p as Map<String, dynamic>;
-                                    final userName = map['User']?['fullName'] ?? 'User';
-                                    final amount = map['amount'] ?? 0;
-                                    final sessionType = map['sessionType'] ?? '';
-                                    final updatedAt = map['updatedAt'];
-                                    final isPaid = map['isPaid'] == true;
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                      child: Row(children: [
-                                        Expanded(flex: 3, child: Text(userName.toString(), style: const TextStyle(fontWeight: FontWeight.w600))),
-                                        Expanded(flex: 3, child: Text(_fmtDate(updatedAt), style: const TextStyle(color: Colors.white70))),
-                                        Expanded(flex: 2, child: Text(sessionType.toString(), style: const TextStyle(color: Colors.white70))),
-                                        Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('₹$amount', style: const TextStyle(fontWeight: FontWeight.bold)))),
-                                        const SizedBox(width: 12),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: isPaid ? Colors.green : Colors.amber,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Text(isPaid ? 'Paid' : 'Pending', style: TextStyle(color: isPaid ? Colors.white : Colors.black)),
-                                        )
-                                      ]),
-                                    );
-                                  }),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text('Showing ${_payments.isEmpty ? 0 : ((_clientPage - 1) * _clientPageSize + 1)} - ${_clientEnd} of ${_payments.length}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                      Row(children: [
-                                        OutlinedButton(onPressed: _clientPage > 1 ? () => setState(() => _clientPage--) : null, child: const Text('Prev')),
-                                        const SizedBox(width: 8),
-                                        OutlinedButton(onPressed: _clientPage < _clientPages ? () => setState(() => _clientPage++) : null, child: const Text('Next')),
-                                      ])
-                                    ],
-                                  )
-                                ]
+                              else ...[
+                                ..._clientPageItems.map((p) {
+                                  final map = p as Map<String, dynamic>;
+                                  final userName =
+                                      map['User']?['fullName'] ?? 'User';
+                                  final amount = map['amount'] ?? 0;
+                                  final sessionType = map['sessionType'] ?? '';
+                                  final updatedAt = map['updatedAt'];
+                                  final isPaid = map['isPaid'] == true;
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
+                                    child: Row(children: [
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(userName.toString(),
+                                              style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w600))),
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(_fmtDate(updatedAt),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
+                                      Expanded(
+                                          flex: 2,
+                                          child: Text(sessionType.toString(),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
+                                      Expanded(
+                                          flex: 2,
+                                          child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text('₹$amount',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold)))),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isPaid
+                                              ? Colors.green
+                                              : Colors.amber,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Text(isPaid ? 'Paid' : 'Pending',
+                                            style: TextStyle(
+                                                color: isPaid
+                                                    ? Colors.white
+                                                    : Colors.black)),
+                                      )
+                                    ]),
+                                  );
+                                }),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                        'Showing ${_payments.isEmpty ? 0 : ((_clientPage - 1) * _clientPageSize + 1)} - ${_clientEnd} of ${_payments.length}',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12)),
+                                    Row(children: [
+                                      OutlinedButton(
+                                          onPressed: _clientPage > 1
+                                              ? () =>
+                                                  setState(() => _clientPage--)
+                                              : null,
+                                          child: const Text('Prev')),
+                                      const SizedBox(width: 8),
+                                      OutlinedButton(
+                                          onPressed: _clientPage < _clientPages
+                                              ? () =>
+                                                  setState(() => _clientPage++)
+                                              : null,
+                                          child: const Text('Next')),
+                                    ])
+                                  ],
+                                )
+                              ]
                             ],
                           ),
                   ),
@@ -400,22 +508,33 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
                   GlassCard(
                     padding: const EdgeInsets.all(12),
                     child: _loadingWithdrawals
-                        ? const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
+                        ? const Center(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: CircularProgressIndicator()))
                         : Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text('Withdrawal / Payout History', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  Text('Total: ${_withdrawals.length}', style: const TextStyle(color: Colors.white70)),
+                                  const Text('Withdrawal / Payout History',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Total: ${_withdrawals.length}',
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
                                 ],
                               ),
                               const Divider(height: 20, thickness: 0.2),
                               if (_withdrawals.isEmpty)
                                 const Padding(
                                   padding: EdgeInsets.all(24.0),
-                                  child: Center(child: Text('No withdrawals found', style: TextStyle(color: Colors.white70))),
+                                  child: Center(
+                                      child: Text('No withdrawals found',
+                                          style: TextStyle(
+                                              color: Colors.white70))),
                                 )
                               else ...[
                                 ..._withdrawalPageItems.map((w) {
@@ -423,35 +542,84 @@ class _TrainerWalletScreenState extends State<TrainerWalletScreen> {
                                   final amount = map['amount'] ?? 0;
                                   final requestedAt = map['requestedAt'];
                                   final paidAt = map['paidAt'];
-                                  final status = (map['status'] ?? '').toString();
+                                  final status =
+                                      (map['status'] ?? '').toString();
                                   final isPaid = status.toLowerCase() == 'paid';
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8.0),
                                     child: Row(children: [
-                                      Expanded(flex: 3, child: Text(_fmtDate(requestedAt, pattern: 'dd/MM/yyyy hh:mm a'), style: const TextStyle(color: Colors.white70))),
-                                      Expanded(flex: 2, child: Align(alignment: Alignment.centerRight, child: Text('₹$amount', style: const TextStyle(fontWeight: FontWeight.bold)))),
-                                      Expanded(flex: 3, child: Text(paidAt != null ? _fmtDate(paidAt, pattern: 'dd/MM/yyyy hh:mm a') : '-', style: const TextStyle(color: Colors.white70))),
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                              _fmtDate(requestedAt,
+                                                  pattern:
+                                                      'dd/MM/yyyy hh:mm a'),
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
+                                      Expanded(
+                                          flex: 2,
+                                          child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text('₹$amount',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold)))),
+                                      Expanded(
+                                          flex: 3,
+                                          child: Text(
+                                              paidAt != null
+                                                  ? _fmtDate(paidAt,
+                                                      pattern:
+                                                          'dd/MM/yyyy hh:mm a')
+                                                  : '-',
+                                              style: const TextStyle(
+                                                  color: Colors.white70))),
                                       const SizedBox(width: 12),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
                                         decoration: BoxDecoration(
-                                          color: isPaid ? Colors.green : Colors.amber,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: isPaid
+                                              ? Colors.green
+                                              : Colors.amber,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                        child: Text(isPaid ? 'Paid' : 'Pending', style: TextStyle(color: isPaid ? Colors.white : Colors.black)),
+                                        child: Text(isPaid ? 'Paid' : 'Pending',
+                                            style: TextStyle(
+                                                color: isPaid
+                                                    ? Colors.white
+                                                    : Colors.black)),
                                       )
                                     ]),
                                   );
                                 }),
                                 const SizedBox(height: 8),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Showing ${_withdrawals.isEmpty ? 0 : ((_withdrawalPage - 1) * _withdrawalPageSize + 1)} - ${_withdrawalEnd} of ${_withdrawals.length}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text(
+                                        'Showing ${_withdrawals.isEmpty ? 0 : ((_withdrawalPage - 1) * _withdrawalPageSize + 1)} - ${_withdrawalEnd} of ${_withdrawals.length}',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12)),
                                     Row(children: [
-                                      OutlinedButton(onPressed: _withdrawalPage > 1 ? () => setState(() => _withdrawalPage--) : null, child: const Text('Prev')),
+                                      OutlinedButton(
+                                          onPressed: _withdrawalPage > 1
+                                              ? () => setState(
+                                                  () => _withdrawalPage--)
+                                              : null,
+                                          child: const Text('Prev')),
                                       const SizedBox(width: 8),
-                                      OutlinedButton(onPressed: _withdrawalPage < _withdrawalPages ? () => setState(() => _withdrawalPage++) : null, child: const Text('Next')),
+                                      OutlinedButton(
+                                          onPressed:
+                                              _withdrawalPage < _withdrawalPages
+                                                  ? () => setState(
+                                                      () => _withdrawalPage++)
+                                                  : null,
+                                          child: const Text('Next')),
                                     ])
                                   ],
                                 )

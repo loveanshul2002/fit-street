@@ -22,6 +22,8 @@ import '../../services/fitstreet_api.dart';
 import '../bookings/booking_screen.dart';
 import '../counsellors/counsellor_screen.dart';
 import '../nutrition/nutrition_screen.dart';
+import '../sports trainer/sports_trainer_screen.dart';
+import '../physiotherapists/physiotherapists.dart';
 import '../yoga/yoga_screen.dart';
 import '../consultation/consultation.dart';
 // keep only one import of find_trainers_screen
@@ -29,7 +31,6 @@ import '../consultation/consultation.dart';
 
 import '../user/profile_completion_wizard.dart';
 import '../User/profile_fill_screen.dart';
-import '../User/user_auth_screen.dart';
 import '../legal/legal_page.dart';
 import '../trainers/find_trainers_screen.dart';
 
@@ -37,6 +38,8 @@ import '../trainers/find_trainers_screen.dart';
 import '../login/login_screen_styled.dart';
 import '../../state/auth_manager.dart';
 import '../../config/app_colors.dart';
+import '../../widgets/footer_glass.dart';
+import '../auth/signup_choice_screen.dart';
 //import 'circular_home_screen.dart';
 
 // kGroupedSpecializations is now provided by constants/specializations.dart
@@ -81,24 +84,59 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(height: 4, width: 36, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
+                    Container(
+                        height: 4,
+                        width: 36,
+                        decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(2))),
                     const SizedBox(height: 10),
                     ListTile(
-                      leading: const Icon(Icons.support_agent, color: Colors.white70),
-                      title: const Text('Support', style: TextStyle(color: Colors.white)),
+                      leading: const Icon(Icons.support_agent,
+                          color: Colors.white70),
+                      title: const Text('Support',
+                          style: TextStyle(color: Colors.white)),
                       onTap: () {
                         Navigator.pop(ctx);
                         _openSupport();
                       },
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.white54),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      trailing: const Icon(Icons.chevron_right,
+                          color: Colors.white54),
                     ),
-                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us', 'assets/legal/about.html'),
-                    _policyTile(ctx, Icons.privacy_tip_outlined, 'Privacy Policy', 'Privacy Policy', 'assets/legal/privacy.html'),
-                    _policyTile(ctx, Icons.rule_folder_outlined, 'Terms & Conditions', 'Terms & Conditions', 'assets/legal/terms.html'),
-                    _policyTile(ctx, Icons.receipt_long_outlined, 'Refund & Cancellation', 'Refund & Cancellation', 'assets/legal/refund.html'),
-                    _policyTile(ctx, Icons.local_shipping_outlined, 'Shipping Policy', 'Shipping Policy', 'assets/legal/shipping.html'),
-                    _policyTile(ctx, Icons.contact_support_outlined, 'Contact Us', 'Contact Us', 'assets/legal/contact.html'),
+                    _policyTile(ctx, Icons.info_outline, 'About Us', 'About Us',
+                        'assets/legal/about.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.privacy_tip_outlined,
+                        'Privacy Policy',
+                        'Privacy Policy',
+                        'assets/legal/privacy.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.rule_folder_outlined,
+                        'Terms & Conditions',
+                        'Terms & Conditions',
+                        'assets/legal/terms.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.receipt_long_outlined,
+                        'Refund & Cancellation',
+                        'Refund & Cancellation',
+                        'assets/legal/refund.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.local_shipping_outlined,
+                        'Shipping Policy',
+                        'Shipping Policy',
+                        'assets/legal/shipping.html'),
+                    _policyTile(
+                        ctx,
+                        Icons.contact_support_outlined,
+                        'Contact Us',
+                        'Contact Us',
+                        'assets/legal/contact.html'),
                   ],
                 ),
               ),
@@ -109,23 +147,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _policyTile(BuildContext ctx, IconData icon, String label, String title, String assetPath) {
+  Widget _policyTile(BuildContext ctx, IconData icon, String label,
+      String title, String assetPath) {
     return ListTile(
       leading: Icon(icon, color: Colors.white70),
       title: Text(label, style: const TextStyle(color: Colors.white)),
       onTap: () {
         Navigator.pop(ctx);
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => LegalPage(title: title, assetHtmlPath: assetPath)));
       },
     );
   }
+
   // ignore: unused_field
   bool _profileComplete = false;
   // ignore: unused_field
   bool _loadingProfileState = true;
   UserRole _role = UserRole.unknown;
   String _greetingName = '';
-
 
   // ===== Notifications (USER) =====
   int _notificationCount = 0;
@@ -150,8 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
       final auth = context.read<AuthManager?>();
       auth?.addListener(_onAuthChanged);
       _fetchNotificationsIfLoggedIn();
-  _fetchQuoteImage();
-  _startCarouselAutoPlay();
+      _fetchQuoteImage();
+      _startCarouselAutoPlay();
     });
   }
 
@@ -171,7 +211,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-
   Future<void> _loadProfileState() async {
     final role = await getUserRole();
     final done = await getProfileComplete();
@@ -190,8 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
               : 'there';
     });
 
-  // Previously: show a modal dialog as a nudge. Replaced with a top banner on Home.
-  // _maybePromptProfileCompletion();
+    // Previously: show a modal dialog as a nudge. Replaced with a top banner on Home.
+    // _maybePromptProfileCompletion();
 
     // If logged in but no name yet, fetch profile to populate fullName
     try {
@@ -224,7 +263,15 @@ class _HomeScreenState extends State<HomeScreen> {
               final data = (body['data'] ?? body);
               if (data is Map) {
                 const keys = [
-                  'userImageURL', 'userImageUrl', 'imageUrl', 'imageURL', 'profileImageURL', 'profileImage', 'avatar', 'photo', 'image'
+                  'userImageURL',
+                  'userImageUrl',
+                  'imageUrl',
+                  'imageURL',
+                  'profileImageURL',
+                  'profileImage',
+                  'avatar',
+                  'photo',
+                  'image'
                 ];
                 for (final k in keys) {
                   final v = data[k];
@@ -244,17 +291,16 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-
   void refreshGreeting() => _loadProfileState();
 
   // ===== Quote Image Fetch =====
   Future<void> _fetchQuoteImage() async {
-  try {
+    try {
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
-  final api = FitstreetApi('https://api.fitstreet.in', token: token);
-  // Always use the user quote endpoint regardless of role
-  final http.Response resp = await api.getUserQuote();
+      final api = FitstreetApi('https://api.fitstreet.in', token: token);
+      // Always use the user quote endpoint regardless of role
+      final http.Response resp = await api.getUserQuote();
       if (resp.statusCode == 200) {
         try {
           final decoded = jsonDecode(resp.body);
@@ -262,18 +308,22 @@ class _HomeScreenState extends State<HomeScreen> {
           // Accept several shapes
           if (decoded is Map) {
             final map = decoded;
-            quoteObj = map['quote'] ?? map['data'] ?? map; // handle {quote:{...}} or {data:{...}} or flat
+            quoteObj = map['quote'] ??
+                map['data'] ??
+                map; // handle {quote:{...}} or {data:{...}} or flat
           } else if (decoded is List && decoded.isNotEmpty) {
             quoteObj = decoded.first;
           }
 
           if (quoteObj is Map) {
-            final img = quoteObj['image'] ?? quoteObj['imageUrl'] ?? quoteObj['url'];
+            final img =
+                quoteObj['image'] ?? quoteObj['imageUrl'] ?? quoteObj['url'];
             final updatedAt = quoteObj['updatedAt'] ?? quoteObj['updated_at'];
             if (img is String && img.trim().isNotEmpty && mounted) {
               // Add a cache-busting query param so daily updates reflect immediately
               final ts = (updatedAt is String && updatedAt.isNotEmpty)
-                  ? DateTime.tryParse(updatedAt)?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch
+                  ? DateTime.tryParse(updatedAt)?.millisecondsSinceEpoch ??
+                      DateTime.now().millisecondsSinceEpoch
                   : DateTime.now().millisecondsSinceEpoch;
               final sep = img.contains('?') ? '&' : '?';
               final url = '${img.trim()}${sep}ts=$ts';
@@ -324,25 +374,28 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-title: const Text(
-  "Support",
-  style: TextStyle(
-    color: Colors.white,
-    fontWeight: FontWeight.bold,
-  ),
-),
-content: const Text(
-  "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
-  style: TextStyle(
-    color: Colors.white70,
-    height: 1.5,
-  ),
-),
-
+            title: const Text(
+              "Support",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              "Need help?\nEmail: support@fitstreet.in\nPhone / WhatsApp: +91 8100 20 1919\n\nOur team is available 24×7 to assist you with anything you need.",
+              style: TextStyle(
+                color: Colors.white70,
+                height: 1.5,
+              ),
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Close", style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: const Text("Close",
+                      style: TextStyle(color: Colors.white))),
             ],
           ),
         ),
@@ -362,20 +415,30 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Emergency (SOS)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("This will alert support. Proceed?", style: TextStyle(color: Colors.white70)),
+            title: const Text("Emergency (SOS)",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("This will alert support. Proceed?",
+                style: TextStyle(color: Colors.white70)),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text("Cancel", style: TextStyle(color: Colors.white))),
+              TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: const Text("Cancel",
+                      style: TextStyle(color: Colors.white))),
               TextButton(
                 onPressed: () {
                   Navigator.pop(dCtx);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("SOS triggered.")));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("SOS triggered.")));
                   }
                 },
-                child: Text("Confirm", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                child: Text("Confirm",
+                    style: TextStyle(
+                        color: AppColors.primary, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -397,9 +460,12 @@ content: const Text(
               backgroundColor: Colors.white.withOpacity(0.12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+                side: BorderSide(
+                    color: Colors.white.withOpacity(0.3), width: 0.75),
               ),
-              title: const Text('Delete Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: const Text('Delete Account',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,7 +483,8 @@ content: const Text(
                       hintStyle: const TextStyle(color: Colors.white38),
                       filled: true,
                       fillColor: Colors.white10,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ],
@@ -425,7 +492,8 @@ content: const Text(
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dCtx, false),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Colors.white)),
                 ),
                 TextButton(
                   onPressed: () {
@@ -433,7 +501,10 @@ content: const Text(
                       Navigator.pop(dCtx, true);
                     }
                   },
-                  child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+                  child: const Text('Delete',
+                      style: TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.w700)),
                 ),
               ],
             ),
@@ -452,7 +523,8 @@ content: const Text(
     try {
       if (userId == null || userId.isEmpty) {
         final sp = await SharedPreferences.getInstance();
-        userId = sp.getString('fitstreet_user_db_id') ?? sp.getString('fitstreet_user_id');
+        userId = sp.getString('fitstreet_user_db_id') ??
+            sp.getString('fitstreet_user_id');
       }
     } catch (_) {}
 
@@ -461,7 +533,8 @@ content: const Text(
 
     if (userId == null || userId.isEmpty || token.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('User not logged in properly')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('User not logged in properly')));
       }
       return;
     }
@@ -488,7 +561,8 @@ content: const Text(
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account deleted successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Account deleted successfully')));
         }
 
         // Clear user-related keys
@@ -517,20 +591,25 @@ content: const Text(
         String msg = 'Failed to delete account (${response.statusCode})';
         try {
           final parsed = jsonDecode(response.body);
-          if (parsed is Map && (parsed['message'] != null || parsed['error'] != null)) {
+          if (parsed is Map &&
+              (parsed['message'] != null || parsed['error'] != null)) {
             msg = (parsed['message'] ?? parsed['error']).toString();
           } else if (parsed is String && parsed.isNotEmpty) {
             msg = parsed;
           }
         } catch (_) {}
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg)));
         }
       }
     } catch (e) {
-      try { Navigator.pop(context); } catch (_) {}
+      try {
+        Navigator.pop(context);
+      } catch (_) {}
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Network error: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Network error: $e')));
       }
     }
   }
@@ -548,18 +627,25 @@ content: const Text(
             backgroundColor: Colors.white.withOpacity(0.12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
+              side:
+                  BorderSide(color: Colors.white.withOpacity(0.3), width: 0.75),
             ),
-            title: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            content: const Text("Are you sure you want to logout?", style: TextStyle(color: Colors.white70)),
+            title: const Text("Logout",
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
+            content: const Text("Are you sure you want to logout?",
+                style: TextStyle(color: Colors.white70)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dCtx, false),
-                child: const Text("Cancel", style: TextStyle(color: Colors.white)),
+                child:
+                    const Text("Cancel", style: TextStyle(color: Colors.white)),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dCtx, true),
-                child: const Text("Logout", style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w700)),
+                child: const Text("Logout",
+                    style: TextStyle(
+                        color: Colors.redAccent, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -591,14 +677,16 @@ content: const Text(
       } catch (_) {
         trainerId = null;
       }
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
       if (trainerId == null || trainerId.isEmpty) return null;
       return {'type': 'trainer', 'id': trainerId};
     }
 
     // Default to user
     String? userId = auth?.userId;
-    userId ??= sp.getString('fitstreet_user_db_id') ?? sp.getString('fitstreet_user_id');
+    userId ??= sp.getString('fitstreet_user_db_id') ??
+        sp.getString('fitstreet_user_id');
     if (userId == null || userId.isEmpty) return null;
     return {'type': 'user', 'id': userId};
   }
@@ -656,11 +744,15 @@ content: const Text(
               if (dt == null) {
                 final numVal = int.tryParse(v);
                 if (numVal != null) {
-                  dt = numVal > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(numVal) : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
+                  dt = numVal > 100000000000
+                      ? DateTime.fromMillisecondsSinceEpoch(numVal)
+                      : DateTime.fromMillisecondsSinceEpoch(numVal * 1000);
                 }
               }
             } else if (v is int) {
-              dt = v > 100000000000 ? DateTime.fromMillisecondsSinceEpoch(v) : DateTime.fromMillisecondsSinceEpoch(v * 1000);
+              dt = v > 100000000000
+                  ? DateTime.fromMillisecondsSinceEpoch(v)
+                  : DateTime.fromMillisecondsSinceEpoch(v * 1000);
             }
             if (dt == null) return true; // keep if unknown timestamp
             return dt.isAfter(cutoff);
@@ -668,6 +760,7 @@ content: const Text(
             return true;
           }
         }
+
         final filtered = raw.where(within7).toList();
         setState(() {
           _notifications = filtered;
@@ -705,12 +798,12 @@ content: const Text(
 
     _showNotificationOverlay();
 
-  // Mark-as-read; do not refresh on open
+    // Mark-as-read; do not refresh on open
     if (_notificationCount > 0) {
       await _markNotificationsAsRead(target['type']!, target['id']!);
       _notifEntry?.markNeedsBuild();
     }
-  // Use the currently loaded list to avoid extra refresh
+    // Use the currently loaded list to avoid extra refresh
   }
 
   void _showNotificationOverlay() {
@@ -760,7 +853,8 @@ content: const Text(
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(width: 0.75, color: Colors.white.withOpacity(0.3)),
+                        border: Border.all(
+                            width: 0.75, color: Colors.white.withOpacity(0.3)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.15),
@@ -777,20 +871,29 @@ content: const Text(
                               ),
                             )
                           : (_notifications.isEmpty
-                              ? const Text('No notifications', style: TextStyle(color: Colors.white70))
+                              ? const Text('No notifications',
+                                  style: TextStyle(color: Colors.white70))
                               : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: _notifications.map<Widget>((n) {
-                                    final msg = (n?['message'] ?? '').toString();
-                                    final createdAt = (n?['createdAt'] ?? '').toString();
+                                    final msg =
+                                        (n?['message'] ?? '').toString();
+                                    final createdAt =
+                                        (n?['createdAt'] ?? '').toString();
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(msg, style: const TextStyle(color: Colors.white)),
-                                          Text(createdAt, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                                          Text(msg,
+                                              style: const TextStyle(
+                                                  color: Colors.white)),
+                                          Text(createdAt,
+                                              style: const TextStyle(
+                                                  color: Colors.white38,
+                                                  fontSize: 12)),
                                         ],
                                       ),
                                     );
@@ -837,7 +940,6 @@ content: const Text(
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Container(color: Colors.black.withOpacity(0.15)),
           ),
         ),
         actions: [
@@ -858,7 +960,8 @@ content: const Text(
                   Stack(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.notifications, color: Colors.white),
+                        icon: const Icon(Icons.notifications,
+                            color: Colors.white),
                         tooltip: "Notifications",
                         onPressed: _toggleNotificationList,
                       ),
@@ -872,10 +975,12 @@ content: const Text(
                               color: Colors.red,
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                            constraints: const BoxConstraints(
+                                minWidth: 20, minHeight: 20),
                             child: Text(
                               '$_notificationCount',
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -900,12 +1005,12 @@ content: const Text(
                       backgroundColor: const Color(0xFFFF5B01),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: const StadiumBorder(),
                     ),
                     child: const Text(
                       "Login",
-
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -913,13 +1018,18 @@ content: const Text(
                   // White Sign up pill with orange text/border
                   OutlinedButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => UserAuthScreen()));
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const SignupChoiceScreen()));
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFFF5B01),
                       backgroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFFFF5B01), width: 0),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      side:
+                          const BorderSide(color: Color(0xFFFF5B01), width: 0),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       shape: const StadiumBorder(),
                     ),
                     child: const Text(
@@ -934,57 +1044,67 @@ content: const Text(
           }),
         ],
       ),
-
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/home-bg.png'),
+            image: AssetImage('assets/image/home2-bg.png'),
             fit: BoxFit.cover,
+            opacity: 0.5,
             alignment: Alignment.topCenter,
           ),
         ),
         child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 12),
-              if (loggedIn && !_profileComplete) ...[
-                _profileIncompleteBanner(context),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
                 const SizedBox(height: 12),
+                if (loggedIn && !_profileComplete) ...[
+                  _profileIncompleteBanner(context),
+                  const SizedBox(height: 12),
+                ],
+                const Text(
+                  '24×7 at your Doorstep',
+                  style: TextStyle(
+                      color: Color(0xFFFF5C00),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20),
+                ),
+                const SizedBox(height: 16),
+                // Carousel banner with backend quote image and fallback slide
+                _heroCarousel(context),
+                const SizedBox(height: 16),
+                _ctaButton(context),
+                const SizedBox(height: 20),
+                _servicesGrid(context),
+                const SizedBox(height: 24),
+                if (!loggedIn)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: FooterGlass(
+                      isLoggedIn: loggedIn,
+                    ),
+                  ),
+                SizedBox(height: loggedIn ? 90 : 0),
               ],
-              const Text(
-                '24×7 at your Doorstep',
-                style: TextStyle(color: Color(0xFFFF5C00), fontWeight: FontWeight.w900, fontSize: 20),
-
-              ),
-              const SizedBox(height: 16),
-              // Carousel banner with backend quote image and fallback slide
-              _heroCarousel(context),
-              const SizedBox(height: 16),
-              _ctaButton(context),
-              const SizedBox(height: 20),
-              _servicesGrid(context),
-              SizedBox(height: loggedIn ? 90 : 24),
-            ],
+            ),
           ),
         ),
       ),
-      ),
-
-  bottomNavigationBar: loggedIn ? _bottomNav(context) : null,
+      bottomNavigationBar: loggedIn ? _bottomNav(context) : null,
     );
   }
 
   // ===== Helpers =====
 
   void _openLoginScreen(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreenStyled()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const LoginScreenStyled()));
   }
 
   void _openOverflowPanel() {
-  _scaffoldKey.currentState?.openEndDrawer();
+    _scaffoldKey.currentState?.openEndDrawer();
   }
 
   // Drawer helper with glass-ish styling similar to trainer dashboard
@@ -1014,10 +1134,15 @@ content: const Text(
                       children: [
                         Text(
                           _greetingName.isNotEmpty ? _greetingName : 'User',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 2),
-                        const Text('View and edit profile', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        const Text('View and edit profile',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -1033,7 +1158,9 @@ content: const Text(
                             Navigator.pop(context);
                             await Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => ProfileFillScreen(editableBasics: true)),
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProfileFillScreen(editableBasics: true)),
                             );
                             await _loadProfileState();
                           },
@@ -1043,26 +1170,18 @@ content: const Text(
                           label: 'My Bookings',
                           onTap: () {
                             Navigator.pop(context);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const BookingScreen()));
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const BookingScreen()));
                           },
                         ),
-                      
                         _drawerItem(
                           icon: Icons.policy,
                           label: 'Support & Policies',
                           onTap: () {
                             Navigator.pop(context);
                             _openSupportAndPoliciesSheet(context);
-                          },
-                        ),
-                    
-                    
-                        _drawerItem(
-                          icon: Icons.settings_outlined,
-                          label: 'Settings',
-                          onTap: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings coming soon')));
                           },
                         ),
                         _drawerItem(
@@ -1076,7 +1195,8 @@ content: const Text(
                         const Divider(height: 16, color: Colors.white24),
                         ListTile(
                           leading: const Icon(Icons.logout, color: Colors.red),
-                          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                          title: const Text('Logout',
+                              style: TextStyle(color: Colors.red)),
                           onTap: () async {
                             Navigator.pop(context);
                             await _confirmAndLogout(context);
@@ -1109,14 +1229,14 @@ content: const Text(
           title: Text(label, style: const TextStyle(color: Colors.white)),
           trailing: const Icon(Icons.chevron_right, color: Colors.white54),
           onTap: onTap,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
   }
 
   // _trainerCard removed after extracting FeaturedTrainersSection
-
 
   // _dietCard helper removed
 
@@ -1133,7 +1253,8 @@ content: const Text(
           border: Border.all(color: Colors.white.withOpacity(0.18), width: 1),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6B46C1).withOpacity(0.25), // subtle purple glow like screenshot
+              color: const Color(0xFF6B46C1)
+                  .withOpacity(0.25), // subtle purple glow like screenshot
               blurRadius: 20,
               spreadRadius: 0,
               offset: const Offset(0, 8),
@@ -1160,10 +1281,12 @@ content: const Text(
                 backgroundColor: Colors.white.withOpacity(0.12),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 shape: const StadiumBorder(),
               ),
-              child: const Text('Update Profile', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('Update Profile',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -1264,15 +1387,18 @@ content: const Text(
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF5B01),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
-  onPressed: () {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ConsultationScreen()));
-  },
+        onPressed: () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const ConsultationScreen()));
+        },
         child: const Text(
           'BOOK YOUR FREE CONSULTATION',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
         ),
       ),
     );
@@ -1283,7 +1409,7 @@ content: const Text(
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-  childAspectRatio: 0.85,
+      childAspectRatio: 0.85,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
@@ -1291,15 +1417,18 @@ content: const Text(
           title: 'Fitness Trainers',
           image: 'assets/image/Frame 30.png',
           alignment: Alignment.center,
-          imageHeight:   130,
+          imageHeight: 130,
           titleStyle: const TextStyle(
             color: Colors.white,
             fontSize: 18,
             height: 0.001,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FindTrainersScreen())),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const FindTrainersScreen())),
         ),
         _serviceCard(
           title: 'Yoga Trainers',
@@ -1311,9 +1440,12 @@ content: const Text(
             fontSize: 18,
             height: 0.01,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const YogaScreen())),
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const YogaScreen())),
         ),
         _serviceCard(
           title: 'Nutritionists',
@@ -1325,12 +1457,15 @@ content: const Text(
             fontSize: 18,
             height: 0.01,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NutritionScreen())),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const NutritionScreen())),
         ),
         _serviceCard(
-          title: 'psychiatrists',
+          title: 'Psychiatrists',
           image: 'assets/image/Frame 30-4.png',
           alignment: Alignment.center,
           imageHeight: 130,
@@ -1339,9 +1474,12 @@ content: const Text(
             fontSize: 18,
             height: 0.01,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const CounsellorScreen())),
         ),
         _serviceCard(
           title: 'Sports Trainers',
@@ -1353,9 +1491,12 @@ content: const Text(
             fontSize: 18,
             height: 0.01,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const SportsTrainerScreen())),
         ),
         _serviceCard(
           title: 'Physiotherapists',
@@ -1367,9 +1508,14 @@ content: const Text(
             fontSize: 18,
             height: 0.01,
             fontWeight: FontWeight.w900,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))],
+            shadows: [
+              Shadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 2))
+            ],
           ),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CounsellorScreen())),
+          onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const PhysiotherapistsScreen())),
         ),
       ],
     );
@@ -1381,7 +1527,7 @@ content: const Text(
     required VoidCallback onTap,
     Alignment alignment = Alignment.center,
     double imageHeight = 217,
-  TextStyle? titleStyle,
+    TextStyle? titleStyle,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -1390,7 +1536,10 @@ content: const Text(
           color: Colors.white.withOpacity(0.06),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: Colors.white.withOpacity(0.12)),
-          boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 6))],
+          boxShadow: const [
+            BoxShadow(
+                color: Colors.black54, blurRadius: 10, offset: Offset(0, 6))
+          ],
         ),
         child: Stack(
           children: [
@@ -1400,7 +1549,9 @@ content: const Text(
               top: 0,
               height: imageHeight,
               child: ClipRRect(
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+                borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24)),
                 child: Image.asset(
                   image,
                   fit: BoxFit.cover,
@@ -1415,12 +1566,18 @@ content: const Text(
               child: Center(
                 child: Text(
                   title,
-                  style: titleStyle ?? const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
-                    shadows: [Shadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2))],
-                  ),
+                  style: titleStyle ??
+                      const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 20,
+                        shadows: [
+                          Shadow(
+                              color: Colors.black54,
+                              blurRadius: 6,
+                              offset: Offset(0, 2))
+                        ],
+                      ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -1431,13 +1588,23 @@ content: const Text(
               bottom: 14,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF5C00),
                     borderRadius: BorderRadius.circular(30),
-                    boxShadow: const [BoxShadow(color: Color(0x66FF5C00), blurRadius: 10, offset: Offset(0, 7))],
+                    boxShadow: const [
+                      BoxShadow(
+                          color: Color(0x66FF5C00),
+                          blurRadius: 10,
+                          offset: Offset(0, 7))
+                    ],
                   ),
-                  child: const Text('Book Now', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  child: const Text('Book Now',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
                 ),
               ),
             ),
@@ -1448,14 +1615,12 @@ content: const Text(
   }
 
   Widget _bottomNav(BuildContext context) {
-   
     final List<_BottomItem> items = [
-            _BottomItem(Icons.home, 'Home'),
-            _BottomItem(Icons.account_balance_wallet_outlined, 'Wallet'),
-            _BottomItem(Icons.notifications_none, 'Notification'),
-            _BottomItem(Icons.person_outline, 'Account'),
-          ];
-  
+      _BottomItem(Icons.home, 'Home'),
+      _BottomItem(Icons.account_balance_wallet_outlined, 'Wallet'),
+      _BottomItem(Icons.notifications_none, 'Notification'),
+      _BottomItem(Icons.person_outline, 'Account'),
+    ];
 
     return Container(
       height: 84,
@@ -1485,7 +1650,9 @@ content: const Text(
                 const SizedBox(height: 12),
                 Icon(i.icon, color: const Color(0xFFFF5503)),
                 const SizedBox(height: 6),
-                Text(i.label, style: const TextStyle(color: Color(0xFFD4D4D4), fontSize: 12)),
+                Text(i.label,
+                    style: const TextStyle(
+                        color: Color(0xFFD4D4D4), fontSize: 12)),
               ],
             ),
           );
@@ -1496,7 +1663,8 @@ content: const Text(
 
   Widget _userGreetingPill(BuildContext context) {
     final name = _greetingName.isNotEmpty ? _greetingName : 'User';
-    final initials = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+    final initials =
+        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -1510,11 +1678,14 @@ content: const Text(
           CircleAvatar(
             radius: 16,
             backgroundColor: Colors.white12,
-            backgroundImage: (_userImageUrl != null && _userImageUrl!.startsWith('http'))
-                ? NetworkImage(_userImageUrl!)
-                : null,
+            backgroundImage:
+                (_userImageUrl != null && _userImageUrl!.startsWith('http'))
+                    ? NetworkImage(_userImageUrl!)
+                    : null,
             child: (_userImageUrl == null || !_userImageUrl!.startsWith('http'))
-                ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))
+                ? Text(initials,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700))
                 : null,
           ),
           const SizedBox(width: 10),
@@ -1524,7 +1695,10 @@ content: const Text(
             children: [
               Text(
                 'Hello  $name',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14),
               ),
               // Location intentionally omitted per request
             ],

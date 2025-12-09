@@ -17,15 +17,18 @@ import '../trainer/kyc/trainer_kyc_wizard.dart';
 import '../../state/auth_manager.dart';
 import '../../services/fitstreet_api.dart';
 import '../../utils/kyc_utils.dart';
+import '../../constants/specializations.dart';
 
 class TrainerProfileEditRestrictedScreen extends StatefulWidget {
   const TrainerProfileEditRestrictedScreen({super.key});
 
   @override
-  State<TrainerProfileEditRestrictedScreen> createState() => _TrainerProfileEditRestrictedScreenState();
+  State<TrainerProfileEditRestrictedScreen> createState() =>
+      _TrainerProfileEditRestrictedScreenState();
 }
 
-class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditRestrictedScreen> {
+class _TrainerProfileEditRestrictedScreenState
+    extends State<TrainerProfileEditRestrictedScreen> {
   // Readonly fields
   String _name = '';
   String _mobile = '';
@@ -34,11 +37,11 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   String _city = '';
   String _state = '';
   String _address = '';
- // String _pan = '';
- // String _aadhaar = '';
- // String? _panFrontUrl;
- // String? _aadhaarFrontUrl;
- // String? _aadhaarBackUrl;
+  // String _pan = '';
+  // String _aadhaar = '';
+  // String? _panFrontUrl;
+  // String? _aadhaarFrontUrl;
+  // String? _aadhaarBackUrl;
 
   // KYC status
   bool _isKycCompleted = false;
@@ -53,7 +56,6 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   final _emgNameCtrl = TextEditingController();
   final _emgRelCtrl = TextEditingController();
   final _emgMobileCtrl = TextEditingController();
-
 
   String? _experience; // dropdown
   final Set<String> _languages = {};
@@ -80,7 +82,11 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   ];
 
   String _normalizeExperience(String s) {
-    final v = s.trim().toLowerCase().replaceAll('yrs', 'years').replaceAll('yr', 'year');
+    final v = s
+        .trim()
+        .toLowerCase()
+        .replaceAll('yrs', 'years')
+        .replaceAll('yr', 'year');
     if (v.contains('<1')) return '<1 year';
     if (v.contains('1-3')) return '1-3 years';
     if (v.contains('3-5')) return '3-5 years';
@@ -123,7 +129,7 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   @override
   void dispose() {
     _emailCtrl.dispose();
-  _bioCtrl.dispose();
+    _bioCtrl.dispose();
     _pincodectrl.dispose();
     _addressCtrl.dispose();
     _cityCtrl.dispose();
@@ -137,27 +143,35 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     super.dispose();
   }
 
-
   Future<void> _refreshKycStatus() async {
     // Quick KYC status check without full reload
     try {
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       String? trainerId;
-      try { trainerId = await context.read<AuthManager>().getApiTrainerId(); } catch (_) {}
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      try {
+        trainerId = await context.read<AuthManager>().getApiTrainerId();
+      } catch (_) {}
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
       if (trainerId == null || trainerId.isEmpty) return;
 
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
       final res = await api.getTrainer(trainerId);
       if (res.statusCode == 200) {
-        dynamic body; try { body = jsonDecode(res.body); } catch (_) { body = res.body; }
+        dynamic body;
+        try {
+          body = jsonDecode(res.body);
+        } catch (_) {
+          body = res.body;
+        }
         final data = (body is Map) ? (body['data'] ?? body) : null;
         if (data is Map) {
           final wasKycCompleted = _isKycCompleted;
           // Convert to Map<String, dynamic> for type safety
-          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
-          
+          final Map<String, dynamic> trainerData =
+              Map<String, dynamic>.from(data);
+
           // Check KYC status using utility function
           _isKycCompleted = KycUtils.isKycCompleted(trainerData);
 
@@ -166,7 +180,9 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
             setState(() {});
             if (_isKycCompleted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('KYC completed! You can now edit your profile.')),
+                const SnackBar(
+                    content:
+                        Text('KYC completed! You can now edit your profile.')),
               );
             }
           }
@@ -183,11 +199,15 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       String? trainerId;
-      try { trainerId = await context.read<AuthManager>().getApiTrainerId(); } catch (_) {}
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      try {
+        trainerId = await context.read<AuthManager>().getApiTrainerId();
+      } catch (_) {}
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
       if (trainerId == null || trainerId.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer id not found. Please login again.')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Trainer id not found. Please login again.')));
         }
         return;
       }
@@ -195,17 +215,24 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       final api = FitstreetApi('https://api.fitstreet.in', token: token);
       final res = await api.getTrainer(trainerId);
       if (res.statusCode == 200) {
-        dynamic body; try { body = jsonDecode(res.body); } catch (_) { body = res.body; }
+        dynamic body;
+        try {
+          body = jsonDecode(res.body);
+        } catch (_) {
+          body = res.body;
+        }
         final data = (body is Map) ? (body['data'] ?? body) : null;
         if (data is Map) {
           // readonly
           _name = (data['fullName'] ?? data['name'] ?? '').toString();
           _mobile = (data['mobileNumber'] ?? data['mobile'] ?? '').toString();
           // dob and gender are read-only and unused in this screen
-          _pincode = (data['pincode'] ?? data['currentPincode'] ?? '').toString();
+          _pincode =
+              (data['pincode'] ?? data['currentPincode'] ?? '').toString();
           _city = (data['city'] ?? data['currentCity'] ?? '').toString();
           _state = (data['state'] ?? data['currentState'] ?? '').toString();
-          _address = (data['address'] ?? data['currentAddress'] ?? '').toString();
+          _address =
+              (data['address'] ?? data['currentAddress'] ?? '').toString();
 
           // populate controllers for editable fields
           _pincodectrl.text = _pincode;
@@ -214,23 +241,27 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           _addressCtrl.text = _address;
 
           //  _pan = (data['panCard'] ?? '').toString();
-        //  _aadhaar = (data['aadhaarCard'] ?? '').toString();
-        //  _panFrontUrl = data['panFrontImageURL']?.toString();
-       //   _aadhaarFrontUrl = data['aadhaarFrontImageURL']?.toString();
-       //   _aadhaarBackUrl = data['aadhaarBackImageURL']?.toString();
+          //  _aadhaar = (data['aadhaarCard'] ?? '').toString();
+          //  _panFrontUrl = data['panFrontImageURL']?.toString();
+          //   _aadhaarFrontUrl = data['aadhaarFrontImageURL']?.toString();
+          //   _aadhaarBackUrl = data['aadhaarBackImageURL']?.toString();
 
           // Convert to Map<String, dynamic> for type safety
-          final Map<String, dynamic> trainerData = Map<String, dynamic>.from(data);
-          
+          final Map<String, dynamic> trainerData =
+              Map<String, dynamic>.from(data);
+
           // Check KYC status using utility function
           _isKycCompleted = KycUtils.isKycCompleted(trainerData);
 
           // editable
           _emailCtrl.text = (data['email'] ?? '').toString();
-          _bioCtrl.text = (data['bioData'] ?? data['bio'] ?? data['biodata'] ?? '').toString();
+          _bioCtrl.text =
+              (data['bioData'] ?? data['bio'] ?? data['biodata'] ?? '')
+                  .toString();
           _emgNameCtrl.text = (data['emergencyPersonName'] ?? '').toString();
           _emgRelCtrl.text = (data['emergencyPersonRelation'] ?? '').toString();
-          _emgMobileCtrl.text = (data['emergencyPersonMobile'] ?? '').toString();
+          _emgMobileCtrl.text =
+              (data['emergencyPersonMobile'] ?? '').toString();
 
           final expRaw = (data['experience'] ?? '').toString();
           if (expRaw.isNotEmpty) {
@@ -241,7 +272,10 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           }
           final langs = (data['languages'] ?? '').toString();
           if (langs.isNotEmpty) {
-            _languages.addAll(langs.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
+            _languages.addAll(langs
+                .split(',')
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty));
           }
 
           final one = data['oneSessionPrice'];
@@ -256,23 +290,27 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
               final lb = jsonDecode(listRes.body);
               final arr = (lb is Map) ? (lb['data'] ?? lb['proofs'] ?? lb) : lb;
               if (arr is List) {
-                _specsOriginal
-                  ..clear();
+                _specsOriginal..clear();
                 _specRows
-                  ..forEach((r){ r.dispose(); })
+                  ..forEach((r) {
+                    r.dispose();
+                  })
                   ..clear();
                 for (final item in arr) {
                   if (item is Map) {
                     final spec = _SpecItem(
                       id: (item['_id'] ?? item['id'])?.toString(),
                       specialization: (item['specialization'] ?? '').toString(),
-                      certificateName: (item['certificateName'] ?? '').toString(),
+                      certificateName:
+                          (item['certificateName'] ?? '').toString(),
                       imageUrl: item['certificateImageURL']?.toString(),
                     );
                     _specsOriginal.add(spec);
                     _specRows.add(_SpecRowEdit(
                       id: spec.id,
-                      specialization: spec.specialization.isEmpty ? null : spec.specialization,
+                      specialization: spec.specialization.isEmpty
+                          ? null
+                          : spec.specialization,
                       certificateName: spec.certificateName,
                       existingImageUrl: spec.imageUrl,
                     ));
@@ -288,7 +326,8 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Load failed: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Load failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -307,11 +346,15 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       final sp = await SharedPreferences.getInstance();
       final token = sp.getString('fitstreet_token') ?? '';
       String? trainerId;
-      try { trainerId = await context.read<AuthManager>().getApiTrainerId(); } catch (_) {}
-      trainerId ??= sp.getString('fitstreet_trainer_db_id') ?? sp.getString('fitstreet_trainer_id');
+      try {
+        trainerId = await context.read<AuthManager>().getApiTrainerId();
+      } catch (_) {}
+      trainerId ??= sp.getString('fitstreet_trainer_db_id') ??
+          sp.getString('fitstreet_trainer_id');
       if (trainerId == null || trainerId.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Trainer id not found. Please login again.')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Trainer id not found. Please login again.')));
         return;
       }
 
@@ -327,38 +370,50 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
 
       final fields = <String, dynamic>{
         'email': _emailCtrl.text.trim(),
-  if (_bioCtrl.text.trim().isNotEmpty) 'bioData': _bioCtrl.text.trim(),
+        if (_bioCtrl.text.trim().isNotEmpty) 'bioData': _bioCtrl.text.trim(),
         // include both variants to be safe; backend may expect either
         if (pinToSend != null && pinToSend.isNotEmpty) 'pincode': pinToSend,
-        if (pinToSend != null && pinToSend.isNotEmpty) 'currentPincode': pinToSend,
-        if (_addressCtrl.text.trim().isNotEmpty) 'currentAddress': _addressCtrl.text.trim(),
-        if (_addressCtrl.text.trim().isNotEmpty) 'address': _addressCtrl.text.trim(),
-        if (_cityCtrl.text.trim().isNotEmpty) 'currentCity': _cityCtrl.text.trim(),
+        if (pinToSend != null && pinToSend.isNotEmpty)
+          'currentPincode': pinToSend,
+        if (_addressCtrl.text.trim().isNotEmpty)
+          'currentAddress': _addressCtrl.text.trim(),
+        if (_addressCtrl.text.trim().isNotEmpty)
+          'address': _addressCtrl.text.trim(),
+        if (_cityCtrl.text.trim().isNotEmpty)
+          'currentCity': _cityCtrl.text.trim(),
         if (_cityCtrl.text.trim().isNotEmpty) 'city': _cityCtrl.text.trim(),
-        if (_stateCtrl.text.trim().isNotEmpty) 'currentState': _stateCtrl.text.trim(),
+        if (_stateCtrl.text.trim().isNotEmpty)
+          'currentState': _stateCtrl.text.trim(),
         if (_stateCtrl.text.trim().isNotEmpty) 'state': _stateCtrl.text.trim(),
 
-        if (_emgNameCtrl.text.trim().isNotEmpty) 'emergencyPersonName': _emgNameCtrl.text.trim(),
-        if (_emgRelCtrl.text.trim().isNotEmpty) 'emergencyPersonRelation': _emgRelCtrl.text.trim(),
-        if (_emgMobileCtrl.text.trim().isNotEmpty) 'emergencyPersonMobile': _emgMobileCtrl.text.trim(),
-        if (_experience != null && _experience!.isNotEmpty) 'experience': _toBackendExperience(_experience),
+        if (_emgNameCtrl.text.trim().isNotEmpty)
+          'emergencyPersonName': _emgNameCtrl.text.trim(),
+        if (_emgRelCtrl.text.trim().isNotEmpty)
+          'emergencyPersonRelation': _emgRelCtrl.text.trim(),
+        if (_emgMobileCtrl.text.trim().isNotEmpty)
+          'emergencyPersonMobile': _emgMobileCtrl.text.trim(),
+        if (_experience != null && _experience!.isNotEmpty)
+          'experience': _toBackendExperience(_experience),
         if (_languages.isNotEmpty) 'languages': _languages.join(','),
-        if (_oneSessionPriceCtrl.text.trim().isNotEmpty) 'oneSessionPrice': _oneSessionPriceCtrl.text.trim(),
-        if (_monthlyPriceCtrl.text.trim().isNotEmpty) 'monthlySessionPrice': _monthlyPriceCtrl.text.trim(),
+        if (_oneSessionPriceCtrl.text.trim().isNotEmpty)
+          'oneSessionPrice': _oneSessionPriceCtrl.text.trim(),
+        if (_monthlyPriceCtrl.text.trim().isNotEmpty)
+          'monthlySessionPrice': _monthlyPriceCtrl.text.trim(),
       };
 
       // debug: print payload so you can inspect before sending
       debugPrint('Saving profile fields: ${jsonEncode(fields)}');
 
-
-
-      final streamed = await api.updateTrainerProfileMultipart(trainerId, fields: fields);
+      final streamed =
+          await api.updateTrainerProfileMultipart(trainerId, fields: fields);
       final resp = await http.Response.fromStream(streamed);
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         // Now sync specializations based on _specRows vs _specsOriginal
         // 1) Delete removed proofs
-        final originalIds = _specsOriginal.map((e) => e.id).whereType<String>().toSet();
-        final currentIds = _specRows.map((e) => e.id).whereType<String>().toSet();
+        final originalIds =
+            _specsOriginal.map((e) => e.id).whereType<String>().toSet();
+        final currentIds =
+            _specRows.map((e) => e.id).whereType<String>().toSet();
         final toDelete = originalIds.difference(currentIds);
         for (final id in toDelete) {
           final del = await api.deleteSpecializationProof(trainerId, id);
@@ -373,26 +428,31 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           if (spec.isEmpty) continue; // skip empty rows
           final certName = row.certificateNameCtrl.text.trim();
 
-          final isChanged = row.id == null
-              || row.originalSpecialization != row.specialization
-              || (row.originalCertificateName ?? '') != certName
-              || row.certificatePhotoPath != null; // photo replaced
+          final isChanged = row.id == null ||
+              row.originalSpecialization != row.specialization ||
+              (row.originalCertificateName ?? '') != certName ||
+              row.certificatePhotoPath != null; // photo replaced
 
           if (row.id == null || isChanged) {
             if (row.id != null && isChanged) {
-              final del = await api.deleteSpecializationProof(trainerId, row.id!);
+              final del =
+                  await api.deleteSpecializationProof(trainerId, row.id!);
               if (del.statusCode != 200 && del.statusCode != 201) {
                 throw Exception('Failed to update specialization');
               }
             }
             if (row.certificatePhotoPath != null) {
               final file = File(row.certificatePhotoPath!);
-              final create = await api.createSpecializationProof(trainerId, spec, file, certificateName: certName.isEmpty ? null : certName);
+              final create = await api.createSpecializationProof(
+                  trainerId, spec, file,
+                  certificateName: certName.isEmpty ? null : certName);
               if (create.statusCode != 200 && create.statusCode != 201) {
                 throw Exception('Failed to add specialization');
               }
             } else {
-              final create = await api.createSpecializationProofMinimal(trainerId, spec, certificateName: certName.isEmpty ? null : certName);
+              final create = await api.createSpecializationProofMinimal(
+                  trainerId, spec,
+                  certificateName: certName.isEmpty ? null : certName);
               if (create.statusCode != 200 && create.statusCode != 201) {
                 throw Exception('Failed to add specialization');
               }
@@ -400,22 +460,28 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           }
         }
 
-        try { await context.read<AuthManager>().fetchTrainerProfile(trainerId); } catch (_) {}
+        try {
+          await context.read<AuthManager>().fetchTrainerProfile(trainerId);
+        } catch (_) {}
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile updated')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Profile updated')));
         Navigator.pop(context, true);
       } else {
         String msg = 'Failed (${resp.statusCode})';
         try {
           final b = jsonDecode(resp.body);
-          if (b is Map && (b['message'] != null || b['error'] != null)) msg = (b['message'] ?? b['error']).toString();
+          if (b is Map && (b['message'] != null || b['error'] != null))
+            msg = (b['message'] ?? b['error']).toString();
         } catch (_) {}
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -428,12 +494,15 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: AppColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
               SizedBox(width: 8),
-              Text('KYC Required', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('KYC Required',
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           content: const Text(
@@ -494,7 +563,8 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
           children: [
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                  color: Colors.white),
               onPressed: () => Navigator.pop(context),
               tooltip: 'Back',
             ),
@@ -506,7 +576,8 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
             ),
           ],
         ),
-        title: const Text('View & Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        title: const Text('View & Edit Profile',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         flexibleSpace: ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
@@ -517,8 +588,10 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/image/bg.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.35)),
+          ColorFiltered(
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+            child: Image.asset('assets/image/home2-bg.png', fit: BoxFit.cover),
+          ),
           _loading
               ? const Center(child: CircularProgressIndicator())
               : SafeArea(
@@ -526,158 +599,243 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                     child: Column(
                       children: [
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Personal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          _ro('Name', _name),
-                          _ro('Mobile', _mobile),
-
-                          // Bio (editable after KYC)
-                          field('Bio (about you)', _bioCtrl, readOnly: !_isKycCompleted, maxLines: 4),
-
-                          // Editable current address fields
-                          field('Current Address', _addressCtrl, readOnly: false),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            Expanded(child: field('Current City', _cityCtrl, readOnly: false)),
-                            const SizedBox(width: 8),
-                            Expanded(child: field('Current State', _stateCtrl, readOnly: false)),
-                          ]),
-                          const SizedBox(height: 8),
-                          field('Current Pincode', _pincodectrl, readOnly: false, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(6)]),
-
-                          const SizedBox(height: 8),
-
-
-                        ]),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // KYC Status Banner
-                    if (!_isKycCompleted)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 24),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
-                                    'Complete KYC to Edit Profile',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Your profile is read-only until KYC verification is completed. Complete your KYC to edit your profile.',
-                                    style: TextStyle(color: Colors.white, fontSize: 14),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: _navigateToKyc,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: Colors.orange,
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              ),
-                              child: const Text('Complete KYC', style: TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ],
+                                  const Text('Personal',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  _ro('Name', _name),
+                                  _ro('Mobile', _mobile),
+
+                                  // Bio (editable after KYC)
+                                  field('Bio (about you)', _bioCtrl,
+                                      readOnly: !_isKycCompleted, maxLines: 4),
+
+                                  // Editable current address fields
+                                  field('Current Address', _addressCtrl,
+                                      readOnly: false),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                        child: field('Current City', _cityCtrl,
+                                            readOnly: false)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: field(
+                                            'Current State', _stateCtrl,
+                                            readOnly: false)),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  field('Current Pincode', _pincodectrl,
+                                      readOnly: false,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(6)
+                                      ]),
+
+                                  const SizedBox(height: 8),
+                                ]),
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 12),
 
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Contact & Emergency', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          field('Email', _emailCtrl, readOnly: !_isKycCompleted, validator: (v){
-                            if (v==null || v.trim().isEmpty) return null; // optional
-                            final ok = RegExp(r'^.+@.+\..+').hasMatch(v.trim());
-                            return ok ? null : 'Invalid email';
-                          }),
-                          field('Emergency Name', _emgNameCtrl, readOnly: !_isKycCompleted),
-                          field('Emergency Relation', _emgRelCtrl, readOnly: !_isKycCompleted),
-                          field('Emergency Mobile', _emgMobileCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)]),
-                        ]),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Professional', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          _experienceRow(disabled: !_isKycCompleted),
-                          const SizedBox(height: 8),
-                          _languagesRow(disabled: !_isKycCompleted),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            Expanded(child: field('One session price', _oneSessionPriceCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
-                            const SizedBox(width: 8),
-                            Expanded(child: field('Monthly package price', _monthlyPriceCtrl, readOnly: !_isKycCompleted, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly])),
-                          ]),
-                        ]),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Text('Specializations', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          // Stacked rows like ProfessionalStep
-                          ..._specRows.asMap().entries.map((e) => _stackedSpecRowEdit(e.value, e.key)).toList(),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              onPressed: (_saving || !_isKycCompleted) ? null : () => setState(() { _specRows.add(_SpecRowEdit()); }),
-                              icon: const Icon(Icons.add, color: Colors.white),
-                              label: const Text('Add more', style: TextStyle(color: Colors.white)),
+                        // KYC Status Banner
+                        if (!_isKycCompleted)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.orange.shade300),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.warning_amber_rounded,
+                                    color: Colors.white, size: 24),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Complete KYC to Edit Profile',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        'Your profile is read-only until KYC verification is completed. Complete your KYC to edit your profile.',
+                                        style: TextStyle(
+                                            color: Colors.white, fontSize: 14),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: _navigateToKyc,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    foregroundColor: Colors.orange,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                  ),
+                                  child: const Text('Complete KYC',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
                             ),
                           ),
-                        ]),
-                      ),
-                    ),
 
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: (_saving || !_isKycCompleted) ? null : _save,
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.white12, padding: const EdgeInsets.symmetric(vertical: 14)),
-                        child: _saving
-                            ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Save', style: TextStyle(color: Colors.white, fontSize: 16)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Contact & Emergency',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  field('Email', _emailCtrl,
+                                      readOnly: !_isKycCompleted,
+                                      validator: (v) {
+                                    if (v == null || v.trim().isEmpty)
+                                      return null; // optional
+                                    final ok = RegExp(r'^.+@.+\..+')
+                                        .hasMatch(v.trim());
+                                    return ok ? null : 'Invalid email';
+                                  }),
+                                  field('Emergency Name', _emgNameCtrl,
+                                      readOnly: !_isKycCompleted),
+                                  field('Emergency Relation', _emgRelCtrl,
+                                      readOnly: !_isKycCompleted),
+                                  field('Emergency Mobile', _emgMobileCtrl,
+                                      readOnly: !_isKycCompleted,
+                                      keyboardType: TextInputType.phone,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                        LengthLimitingTextInputFormatter(10)
+                                      ]),
+                                ]),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Professional',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  _experienceRow(disabled: !_isKycCompleted),
+                                  const SizedBox(height: 8),
+                                  _languagesRow(disabled: !_isKycCompleted),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
+                                    Expanded(
+                                        child: field('One session price',
+                                            _oneSessionPriceCtrl,
+                                            readOnly: !_isKycCompleted,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly
+                                        ])),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                        child: field('Monthly package price',
+                                            _monthlyPriceCtrl,
+                                            readOnly: !_isKycCompleted,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [
+                                          FilteringTextInputFormatter.digitsOnly
+                                        ])),
+                                  ]),
+                                ]),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+                        GlassCard(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Specializations',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  // Stacked rows like ProfessionalStep
+                                  ..._specRows
+                                      .asMap()
+                                      .entries
+                                      .map((e) =>
+                                          _stackedSpecRowEdit(e.value, e.key))
+                                      .toList(),
+                                  const SizedBox(height: 8),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: (_saving || !_isKycCompleted)
+                                          ? null
+                                          : () => setState(() {
+                                                _specRows.add(_SpecRowEdit());
+                                              }),
+                                      icon: const Icon(Icons.add,
+                                          color: Colors.white),
+                                      label: const Text('Add more',
+                                          style:
+                                              TextStyle(color: Colors.white)),
+                                    ),
+                                  ),
+                                ]),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed:
+                                (_saving || !_isKycCompleted) ? null : _save,
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white12,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14)),
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Text('Save',
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 16)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -692,9 +850,14 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          SizedBox(width: 130, child: Text(label, style: const TextStyle(color: Colors.white70))),
+          SizedBox(
+              width: 130,
+              child:
+                  Text(label, style: const TextStyle(color: Colors.white70))),
           const SizedBox(width: 8),
-          Expanded(child: Text(value.isEmpty ? '—' : value, style: const TextStyle(color: Colors.white))),
+          Expanded(
+              child: Text(value.isEmpty ? '—' : value,
+                  style: const TextStyle(color: Colors.white))),
         ],
       ),
     );
@@ -702,7 +865,6 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
 
   // ---- Specialization editor UI ----
   Widget _stackedSpecRowEdit(_SpecRowEdit r, int index) {
-    final specOptions = _specializationOptions;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -714,62 +876,99 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Expanded(
-            child: DropdownButtonFormField<String>(
-              dropdownColor: Colors.black87,
-              style: const TextStyle(color: Colors.white),
-              decoration: glassInput().copyWith(labelText: 'Specialisation'),
-              value: r.specialization != null && specOptions.contains(r.specialization) ? r.specialization : null,
-              items: specOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-              onChanged: !_isKycCompleted ? null : (v) => setState(() => r.specialization = v),
-              validator: (v) => (v==null || v.isEmpty) ? 'Choose' : null,
-              disabledHint: r.specialization != null ? Text(r.specialization!, style: const TextStyle(color: Colors.white70)) : null,
+            child: FormField<String>(
+              validator: (_) =>
+                  (r.specialization == null || r.specialization!.trim().isEmpty)
+                      ? 'Choose'
+                      : null,
+              builder: (formState) => InkWell(
+                onTap: !_isKycCompleted
+                    ? null
+                    : () => _openSpecializationPickerEdit(
+                        row: r, formState: formState),
+                child: InputDecorator(
+                  decoration: glassInput().copyWith(
+                      labelText: 'Specialization',
+                      errorText: formState.errorText),
+                  child: Text(
+                    (r.specialization == null || r.specialization!.isEmpty)
+                        ? 'Tap to select'
+                        : r.specialization!,
+                    style: TextStyle(
+                      color: (r.specialization == null ||
+                              r.specialization!.isEmpty)
+                          ? Colors.white70
+                          : Colors.white,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
         ]),
         const SizedBox(height: 10),
-        field('Certificate Name (optional)', r.certificateNameCtrl, readOnly: !_isKycCompleted),
+        field('Certificate Name (optional)', r.certificateNameCtrl,
+            readOnly: !_isKycCompleted),
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: InkWell(
-            onTap: !_isKycCompleted ? null : () async {
-              try {
-                final XFile? picked = await _picker.pickImage(source: ImageSource.gallery);
-                if (picked == null) return;
-                setState(() => r.certificatePhotoPath = picked.path);
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Image pick failed: $e')));
-                }
-              }
-            },
+            onTap: !_isKycCompleted
+                ? null
+                : () async {
+                    try {
+                      final XFile? picked =
+                          await _picker.pickImage(source: ImageSource.gallery);
+                      if (picked == null) return;
+                      setState(() => r.certificatePhotoPath = picked.path);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Image pick failed: $e')));
+                      }
+                    }
+                  },
             child: InputDecorator(
-              decoration: glassInput().copyWith(labelText: 'Certificate Photo (optional)'),
+              decoration: glassInput()
+                  .copyWith(labelText: 'Certificate Photo (optional)'),
               child: Row(children: [
-                if (r.certificatePhotoPath == null && (r.existingImageUrl == null || r.existingImageUrl!.isEmpty)) ...[
+                if (r.certificatePhotoPath == null &&
+                    (r.existingImageUrl == null ||
+                        r.existingImageUrl!.isEmpty)) ...[
                   const Icon(Icons.photo, color: Colors.white70),
                   const SizedBox(width: 8),
-                  const Expanded(child: Text('Tap to upload (optional)', style: TextStyle(color: Colors.white70))),
+                  const Expanded(
+                      child: Text('Tap to upload (optional)',
+                          style: TextStyle(color: Colors.white70))),
                 ] else ...[
                   if (r.certificatePhotoPath != null) ...[
                     Container(
-                      width: 64, height: 64,
+                      width: 64,
+                      height: 64,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(6),
-                        image: DecorationImage(image: FileImage(File(r.certificatePhotoPath!)), fit: BoxFit.cover),
+                        image: DecorationImage(
+                            image: FileImage(File(r.certificatePhotoPath!)),
+                            fit: BoxFit.cover),
                       ),
                     ),
                   ] else ...[
                     const Icon(Icons.image, color: Colors.white70),
                     const SizedBox(width: 8),
-                    Expanded(child: Text('Existing photo selected', style: const TextStyle(color: Colors.white70))),
+                    Expanded(
+                        child: Text('Existing photo selected',
+                            style: const TextStyle(color: Colors.white70))),
                   ],
                   const SizedBox(width: 12),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.white70, size: 18),
-                    onPressed: !_isKycCompleted ? null : () => setState(() {
-                      r.certificatePhotoPath = null;
-                      r.existingImageUrl = null; // treat as removed; will recreate if new picked
-                    }),
+                    icon: const Icon(Icons.delete_outline,
+                        color: Colors.white70, size: 18),
+                    onPressed: !_isKycCompleted
+                        ? null
+                        : () => setState(() {
+                              r.certificatePhotoPath = null;
+                              r.existingImageUrl =
+                                  null; // treat as removed; will recreate if new picked
+                            }),
                     tooltip: 'Remove file',
                   )
                 ]
@@ -781,30 +980,221 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
     );
   }
 
+  // Group helpers and picker for restricted edit
+  String? _groupForSpec(String? spec) {
+    if (spec == null || spec.isEmpty) return null;
+    for (final entry in kGroupedSpecializations.entries) {
+      if (entry.value.contains(spec)) return entry.key;
+    }
+    return null;
+  }
+
+  List<String> _getSelectedSpecializationGroupsEdit() {
+    final groups = <String>[];
+    for (final r in _specRows) {
+      final g = _groupForSpec(r.specialization);
+      if (g != null) groups.add(g);
+    }
+    return groups;
+  }
+
+  bool _isGroupDisabledEdit(String group) {
+    const exclusiveGroups = [
+      'Nutrition & Diet Planning',
+      'Mental Health & Counseling',
+      'Sports & Athletics',
+      'Physiotherapist',
+    ];
+    final selectedGroups = _getSelectedSpecializationGroupsEdit();
+
+    final selectedExclusive =
+        selectedGroups.where((g) => exclusiveGroups.contains(g)).toList();
+    if (selectedExclusive.isNotEmpty) {
+      return group != selectedExclusive.first;
+    }
+
+    final selectedNonExclusive =
+        selectedGroups.where((g) => !exclusiveGroups.contains(g)).toList();
+    if (selectedNonExclusive.isNotEmpty) {
+      return exclusiveGroups.contains(group);
+    }
+
+    return false;
+  }
+
+  void _openSpecializationPickerEdit({
+    required _SpecRowEdit row,
+    required FormFieldState<String> formState,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 500),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Select Specialisation',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final entry in kGroupedSpecializations.entries)
+                        Builder(builder: (context) {
+                          final disabled = _isGroupDisabledEdit(entry.key);
+                          final titleStyle = TextStyle(
+                              color: disabled ? Colors.white24 : Colors.white,
+                              fontWeight: FontWeight.w700);
+                          return Theme(
+                            data: Theme.of(ctx)
+                                .copyWith(dividerColor: Colors.white24),
+                            child: IgnorePointer(
+                              ignoring: disabled,
+                              child: Opacity(
+                                opacity: disabled ? 0.5 : 1.0,
+                                child: ExpansionTile(
+                                  initiallyExpanded: false,
+                                  title: Text(entry.key, style: titleStyle),
+                                  childrenPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 6),
+                                  children: [
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        for (final spec in entry.value)
+                                          GestureDetector(
+                                            onTap: () {
+                                              Navigator.pop(ctx);
+                                              setState(() {
+                                                row.specialization = spec;
+                                              });
+                                              formState.didChange(spec);
+                                            },
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color.fromARGB(
+                                                    31, 255, 255, 255),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                border: Border.all(
+                                                    color: Colors.white24),
+                                              ),
+                                              child: Text(spec,
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      fontSize: 12)),
+                                            ),
+                                          ),
+                                      ],
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        row.specialization = null;
+                      });
+                      formState.didChange(null);
+                    },
+                    child: const Text('Clear',
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   List<String> get _specializationOptions => const [
-    'Strength', 
-    'HIIT', 
-    'Yoga', 
-    'Pilates', 'Rehab', 'Zumba',
-    'Prenatal Yoga', 'Postnatal Yoga', 'Recreational Yoga', 'Nutrition', 'Counselors',
-    'Cardio', 'CrossFit', 'Aerobics', 'Bodybuilding', 'Weight Loss', 'Weight Gain',
-    'Yoga Therapy', 'Functional Training', 'Martial Arts', 'Dance Fitness', 'Sports Conditioning',
-  ];
+        'Strength',
+        'HIIT',
+        'Yoga',
+        'Pilates',
+        'Rehab',
+        'Zumba',
+        'Prenatal Yoga',
+        'Postnatal Yoga',
+        'Recreational Yoga',
+        'Nutrition',
+        'Counselors',
+        'Cardio',
+        'CrossFit',
+        'Aerobics',
+        'Bodybuilding',
+        'Weight Loss',
+        'Weight Gain',
+        'Yoga Therapy',
+        'Functional Training',
+        'Martial Arts',
+        'Dance Fitness',
+        'Sports Conditioning',
+      ];
 
   // Removed unused helper _imageChip
 
   Widget _experienceRow({bool disabled = false}) {
     final opts = kExperienceOptions;
     return Row(children: [
-      const SizedBox(width: 130, child: Text('Experience', style: TextStyle(color: Colors.white70))),
+      const SizedBox(
+          width: 130,
+          child: Text('Experience', style: TextStyle(color: Colors.white70))),
       const SizedBox(width: 8),
       Expanded(
         child: DropdownButtonFormField<String>(
           value: opts.contains(_experience) ? _experience : null,
-          items: opts.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          items: opts
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
           onChanged: disabled ? null : (v) => setState(() => _experience = v),
           decoration: glassInput(),
-          disabledHint: _experience != null ? Text(_experience!, style: const TextStyle(color: Colors.white70)) : null,
+          disabledHint: _experience != null
+              ? Text(_experience!,
+                  style: const TextStyle(color: Colors.white70))
+              : null,
           style: const TextStyle(color: Colors.white),
         ),
       ),
@@ -812,29 +1202,46 @@ class _TrainerProfileEditRestrictedScreenState extends State<TrainerProfileEditR
   }
 
   Widget _languagesRow({bool disabled = false}) {
-    final preset = ['English','Hindi'];
+    final preset = ['English', 'Hindi'];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Languages', style: TextStyle(color: Colors.white70)),
       const SizedBox(height: 6),
       Wrap(spacing: 8, runSpacing: 8, children: [
         ...preset.map((l) => FilterChip(
-          label: Text(l, style: const TextStyle(color: Colors.white)),
-          selected: _languages.contains(l),
-          onSelected: disabled ? null : (v){ setState(() { if (v) _languages.add(l); else _languages.remove(l); }); },
-          selectedColor: Colors.white24,
-          backgroundColor: Colors.white12,
-          shape: StadiumBorder(side: BorderSide(color: Colors.white.withOpacity(0.3))),
-        )),
+              label: Text(l, style: const TextStyle(color: Colors.white)),
+              selected: _languages.contains(l),
+              onSelected: disabled
+                  ? null
+                  : (v) {
+                      setState(() {
+                        if (v)
+                          _languages.add(l);
+                        else
+                          _languages.remove(l);
+                      });
+                    },
+              selectedColor: Colors.white24,
+              backgroundColor: Colors.white12,
+              shape: StadiumBorder(
+                  side: BorderSide(color: Colors.white.withOpacity(0.3))),
+            )),
       ]),
       const SizedBox(height: 8),
       Row(children: [
-        Expanded(child: field('Other language', _otherLangCtrl, readOnly: disabled)),
+        Expanded(
+            child: field('Other language', _otherLangCtrl, readOnly: disabled)),
         const SizedBox(width: 8),
         ElevatedButton(
-          onPressed: disabled ? null : (){
-            final t = _otherLangCtrl.text.trim();
-            if (t.isNotEmpty) setState(() { _languages.add(t); _otherLangCtrl.clear(); });
-          },
+          onPressed: disabled
+              ? null
+              : () {
+                  final t = _otherLangCtrl.text.trim();
+                  if (t.isNotEmpty)
+                    setState(() {
+                      _languages.add(t);
+                      _otherLangCtrl.clear();
+                    });
+                },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.white12),
           child: const Text('Add'),
         )
@@ -848,7 +1255,11 @@ class _SpecItem {
   final String specialization;
   final String? certificateName;
   final String? imageUrl;
-  _SpecItem({this.id, required this.specialization, this.certificateName, this.imageUrl});
+  _SpecItem(
+      {this.id,
+      required this.specialization,
+      this.certificateName,
+      this.imageUrl});
 }
 
 class _SpecRowEdit {
@@ -869,7 +1280,8 @@ class _SpecRowEdit {
     this.existingImageUrl,
   })  : originalSpecialization = specialization,
         originalCertificateName = certificateName,
-        certificateNameCtrl = TextEditingController(text: certificateName ?? '');
+        certificateNameCtrl =
+            TextEditingController(text: certificateName ?? '');
 
   void dispose() {
     certificateNameCtrl.dispose();

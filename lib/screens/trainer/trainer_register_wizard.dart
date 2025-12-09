@@ -7,13 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
- 
+
 // import '../../config/app_colors.dart';
 import '../../state/auth_manager.dart';
 import '../../utils/role_storage.dart';
 import '../../utils/user_role.dart';
 import '../../widgets/glass_card.dart';
 import 'trainer_dashboard.dart';
+import '../trainer/kyc/trainer_kyc_wizard.dart';
 
 class TrainerRegisterWizard extends StatefulWidget {
   const TrainerRegisterWizard({super.key});
@@ -84,9 +85,9 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
             raw;
       }
 
-  // Previously we displayed a derived trainer id preview; no longer used in UI
-  // final display = extractDisplayId(raw);
-  // if (display != null && mounted) setState(() => _rawTrainerId = display);
+      // Previously we displayed a derived trainer id preview; no longer used in UI
+      // final display = extractDisplayId(raw);
+      // if (display != null && mounted) setState(() => _rawTrainerId = display);
     } catch (e) {
       debugPrint('Failed to load saved ids: $e');
     }
@@ -120,12 +121,14 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
         final saved = await _saveBasicDetailsToServer();
         if (saved) {
           // mark role and go to dashboard
-          try { await saveUserRole(UserRole.trainer); } catch (_) {}
+          try {
+            await saveUserRole(UserRole.trainer);
+          } catch (_) {}
           if (!mounted) return;
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const TrainerDashboard()),
-                (route) => false,
+            MaterialPageRoute(builder: (_) => const TrainerKycWizard()),
+            (route) => false,
           );
         }
       } else if (!_otpVerified) {
@@ -162,23 +165,30 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
         prefId = null;
       }
 
-      prefId ??= sp.getString('fitstreet_trainer_id') ?? sp.getString('fitstreet_trainer_db_id') ?? '';
+      prefId ??= sp.getString('fitstreet_trainer_id') ??
+          sp.getString('fitstreet_trainer_db_id') ??
+          '';
 
       if (prefId.isEmpty) {
         await sp.setString('fitstreet_trainer_name', name);
-        if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
+        if (email.isNotEmpty)
+          await sp.setString('fitstreet_trainer_email', email);
         _snack("Saved locally — will update on registration completion.");
         return true;
       }
 
       try {
-        final res = await auth.updateTrainerProfile(prefId, fullName: name.isEmpty ? null : name, email: email.isEmpty ? null : email);
-        final statusCode = (res['statusCode'] is int) ? res['statusCode'] as int : 0;
+        final res = await auth.updateTrainerProfile(prefId,
+            fullName: name.isEmpty ? null : name,
+            email: email.isEmpty ? null : email);
+        final statusCode =
+            (res['statusCode'] is int) ? res['statusCode'] as int : 0;
         final body = res['body'];
 
         if (statusCode == 200 || statusCode == 201) {
           await sp.setString('fitstreet_trainer_name', name);
-          if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
+          if (email.isNotEmpty)
+            await sp.setString('fitstreet_trainer_email', email);
           try {
             await auth.fetchTrainerProfile(prefId);
             await _loadSavedIds();
@@ -187,21 +197,27 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           return true;
         } else {
           await sp.setString('fitstreet_trainer_name', name);
-          if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
+          if (email.isNotEmpty)
+            await sp.setString('fitstreet_trainer_email', email);
 
-          String msg = 'Server returned ${statusCode == 0 ? 'no response' : statusCode}';
+          String msg =
+              'Server returned ${statusCode == 0 ? 'no response' : statusCode}';
           try {
-            if (body is Map) msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg).toString();
+            if (body is Map)
+              msg = (body['message'] ?? body['error'] ?? body['msg'] ?? msg)
+                  .toString();
             else if (res['error'] != null) msg = res['error'].toString();
           } catch (_) {}
 
           debugPrint('updateTrainerProfile non-200: $statusCode -> $body');
-          _snack("Saved locally. Server update failed: $msg — you can continue; we'll sync later.");
+          _snack(
+              "Saved locally. Server update failed: $msg — you can continue; we'll sync later.");
           return true;
         }
       } catch (e) {
         await sp.setString('fitstreet_trainer_name', name);
-        if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
+        if (email.isNotEmpty)
+          await sp.setString('fitstreet_trainer_email', email);
         debugPrint('updateTrainerProfile exception: $e');
         _snack("Network error. Saved locally and will sync later.");
         return true;
@@ -237,7 +253,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       } else {
         String msg = 'Failed to send OTP';
         try {
-          if (body is Map && (body['message'] != null || body['error'] != null)) msg = (body['message'] ?? body['error']).toString();
+          if (body is Map && (body['message'] != null || body['error'] != null))
+            msg = (body['message'] ?? body['error']).toString();
           else if (res['message'] != null) msg = res['message'].toString();
         } catch (_) {}
         _snack(msg);
@@ -267,7 +284,9 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
     final auth = context.read<AuthManager>();
     try {
       final res = await auth.verifySignupOtp(mobile, otp, role: 'trainer');
-      final success = (res['success'] == true) || ((res['statusCode'] ?? 0) == 200) || ((res['statusCode'] ?? 0) == 201);
+      final success = (res['success'] == true) ||
+          ((res['statusCode'] ?? 0) == 200) ||
+          ((res['statusCode'] ?? 0) == 201);
 
       if (success) {
         setState(() {
@@ -278,9 +297,12 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
         try {
           final sp = await SharedPreferences.getInstance();
-          if (name.isNotEmpty) await sp.setString('fitstreet_trainer_name', name);
-          if (email.isNotEmpty) await sp.setString('fitstreet_trainer_email', email);
-          if (mobile.isNotEmpty) await sp.setString('fitstreet_trainer_mobile', mobile);
+          if (name.isNotEmpty)
+            await sp.setString('fitstreet_trainer_name', name);
+          if (email.isNotEmpty)
+            await sp.setString('fitstreet_trainer_email', email);
+          if (mobile.isNotEmpty)
+            await sp.setString('fitstreet_trainer_mobile', mobile);
         } catch (_) {}
 
         // Try extract ids, update profile and fetch profile if possible (best-effort).
@@ -293,16 +315,23 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
             final data = body['data'] ?? body;
             if (data is Map) {
               dbId = (data['_id'] ?? data['id'])?.toString();
-              trainerUnique = (data['trainerUniqueId'] ?? data['trainerUniqueID'] ?? data['trainerUniqueid'])?.toString();
+              trainerUnique = (data['trainerUniqueId'] ??
+                      data['trainerUniqueID'] ??
+                      data['trainerUniqueid'])
+                  ?.toString();
             } else {
               dbId = (body['_id'] ?? body['id'])?.toString();
-              trainerUnique = (body['trainerUniqueId'] ?? body['trainerUniqueID'] ?? body['trainerUniqueid'])?.toString();
+              trainerUnique = (body['trainerUniqueId'] ??
+                      body['trainerUniqueID'] ??
+                      body['trainerUniqueid'])
+                  ?.toString();
             }
           }
         } catch (_) {}
 
         try {
-          if ((dbId == null || dbId.isEmpty) && res['id'] != null) dbId = res['id'].toString();
+          if ((dbId == null || dbId.isEmpty) && res['id'] != null)
+            dbId = res['id'].toString();
         } catch (_) {}
 
         String? _normalizeId(dynamic raw) {
@@ -315,10 +344,14 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
             try {
               final parsed = jsonDecode(s);
               if (parsed is Map) {
-                final cand = parsed['_id'] ?? parsed['id'] ?? parsed['trainerUniqueId'] ?? parsed['trainerUniqueID'];
+                final cand = parsed['_id'] ??
+                    parsed['id'] ??
+                    parsed['trainerUniqueId'] ??
+                    parsed['trainerUniqueID'];
                 if (cand != null) {
                   final candStr = cand.toString();
-                  final insideHex = RegExp(r'([0-9a-fA-F]{24})').firstMatch(candStr);
+                  final insideHex =
+                      RegExp(r'([0-9a-fA-F]{24})').firstMatch(candStr);
                   if (insideHex != null) return insideHex.group(1);
                   return candStr;
                 }
@@ -342,9 +375,13 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
           if (n != null && n.isNotEmpty) candidates.add(n);
         }
         final nStored = _normalizeId(storedPrefCandidate);
-        if (nStored != null && nStored.isNotEmpty && !candidates.contains(nStored)) candidates.add(nStored);
+        if (nStored != null &&
+            nStored.isNotEmpty &&
+            !candidates.contains(nStored)) candidates.add(nStored);
 
-        if (trainerUnique != null && trainerUnique.isNotEmpty && !candidates.contains(trainerUnique)) {
+        if (trainerUnique != null &&
+            trainerUnique.isNotEmpty &&
+            !candidates.contains(trainerUnique)) {
           candidates.add(trainerUnique);
         }
 
@@ -358,14 +395,19 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
         if (idToUse != null && idToUse.isNotEmpty) {
           try {
-            await auth.updateTrainerProfile(idToUse, fullName: name.isEmpty ? null : name, email: email.isEmpty ? null : email);
+            await auth.updateTrainerProfile(idToUse,
+                fullName: name.isEmpty ? null : name,
+                email: email.isEmpty ? null : email);
             await auth.fetchTrainerProfile(idToUse);
-            try { await _loadSavedIds(); } catch (_) {}
+            try {
+              await _loadSavedIds();
+            } catch (_) {}
           } catch (e) {
             debugPrint('verifyOtp: update/fetch using id $idToUse failed: $e');
           }
         } else {
-          debugPrint('verifyOtp: no usable trainer id extracted from response or prefs.');
+          debugPrint(
+              'verifyOtp: no usable trainer id extracted from response or prefs.');
         }
 
         _snack("Mobile verified — you can continue registration.");
@@ -373,7 +415,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
         String msg = 'OTP verification failed';
         try {
           final body = res['body'];
-          if (body is Map && (body['message'] != null || body['error'] != null)) msg = (body['message'] ?? body['error']).toString();
+          if (body is Map && (body['message'] != null || body['error'] != null))
+            msg = (body['message'] ?? body['error']).toString();
           else if (res['message'] != null) msg = res['message'].toString();
         } catch (_) {}
         _snack(msg);
@@ -426,7 +469,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                 height: kToolbarHeight,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Image.asset('assets/image/fitstreet-bull-logo.png', fit: BoxFit.contain),
+                  child: Image.asset('assets/image/fitstreet-bull-logo.png',
+                      fit: BoxFit.contain),
                 ),
               ),
             ],
@@ -442,33 +486,33 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
       body: Container(
         decoration: const BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/image/bg.png'),
+            image: AssetImage('assets/image/home2-bg.png'),
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.lighten),
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-            // Step indicator
-        //    Padding(
-        //      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        //      child: GlassCard(
-        //        child: Padding(
-        //          padding: const EdgeInsets.all(8),
-        //          child: Row(
-        //            children: [
-         //             _stepDot(0, "Basic"),
-                      // If you ever want to re-enable Payment & Done UI, uncomment these:
-                      // _line(),
-                      // _stepDot(1, "Payment"),
-                      // _line(),
-                      // _stepDot(2, "Done"),
-          //          ],
-          //        ),
-          //      ),
-          //    ),
-          //  ),
+              // Step indicator
+              //    Padding(
+              //      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              //      child: GlassCard(
+              //        child: Padding(
+              //          padding: const EdgeInsets.all(8),
+              //          child: Row(
+              //            children: [
+              //             _stepDot(0, "Basic"),
+              // If you ever want to re-enable Payment & Done UI, uncomment these:
+              // _line(),
+              // _stepDot(1, "Payment"),
+              // _line(),
+              // _stepDot(2, "Done"),
+              //          ],
+              //        ),
+              //      ),
+              //    ),
+              //  ),
 
               const SizedBox(height: 12),
 
@@ -495,7 +539,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            side: BorderSide(color: Colors.white.withOpacity(0.6)),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.6)),
                           ),
                           onPressed: _back,
                           child: const Text("Back"),
@@ -510,7 +555,8 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                         onPressed: _next,
                         child: Text(
                           _step < 1 ? "Continue" : "Go to Dashboard",
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -565,41 +611,72 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(" Basic Details",
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-
-                  _field("Full Name", _nameCtrl, validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? "Enter your full name" : null),
-
+                  _field("Full Name", _nameCtrl,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? "Enter your full name"
+                          : null),
                   _field("Email", _emailCtrl,
                       keyboardType: TextInputType.emailAddress, validator: (v) {
-                        if (v == null || v.isEmpty) return "Email is required";
-                        final ok = RegExp(r".+@.+\..+").hasMatch(v);
-                        return ok ? null : "Enter a valid email";
-                      }),
-
+                    if (v == null || v.isEmpty) return "Email is required";
+                    final ok = RegExp(r".+@.+\..+").hasMatch(v);
+                    return ok ? null : "Enter a valid email";
+                  }),
                   _field("Mobile Number", _mobileCtrl,
                       keyboardType: TextInputType.number,
                       inputFormatters: [
                         FilteringTextInputFormatter.digitsOnly,
                         LengthLimitingTextInputFormatter(10),
-                      ],
-                      validator: (v) {
-                        if (v == null || v.trim().isEmpty) return "Enter mobile number";
-                        if (v.length != 10) return "Enter a 10-digit mobile number";
-                        return null;
-                      }),
-
+                      ], validator: (v) {
+                    if (v == null || v.trim().isEmpty)
+                      return "Enter mobile number";
+                    if (v.length != 10) return "Enter a 10-digit mobile number";
+                    return null;
+                  }),
                   const SizedBox(height: 8),
-
                   if (!_otpSent)
                     Align(
                       alignment: Alignment.centerRight,
-                      child: TextButton(
+                      child: ElevatedButton(
                         onPressed: _loading ? null : _sendOtp,
-                        child: _loading
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator())
-                            : const Text("Send OTP"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.20),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            side: BorderSide(
+                                color: Colors.white.withOpacity(0.4)),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_loading)
+                              const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: const CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            else
+                              const Icon(Icons.sms,
+                                  size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Send OTP",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFFFF6B35)),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   else if (!_otpVerified) ...[
@@ -607,28 +684,94 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                     _field("Enter OTP", _otpCtrl,
                         keyboardType: TextInputType.number,
                         maxLength: 6,
-                        validator: (v) => (v == null || v.length != 6) ? "Enter 6-digit OTP" : null),
+                        validator: (v) => (v == null || v.length != 6)
+                            ? "Enter 6-digit OTP"
+                            : null),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(
-                          onPressed: (_resendCooldown == 0 && !_loading) ? _sendOtp : null,
-                          child: _resendCooldown == 0
-                              ? const Text("Resend OTP")
-                              : Text("Resend OTP (${_resendCooldown}s)"),
+                        ElevatedButton(
+                          onPressed: (_resendCooldown == 0 && !_loading)
+                              ? _sendOtp
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.20),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              side: BorderSide(
+                                  color: Colors.white.withOpacity(0.4)),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_loading)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              else
+                                const Icon(Icons.restart_alt,
+                                    size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Text(
+                                _resendCooldown == 0
+                                    ? "Resend OTP"
+                                    : "Resend OTP (${_resendCooldown}s)",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFFF6B35)),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
+                            backgroundColor: Colors.white.withOpacity(0.20),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                              side: BorderSide(
+                                  color: Colors.white.withOpacity(0.4)),
+                            ),
+                            elevation: 0,
                           ),
                           onPressed: _loading ? null : _verifyOtp,
-                          child: _loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator()) : const Text("Verify OTP", style: TextStyle(color: Colors.white)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_loading)
+                                const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              else
+                                const Icon(Icons.verified,
+                                    size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Verify OTP",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFFF6B35)),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ]
-                  else
+                  ] else
                     GlassCard(
                       child: Padding(
                         padding: const EdgeInsets.all(12),
@@ -642,7 +785,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
                         ),
                       ),
                     ),
-
                   const SizedBox(height: 8),
                   const Text(
                     "Your mobile (after OTP verify) becomes your login. Email is for receipts & updates.",
@@ -659,10 +801,10 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
 
   Widget _field(String label, TextEditingController c,
       {String? Function(String?)? validator,
-        TextInputType? keyboardType,
-        bool obscureText = false,
-        int? maxLength,
-        List<TextInputFormatter>? inputFormatters}) {
+      TextInputType? keyboardType,
+      bool obscureText = false,
+      int? maxLength,
+      List<TextInputFormatter>? inputFormatters}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -695,7 +837,7 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
   void _back() {
     if (_step == 0) return;
     setState(() => _step -= 1);
-  _page.jumpToPage(_step);
+    _page.jumpToPage(_step);
   }
 
 // --------------------------------------------------------------------------
@@ -833,7 +975,6 @@ class _TrainerRegisterWizardState extends State<TrainerRegisterWizard> {
   //   );
   // }
   */
-
 }
 
 // Small bullet row kept commented for future use with payment step
